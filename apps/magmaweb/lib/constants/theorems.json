@@ -2,205 +2,196 @@
   "version": "0.1",
   "rule_groups": [
     {
-      "group_id": "general_arithmetic",
-      "name": "四則計算の基本規則",
+      "group_id": "basic_algebra",
+      "name": "文字式と四則計算の基本（中1）",
       "rules": [
+        {
+          "id": "rule_substitution_basic",
+          "name": "代入",
+          "level": ["middle", "high"],
+          "before": "f(x), x = a",
+          "after": "f(a)",
+          "symbols": {
+            "f(x)": "xを変数とする関数や式",
+            "x": "変数",
+            "a": "代入する定数または式"
+          }
+        },
+        {
+          "id": "rule_variable_replacement",
+          "name": "文字置換",
+          "level": ["middle", "high"],
+          "before": "A(x), t = f(x)",
+          "after": "A rewritten by t",
+          "symbols": {
+            "A(x)": "xを変数とする式",
+            "x": "変数",
+            "t": "新しい変数",
+            "f(x)": "xを変数とする式（tと置き換える対象）"
+          }
+        },
         {
           "id": "rule_add_commutative",
           "name": "加法の交換法則",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "a + b",
           "after": "b + a",
-          "conditions": ["a,b are numbers or expressions"]
+          "conditions": ["a,b are numbers or expressions"],
+          "symbols": {
+            "a": "任意の定数、変数、または式",
+            "b": "任意の定数、変数、または式"
+          }
         },
         {
           "id": "rule_mul_commutative",
           "name": "乗法の交換法則",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "a * b",
           "after": "b * a",
-          "conditions": ["a,b are numbers or expressions"]
+          "conditions": ["a,b are numbers or expressions"],
+          "symbols": {
+            "a": "任意の定数、変数、または式",
+            "b": "任意の定数、変数、または式"
+          }
         },
         {
           "id": "rule_add_associative",
           "name": "加法の結合法則",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "(a + b) + c",
-          "after": "a + (b + c)"
+          "after": "a + (b + c)",
+          "symbols": {
+            "a": "任意の定数、変数、または式",
+            "b": "任意の定数、変数、または式",
+            "c": "任意の定数、変数、または式"
+          }
         },
         {
           "id": "rule_mul_associative",
           "name": "乗法の結合法則",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "(a * b) * c",
-          "after": "a * (b * c)"
+          "after": "a * (b * c)",
+          "symbols": {
+            "a": "任意の定数、変数、または式",
+            "b": "任意の定数、変数、または式",
+            "c": "任意の定数、変数、または式"
+          }
         },
         {
           "id": "rule_distributive_expand",
           "name": "分配法則（展開）",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "a * (b + c)",
-          "after": "a*b + a*c"
+          "after": "a*b + a*c",
+          "symbols": {
+            "a": "任意の定数、変数、または式",
+            "b": "任意の定数、変数、または式",
+            "c": "任意の定数、変数、または式"
+          }
         },
         {
           "id": "rule_distributive_factor",
           "name": "分配法則（くくり出し）",
           "level": ["middle", "high"],
           "before": "a*b + a*c",
-          "after": "a*(b + c)"
+          "after": "a*(b + c)",
+          "symbols": {
+            "a": "共通因数となる定数、変数、または式",
+            "b": "任意の定数、変数、または式",
+            "c": "任意の定数、変数、または式"
+          }
         }
       ]
     },
     {
       "group_id": "fraction_rules",
-      "name": "分数の変形規則",
+      "name": "分数の変形規則（中1〜）",
       "rules": [
         {
           "id": "rule_fraction_reduce",
           "name": "約分",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "(a*c)/(b*c)",
           "after": "a/b",
-          "conditions": ["c != 0"]
+          "conditions": ["c != 0"],
+          "symbols": {
+            "a": "分子の因数（式または数）",
+            "b": "分母の因数（式または数）",
+            "c": "分母と分子の共通因数"
+          }
         },
         {
           "id": "rule_fraction_expand",
           "name": "通分のための分母分子同倍",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "a/b",
           "after": "(a*c)/(b*c)",
-          "conditions": ["b != 0", "c != 0"]
+          "conditions": ["b != 0", "c != 0"],
+          "symbols": {
+            "a": "分子の式または数",
+            "b": "分母の式または数",
+            "c": "掛ける式または数"
+          }
         },
         {
           "id": "rule_fraction_add_same_denominator",
           "name": "同分母分数の加法",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "a/c + b/c",
           "after": "(a+b)/c",
-          "conditions": ["c != 0"]
+          "conditions": ["c != 0"],
+          "symbols": {
+            "a": "第1項の分子",
+            "b": "第2項の分子",
+            "c": "共通の分母"
+          }
         },
         {
           "id": "rule_fraction_add_common_denominator",
           "name": "異分母分数の加法",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "a/b + c/d",
           "after": "(a*d + b*c)/(b*d)",
-          "conditions": ["b != 0", "d != 0"]
+          "conditions": ["b != 0", "d != 0"],
+          "symbols": {
+            "a": "第1項の分子",
+            "b": "第1項の分母",
+            "c": "第2項の分子",
+            "d": "第2項の分母"
+          }
         },
         {
           "id": "rule_fraction_division",
           "name": "分数の除法",
-          "level": ["elementary", "middle", "high"],
+          "level": ["middle", "high"],
           "before": "(a/b) / (c/d)",
           "after": "(a/b) * (d/c)",
-          "conditions": ["b != 0", "c != 0", "d != 0"]
+          "conditions": ["b != 0", "c != 0", "d != 0"],
+          "symbols": {
+            "a": "被除数の分子",
+            "b": "被除数の分母",
+            "c": "除数の分子",
+            "d": "除数の分母"
+          }
         }
       ]
     },
     {
-      "group_id": "equation_rules",
-      "name": "等式変形規則",
-      "rules": [
-        {
-          "id": "rule_add_both_sides",
-          "name": "両辺に同じ式を加える",
-          "level": ["middle", "high"],
-          "before": "A = B",
-          "after": "A + C = B + C"
-        },
-        {
-          "id": "rule_subtract_both_sides",
-          "name": "両辺から同じ式を引く",
-          "level": ["middle", "high"],
-          "before": "A = B",
-          "after": "A - C = B - C"
-        },
-        {
-          "id": "rule_multiply_both_sides",
-          "name": "両辺に同じ式を掛ける",
-          "level": ["middle", "high"],
-          "before": "A = B",
-          "after": "A*C = B*C"
-        },
-        {
-          "id": "rule_divide_both_sides",
-          "name": "両辺を同じ式で割る",
-          "level": ["middle", "high"],
-          "before": "A = B",
-          "after": "A/C = B/C",
-          "conditions": ["C != 0"]
-        },
-        {
-          "id": "rule_transposition_add",
-          "name": "移項（加法）",
-          "level": ["middle", "high"],
-          "before": "A + C = B",
-          "after": "A = B - C"
-        },
-        {
-          "id": "rule_transposition_subtract",
-          "name": "移項（減法）",
-          "level": ["middle", "high"],
-          "before": "A - C = B",
-          "after": "A = B + C"
-        },
-        {
-          "id": "rule_clear_denominator",
-          "name": "分母を払う",
-          "level": ["middle", "high"],
-          "before": "A/b = C/d",
-          "after": "d*A = b*C",
-          "conditions": ["b != 0", "d != 0"]
-        }
-      ]
-    },
-    {
-      "group_id": "inequality_rules",
-      "name": "不等式変形規則",
-      "rules": [
-        {
-          "id": "rule_inequality_add_both_sides",
-          "name": "不等式の両辺に同じ式を加える",
-          "level": ["middle", "high"],
-          "before": "A < B",
-          "after": "A + C < B + C"
-        },
-        {
-          "id": "rule_inequality_multiply_positive",
-          "name": "不等式の両辺に正の数を掛ける",
-          "level": ["middle", "high"],
-          "before": "A < B",
-          "after": "A*C < B*C",
-          "conditions": ["C > 0"]
-        },
-        {
-          "id": "rule_inequality_multiply_negative",
-          "name": "不等式の両辺に負の数を掛ける",
-          "level": ["middle", "high"],
-          "before": "A < B",
-          "after": "A*C > B*C",
-          "conditions": ["C < 0"]
-        },
-        {
-          "id": "rule_inequality_reciprocal_positive",
-          "name": "正数の逆数による不等号反転",
-          "level": ["high"],
-          "before": "0 < A < B",
-          "after": "1/A > 1/B",
-          "conditions": ["A > 0", "B > 0"]
-        }
-      ]
-    },
-    {
-      "group_id": "power_root_rules",
-      "name": "累乗・根号の変形規則",
+      "group_id": "power_basic",
+      "name": "累乗の基本法則（中1・中2）",
       "rules": [
         {
           "id": "rule_power_product",
           "name": "累乗の積",
           "level": ["middle", "high"],
           "before": "a^m * a^n",
-          "after": "a^(m+n)"
+          "after": "a^(m+n)",
+          "symbols": {
+            "a": "底（任意の数または式）",
+            "m": "指数",
+            "n": "指数"
+          }
         },
         {
           "id": "rule_power_quotient",
@@ -208,21 +199,285 @@
           "level": ["middle", "high"],
           "before": "a^m / a^n",
           "after": "a^(m-n)",
-          "conditions": ["a != 0"]
+          "conditions": ["a != 0"],
+          "symbols": {
+            "a": "底（0以外の任意の数または式）",
+            "m": "被除数の指数",
+            "n": "除数の指数"
+          }
         },
         {
           "id": "rule_power_of_power",
           "name": "累乗の累乗",
           "level": ["middle", "high"],
           "before": "(a^m)^n",
-          "after": "a^(m*n)"
+          "after": "a^(m*n)",
+          "symbols": {
+            "a": "底（任意の数または式）",
+            "m": "内側の指数",
+            "n": "外側の指数"
+          }
         },
+        {
+          "id": "rule_power_distributive",
+          "name": "積の累乗",
+          "level": ["middle", "high"],
+          "before": "(a*b)^n",
+          "after": "a^n * b^n",
+          "symbols": {
+            "a": "底の因数",
+            "b": "底の因数",
+            "n": "指数"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "equation_rules",
+      "name": "等式変形・一次方程式（中1・中2）",
+      "rules": [
+        {
+          "id": "rule_add_both_sides",
+          "name": "両辺に同じ式を加える",
+          "level": ["middle", "high"],
+          "before": "A = B",
+          "after": "A + C = B + C",
+          "symbols": {
+            "A": "左辺の式",
+            "B": "右辺の式",
+            "C": "両辺に加える数または式"
+          }
+        },
+        {
+          "id": "rule_subtract_both_sides",
+          "name": "両辺から同じ式を引く",
+          "level": ["middle", "high"],
+          "before": "A = B",
+          "after": "A - C = B - C",
+          "symbols": {
+            "A": "左辺の式",
+            "B": "右辺の式",
+            "C": "両辺から引く数または式"
+          }
+        },
+        {
+          "id": "rule_multiply_both_sides",
+          "name": "両辺に同じ式を掛ける",
+          "level": ["middle", "high"],
+          "before": "A = B",
+          "after": "A*C = B*C",
+          "symbols": {
+            "A": "左辺の式",
+            "B": "右辺の式",
+            "C": "両辺に掛ける数または式"
+          }
+        },
+        {
+          "id": "rule_divide_both_sides",
+          "name": "両辺を同じ式で割る",
+          "level": ["middle", "high"],
+          "before": "A = B",
+          "after": "A/C = B/C",
+          "conditions": ["C != 0"],
+          "symbols": {
+            "A": "左辺の式",
+            "B": "右辺の式",
+            "C": "両辺を割る数または式（0以外）"
+          }
+        },
+        {
+          "id": "rule_transposition_add",
+          "name": "移項（加法）",
+          "level": ["middle", "high"],
+          "before": "A + C = B",
+          "after": "A = B - C",
+          "symbols": {
+            "A": "左辺に残す式",
+            "C": "移項する項",
+            "B": "右辺の式"
+          }
+        },
+        {
+          "id": "rule_transposition_subtract",
+          "name": "移項（減法）",
+          "level": ["middle", "high"],
+          "before": "A - C = B",
+          "after": "A = B + C",
+          "symbols": {
+            "A": "左辺に残す式",
+            "C": "移項する項の絶対値部分",
+            "B": "右辺の式"
+          }
+        },
+        {
+          "id": "rule_clear_denominator",
+          "name": "分母を払う",
+          "level": ["middle", "high"],
+          "before": "A/b = C/d",
+          "after": "d*A = b*C",
+          "conditions": ["b != 0", "d != 0"],
+          "symbols": {
+            "A": "左辺の分子の式",
+            "b": "左辺の分母",
+            "C": "右辺の分子の式",
+            "d": "右辺の分母"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "inequality_rules",
+      "name": "不等式の変形（中1・高1）",
+      "rules": [
+        {
+          "id": "rule_inequality_add_both_sides",
+          "name": "不等式の両辺に同じ式を加える",
+          "level": ["middle", "high"],
+          "before": "A < B",
+          "after": "A + C < B + C",
+          "symbols": {
+            "A": "左辺の式",
+            "B": "右辺の式",
+            "C": "両辺に加える数または式"
+          }
+        },
+        {
+          "id": "rule_inequality_multiply_positive",
+          "name": "不等式の両辺に正の数を掛ける",
+          "level": ["middle", "high"],
+          "before": "A < B",
+          "after": "A*C < B*C",
+          "conditions": ["C > 0"],
+          "symbols": {
+            "A": "左辺の式",
+            "B": "右辺の式",
+            "C": "正の数"
+          }
+        },
+        {
+          "id": "rule_inequality_multiply_negative",
+          "name": "不等式の両辺に負の数を掛ける",
+          "level": ["middle", "high"],
+          "before": "A < B",
+          "after": "A*C > B*C",
+          "conditions": ["C < 0"],
+          "symbols": {
+            "A": "左辺の式",
+            "B": "右辺の式",
+            "C": "負の数"
+          }
+        },
+        {
+          "id": "rule_inequality_reciprocal_positive",
+          "name": "正数の逆数による不等号反転",
+          "level": ["high"],
+          "before": "0 < A < B",
+          "after": "1/A > 1/B",
+          "conditions": ["A > 0", "B > 0"],
+          "symbols": {
+            "A": "左辺の式（正の数）",
+            "B": "右辺の式（正の数）"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "expansion_factorization_basic",
+      "name": "展開・因数分解の基礎（中3）",
+      "rules": [
+        {
+          "id": "rule_expand_square_sum",
+          "name": "平方の展開",
+          "level": ["middle", "high"],
+          "before": "(a+b)^2",
+          "after": "a^2 + 2*a*b + b^2",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        },
+        {
+          "id": "rule_expand_square_difference",
+          "name": "差の平方の展開",
+          "level": ["middle", "high"],
+          "before": "(a-b)^2",
+          "after": "a^2 - 2*a*b + b^2",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        },
+        {
+          "id": "rule_expand_sum_difference",
+          "name": "和と差の積の展開",
+          "level": ["middle", "high"],
+          "before": "(a+b)(a-b)",
+          "after": "a^2 - b^2",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        },
+        {
+          "id": "rule_factor_square_sum",
+          "name": "平方公式による因数分解",
+          "level": ["middle", "high"],
+          "before": "a^2 + 2*a*b + b^2",
+          "after": "(a+b)^2",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        },
+        {
+          "id": "rule_factor_square_difference",
+          "name": "差の平方公式による因数分解",
+          "level": ["middle", "high"],
+          "before": "a^2 - 2*a*b + b^2",
+          "after": "(a-b)^2",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        },
+        {
+          "id": "rule_factor_difference_of_squares",
+          "name": "平方差の因数分解",
+          "level": ["middle", "high"],
+          "before": "a^2 - b^2",
+          "after": "(a+b)(a-b)",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "square_root_rules",
+      "name": "平方根（中3）",
+      "rules": [
         {
           "id": "rule_root_square",
           "name": "平方根と2乗",
           "level": ["middle", "high"],
           "before": "sqrt(a^2)",
-          "after": "|a|"
+          "after": "|a|",
+          "symbols": {
+            "a": "実数または式"
+          }
+        },
+        {
+          "id": "rule_root_product",
+          "name": "平方根の積",
+          "level": ["middle", "high"],
+          "before": "sqrt(a) * sqrt(b)",
+          "after": "sqrt(a*b)",
+          "conditions": ["a >= 0", "b >= 0"],
+          "symbols": {
+            "a": "0以上の実数または式",
+            "b": "0以上の実数または式"
+          }
         },
         {
           "id": "rule_rationalize_denominator",
@@ -230,69 +485,28 @@
           "level": ["middle", "high"],
           "before": "a/sqrt(b)",
           "after": "a*sqrt(b)/b",
-          "conditions": ["b > 0"]
+          "conditions": ["b > 0"],
+          "symbols": {
+            "a": "分子の実数または式",
+            "b": "分母の根号内の実数または式（正の数）"
+          }
         }
       ]
     },
     {
-      "group_id": "factorization_expansion",
-      "name": "展開・因数分解",
+      "group_id": "quadratic_equations_basic",
+      "name": "二次方程式の基礎（中3）",
       "rules": [
         {
-          "id": "rule_expand_square_sum",
-          "name": "平方の展開",
+          "id": "rule_zero_product_property",
+          "name": "積が0なら少なくとも一方が0",
           "level": ["middle", "high"],
-          "before": "(a+b)^2",
-          "after": "a^2 + 2*a*b + b^2"
-        },
-        {
-          "id": "rule_expand_square_difference",
-          "name": "差の平方の展開",
-          "level": ["middle", "high"],
-          "before": "(a-b)^2",
-          "after": "a^2 - 2*a*b + b^2"
-        },
-        {
-          "id": "rule_expand_sum_difference",
-          "name": "和と差の積の展開",
-          "level": ["middle", "high"],
-          "before": "(a+b)(a-b)",
-          "after": "a^2 - b^2"
-        },
-        {
-          "id": "rule_factor_square_sum",
-          "name": "平方公式による因数分解",
-          "level": ["middle", "high"],
-          "before": "a^2 + 2*a*b + b^2",
-          "after": "(a+b)^2"
-        },
-        {
-          "id": "rule_factor_square_difference",
-          "name": "差の平方公式による因数分解",
-          "level": ["middle", "high"],
-          "before": "a^2 - 2*a*b + b^2",
-          "after": "(a-b)^2"
-        },
-        {
-          "id": "rule_factor_difference_of_squares",
-          "name": "平方差の因数分解",
-          "level": ["middle", "high"],
-          "before": "a^2 - b^2",
-          "after": "(a+b)(a-b)"
-        }
-      ]
-    },
-    {
-      "group_id": "quadratic_rules",
-      "name": "二次式・二次方程式の変形",
-      "rules": [
-        {
-          "id": "rule_complete_square",
-          "name": "平方完成",
-          "level": ["high"],
-          "before": "a*x^2 + b*x + c",
-          "after": "a*(x + b/(2*a))^2 + c - b^2/(4*a)",
-          "conditions": ["a != 0"]
+          "before": "A*B = 0",
+          "after": "A = 0 or B = 0",
+          "symbols": {
+            "A": "因数となる式",
+            "B": "因数となる式"
+          }
         },
         {
           "id": "rule_quadratic_formula",
@@ -300,34 +514,1166 @@
           "level": ["middle", "high"],
           "before": "a*x^2 + b*x + c = 0",
           "after": "x = (-b ± sqrt(b^2 - 4*a*c))/(2*a)",
-          "conditions": ["a != 0"]
-        },
-        {
-          "id": "rule_zero_product_property",
-          "name": "積が0なら少なくとも一方が0",
-          "level": ["middle", "high"],
-          "before": "A*B = 0",
-          "after": "A = 0 or B = 0"
+          "conditions": ["a != 0"],
+          "symbols": {
+            "x": "未知数（変数）",
+            "a": "2次の項の係数（定数）",
+            "b": "1次の項の係数（定数）",
+            "c": "定数項"
+          }
         }
       ]
     },
     {
-      "group_id": "substitution_rules",
-      "name": "代入・置換",
+      "group_id": "expansion_factorization_advanced",
+      "name": "数と式の発展・3次式の展開因数分解（高1・数I）",
       "rules": [
         {
-          "id": "rule_substitution_basic",
-          "name": "代入",
-          "level": ["elementary", "middle", "high"],
-          "before": "f(x), x = a",
-          "after": "f(a)"
+          "id": "rule_absolute_value",
+          "name": "絶対値の定義",
+          "level": ["high"],
+          "before": "|a|",
+          "after": "a (if a>=0) or -a (if a<0)",
+          "symbols": {
+            "a": "実数または式"
+          }
         },
         {
-          "id": "rule_variable_replacement",
-          "name": "文字置換",
-          "level": ["middle", "high"],
-          "before": "A(x), t = f(x)",
-          "after": "A rewritten by t"
+          "id": "rule_expand_cubic_sum",
+          "name": "立方の展開",
+          "level": ["high"],
+          "before": "(a+b)^3",
+          "after": "a^3 + 3*a^2*b + 3*a*b^2 + b^3",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        },
+        {
+          "id": "rule_factor_sum_of_cubes",
+          "name": "立方和の因数分解",
+          "level": ["high"],
+          "before": "a^3 + b^3",
+          "after": "(a+b)(a^2 - a*b + b^2)",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        },
+        {
+          "id": "rule_factor_difference_of_cubes",
+          "name": "立方差の因数分解",
+          "level": ["high"],
+          "before": "a^3 - b^3",
+          "after": "(a-b)(a^2 + a*b + b^2)",
+          "symbols": {
+            "a": "項（定数や変数、または式）",
+            "b": "項（定数や変数、または式）"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "quadratic_functions",
+      "name": "二次関数（高1・数I）",
+      "rules": [
+        {
+          "id": "rule_complete_square",
+          "name": "平方完成",
+          "level": ["high"],
+          "before": "a*x^2 + b*x + c",
+          "after": "a*(x + b/(2*a))^2 + c - b^2/(4*a)",
+          "conditions": ["a != 0"],
+          "symbols": {
+            "x": "変数",
+            "a": "2次の項の係数（定数）",
+            "b": "1次の項の係数（定数）",
+            "c": "定数項"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "trigonometry_basic",
+      "name": "三角比（高1・数I）",
+      "rules": [
+        {
+          "id": "rule_trig_pythagorean",
+          "name": "三角比の相互関係（平方和）",
+          "level": ["high"],
+          "before": "sin(x)^2 + cos(x)^2",
+          "after": "1",
+          "symbols": {
+            "x": "角度（変数）"
+          }
+        },
+        {
+          "id": "rule_trig_tan_def",
+          "name": "正接の定義",
+          "level": ["high"],
+          "before": "tan(x)",
+          "after": "sin(x) / cos(x)",
+          "conditions": ["cos(x) != 0"],
+          "symbols": {
+            "x": "角度（変数）"
+          }
+        },
+        {
+          "id": "rule_sine_theorem",
+          "name": "正弦定理",
+          "level": ["high"],
+          "before": "a / sin(A)",
+          "after": "2*R",
+          "conditions": ["R is circumradius"],
+          "symbols": {
+            "A": "三角形の角",
+            "a": "角Aの対辺の長さ",
+            "R": "外接円の半径"
+          }
+        },
+        {
+          "id": "rule_cosine_theorem",
+          "name": "余弦定理",
+          "level": ["high"],
+          "before": "c^2",
+          "after": "a^2 + b^2 - 2*a*b*cos(C)",
+          "symbols": {
+            "C": "三角形の角",
+            "c": "角Cの対辺の長さ",
+            "a": "他の辺の長さ",
+            "b": "他の辺の長さ"
+          }
+        },
+        {
+          "id": "rule_triangle_area",
+          "name": "三角形の面積公式",
+          "level": ["high"],
+          "before": "S",
+          "after": "(1/2)*a*b*sin(C)",
+          "symbols": {
+            "S": "三角形の面積",
+            "C": "三角形の角",
+            "a": "角を挟む辺の長さ",
+            "b": "角を挟む辺の長さ"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "set_logic_rules",
+      "name": "集合と論理（高1・数I）",
+      "rules": [
+        {
+          "id": "rule_de_morgan_and",
+          "name": "ド・モルガンの法則（かつ）",
+          "level": ["high"],
+          "before": "not (A and B)",
+          "after": "(not A) or (not B)",
+          "symbols": {
+            "A": "集合または命題",
+            "B": "集合または命題"
+          }
+        },
+        {
+          "id": "rule_de_morgan_or",
+          "name": "ド・モルガンの法則（または）",
+          "level": ["high"],
+          "before": "not (A or B)",
+          "after": "(not A) and (not B)",
+          "symbols": {
+            "A": "集合または命題",
+            "B": "集合または命題"
+          }
+        },
+        {
+          "id": "rule_contrapositive",
+          "name": "対偶",
+          "level": ["high"],
+          "before": "P implies Q",
+          "after": "(not Q) implies (not P)",
+          "symbols": {
+            "P": "条件・命題",
+            "Q": "条件・命題"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "combinatorics_probability_rules",
+      "name": "場合の数と確率（高1・数A）",
+      "rules": [
+        {
+          "id": "rule_permutation",
+          "name": "順列",
+          "level": ["high"],
+          "before": "nPr",
+          "after": "n! / (n-r)!",
+          "symbols": {
+            "n": "全体の要素数（自然数）",
+            "r": "選んで並べる要素数（自然数）"
+          }
+        },
+        {
+          "id": "rule_combination",
+          "name": "組合せ",
+          "level": ["high"],
+          "before": "nCr",
+          "after": "n! / (r! * (n-r)!)",
+          "symbols": {
+            "n": "全体の要素数（自然数）",
+            "r": "選ぶ要素数（自然数）"
+          }
+        },
+        {
+          "id": "rule_probability_addition",
+          "name": "確率の加法定理",
+          "level": ["high"],
+          "before": "P(A ∪ B)",
+          "after": "P(A) + P(B) - P(A ∩ B)",
+          "symbols": {
+            "A": "事象",
+            "B": "事象",
+            "P(A)": "事象Aが起こる確率"
+          }
+        },
+        {
+          "id": "rule_conditional_probability",
+          "name": "条件付き確率",
+          "level": ["high"],
+          "before": "P_A(B)",
+          "after": "P(A ∩ B) / P(A)",
+          "conditions": ["P(A) > 0"],
+          "symbols": {
+            "A": "条件となる事象",
+            "B": "対象となる事象",
+            "P_A(B)": "事象Aが起こったもとで事象Bが起こる確率"
+          }
+        },
+        {
+          "id": "rule_independent_trials",
+          "name": "独立反復試行の確率",
+          "level": ["high"],
+          "before": "P(r successes in n trials)",
+          "after": "nCr * p^r * (1-p)^(n-r)",
+          "conditions": ["p is probability of success"],
+          "symbols": {
+            "n": "試行回数",
+            "r": "成功する回数",
+            "p": "1回の試行で成功する確率"
+          }
+        },
+        {
+          "id": "rule_expectation_linearity",
+          "name": "期待値の線形性",
+          "level": ["high"],
+          "before": "E(aX + bY)",
+          "after": "a*E(X) + b*E(Y)",
+          "symbols": {
+            "X": "確率変数",
+            "Y": "確率変数",
+            "a": "定数",
+            "b": "定数",
+            "E(X)": "Xの期待値"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "integer_rules",
+      "name": "整数の性質（高1・数A）",
+      "rules": [
+        {
+          "id": "rule_congruence_add",
+          "name": "合同式の加法",
+          "level": ["high"],
+          "before": "a ≡ b (mod m) and c ≡ d (mod m)",
+          "after": "a + c ≡ b + d (mod m)",
+          "symbols": {
+            "a": "整数",
+            "b": "整数",
+            "c": "整数",
+            "d": "整数",
+            "m": "法（自然数）"
+          }
+        },
+        {
+          "id": "rule_congruence_multiply",
+          "name": "合同式の乗法",
+          "level": ["high"],
+          "before": "a ≡ b (mod m) and c ≡ d (mod m)",
+          "after": "a * c ≡ b * d (mod m)",
+          "symbols": {
+            "a": "整数",
+            "b": "整数",
+            "c": "整数",
+            "d": "整数",
+            "m": "法（自然数）"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "higher_degree_equations",
+      "name": "式と証明・高次方程式（高2・数II）",
+      "rules": [
+        {
+          "id": "rule_binomial_theorem",
+          "name": "二項定理",
+          "level": ["high"],
+          "before": "(a+b)^n",
+          "after": "Σ(k=0 to n) nCk * a^(n-k) * b^k",
+          "symbols": {
+            "a": "項（式または数）",
+            "b": "項（式または数）",
+            "n": "指数（自然数）",
+            "k": "総和のインデックス変数"
+          }
+        },
+        {
+          "id": "rule_remainder_theorem",
+          "name": "剰余の定理",
+          "level": ["high"],
+          "before": "P(x) = (x-a)*Q(x) + R",
+          "after": "P(a) = R",
+          "symbols": {
+            "P(x)": "xの多項式",
+            "x": "変数",
+            "a": "定数",
+            "Q(x)": "商となる多項式",
+            "R": "余り（定数）"
+          }
+        },
+        {
+          "id": "rule_factor_theorem",
+          "name": "因数定理",
+          "level": ["high"],
+          "before": "P(a) = 0",
+          "after": "P(x) has factor (x-a)",
+          "symbols": {
+            "P(x)": "xの多項式",
+            "a": "定数",
+            "x": "変数"
+          }
+        },
+        {
+          "id": "rule_vieta_quadratic",
+          "name": "2次方程式の解と係数の関係",
+          "level": ["high"],
+          "before": "a*x^2 + b*x + c = 0 has roots α, β",
+          "after": "α+β = -b/a, α*β = c/a",
+          "symbols": {
+            "x": "未知数",
+            "a": "2次の項の係数",
+            "b": "1次の項の係数",
+            "c": "定数項",
+            "α": "方程式の解",
+            "β": "方程式の解"
+          }
+        },
+        {
+          "id": "rule_vieta_cubic",
+          "name": "3次方程式の解と係数の関係",
+          "level": ["high"],
+          "before": "a*x^3 + b*x^2 + c*x + d = 0 has roots α, β, γ",
+          "after": "α+β+γ = -b/a, αβ+βγ+γα = c/a, αβγ = -d/a",
+          "symbols": {
+            "x": "未知数",
+            "a": "3次の項の係数",
+            "b": "2次の項の係数",
+            "c": "1次の項の係数",
+            "d": "定数項",
+            "α": "方程式の解",
+            "β": "方程式の解",
+            "γ": "方程式の解"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "analytic_geometry_rules",
+      "name": "図形と方程式（高2・数II）",
+      "rules": [
+        {
+          "id": "rule_distance_two_points",
+          "name": "2点間の距離",
+          "level": ["high"],
+          "before": "distance(A, B)",
+          "after": "sqrt((x2-x1)^2 + (y2-y1)^2)",
+          "conditions": ["A(x1, y1)", "B(x2, y2)"],
+          "symbols": {
+            "A": "点",
+            "B": "点",
+            "x1": "点Aのx座標",
+            "y1": "点Aのy座標",
+            "x2": "点Bのx座標",
+            "y2": "点Bのy座標"
+          }
+        },
+        {
+          "id": "rule_internal_division",
+          "name": "線分の内分点",
+          "level": ["high"],
+          "before": "point dividing AB in m:n",
+          "after": "((n*x1 + m*x2)/(m+n), (n*y1 + m*y2)/(m+n))",
+          "symbols": {
+            "A": "端点",
+            "B": "端点",
+            "x1": "点Aのx座標",
+            "y1": "点Aのy座標",
+            "x2": "点Bのx座標",
+            "y2": "点Bのy座標",
+            "m": "比の定数",
+            "n": "比の定数"
+          }
+        },
+        {
+          "id": "rule_distance_point_line",
+          "name": "点と直線の距離",
+          "level": ["high"],
+          "before": "distance from (x0, y0) to ax+by+c=0",
+          "after": "|a*x0 + b*y0 + c| / sqrt(a^2 + b^2)",
+          "symbols": {
+            "x0": "点のx座標",
+            "y0": "点のy座標",
+            "a": "直線のxの係数",
+            "b": "直線のyの係数",
+            "c": "直線の定数項"
+          }
+        },
+        {
+          "id": "rule_circle_equation",
+          "name": "円の方程式",
+          "level": ["high"],
+          "before": "circle with center (a,b) and radius r",
+          "after": "(x-a)^2 + (y-b)^2 = r^2",
+          "symbols": {
+            "x": "円周上の点のx座標（変数）",
+            "y": "円周上の点のy座標（変数）",
+            "a": "中心のx座標（定数）",
+            "b": "中心のy座標（定数）",
+            "r": "半径（正の定数）"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "trigonometry_advanced",
+      "name": "三角関数（高2・数II）",
+      "rules": [
+        {
+          "id": "rule_trig_add_sin",
+          "name": "正弦の加法定理",
+          "level": ["high"],
+          "before": "sin(α ± β)",
+          "after": "sin(α)cos(β) ± cos(α)sin(β)",
+          "symbols": {
+            "α": "角度（変数または定数）",
+            "β": "角度（変数または定数）"
+          }
+        },
+        {
+          "id": "rule_trig_add_cos",
+          "name": "余弦の加法定理",
+          "level": ["high"],
+          "before": "cos(α ± β)",
+          "after": "cos(α)cos(β) ∓ sin(α)sin(β)",
+          "symbols": {
+            "α": "角度（変数または定数）",
+            "β": "角度（変数または定数）"
+          }
+        },
+        {
+          "id": "rule_trig_double_sin",
+          "name": "正弦の2倍角公式",
+          "level": ["high"],
+          "before": "sin(2*α)",
+          "after": "2 * sin(α) * cos(α)",
+          "symbols": {
+            "α": "角度（変数または定数）"
+          }
+        },
+        {
+          "id": "rule_trig_double_cos",
+          "name": "余弦の2倍角公式",
+          "level": ["high"],
+          "before": "cos(2*α)",
+          "after": "cos(α)^2 - sin(α)^2",
+          "symbols": {
+            "α": "角度（変数または定数）"
+          }
+        },
+        {
+          "id": "rule_trig_half_sin",
+          "name": "正弦の半角公式",
+          "level": ["high"],
+          "before": "sin(α/2)^2",
+          "after": "(1 - cos(α)) / 2",
+          "symbols": {
+            "α": "角度（変数または定数）"
+          }
+        },
+        {
+          "id": "rule_trig_synthesis",
+          "name": "三角関数の合成",
+          "level": ["high"],
+          "before": "a*sin(x) + b*cos(x)",
+          "after": "sqrt(a^2 + b^2) * sin(x + α)",
+          "conditions": ["cos(α) = a/sqrt(a^2+b^2)", "sin(α) = b/sqrt(a^2+b^2)"],
+          "symbols": {
+            "x": "角度（変数）",
+            "a": "sinの係数（定数）",
+            "b": "cosの係数（定数）",
+            "α": "合成によって定まる位相角（定数）"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "exponential_logarithmic_rules",
+      "name": "指数関数と対数関数（高2・数II）",
+      "rules": [
+        {
+          "id": "rule_power_negative",
+          "name": "負の指数の定義",
+          "level": ["high"],
+          "before": "a^(-n)",
+          "after": "1 / (a^n)",
+          "conditions": ["a != 0"],
+          "symbols": {
+            "a": "底（0以外の定数または式）",
+            "n": "指数（正の数）"
+          }
+        },
+        {
+          "id": "rule_power_fraction",
+          "name": "有理数の指数の定義",
+          "level": ["high"],
+          "before": "a^(m/n)",
+          "after": "root(n, a^m)",
+          "conditions": ["a > 0", "n is integer > 0"],
+          "symbols": {
+            "a": "底（正の数または式）",
+            "m": "指数の分子（整数）",
+            "n": "指数の分母（自然数）"
+          }
+        },
+        {
+          "id": "rule_log_definition",
+          "name": "対数の定義",
+          "level": ["high"],
+          "before": "a^p = M",
+          "after": "p = log_a(M)",
+          "conditions": ["a > 0", "a != 1", "M > 0"],
+          "symbols": {
+            "a": "底（1以外の正の数）",
+            "p": "対数の値（指数）",
+            "M": "真数（正の数）"
+          }
+        },
+        {
+          "id": "rule_log_product",
+          "name": "真数の積",
+          "level": ["high"],
+          "before": "log_a(M * N)",
+          "after": "log_a(M) + log_a(N)",
+          "conditions": ["a > 0", "a != 1", "M > 0", "N > 0"],
+          "symbols": {
+            "a": "底",
+            "M": "真数の因数",
+            "N": "真数の因数"
+          }
+        },
+        {
+          "id": "rule_log_quotient",
+          "name": "真数の商",
+          "level": ["high"],
+          "before": "log_a(M / N)",
+          "after": "log_a(M) - log_a(N)",
+          "conditions": ["a > 0", "a != 1", "M > 0", "N > 0"],
+          "symbols": {
+            "a": "底",
+            "M": "真数の分子",
+            "N": "真数の分母"
+          }
+        },
+        {
+          "id": "rule_log_power",
+          "name": "真数の累乗",
+          "level": ["high"],
+          "before": "log_a(M^k)",
+          "after": "k * log_a(M)",
+          "conditions": ["a > 0", "a != 1", "M > 0"],
+          "symbols": {
+            "a": "底",
+            "M": "真数の底",
+            "k": "真数の指数"
+          }
+        },
+        {
+          "id": "rule_log_change_base",
+          "name": "底の変換公式",
+          "level": ["high"],
+          "before": "log_a(b)",
+          "after": "log_c(b) / log_c(a)",
+          "conditions": ["a > 0", "a != 1", "b > 0", "c > 0", "c != 1"],
+          "symbols": {
+            "a": "変換前の底",
+            "b": "真数",
+            "c": "変換後の新しい底"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "calculus_polynomial",
+      "name": "微分・積分の基礎（高2・数II）",
+      "rules": [
+        {
+          "id": "rule_derivative_power_basic",
+          "name": "累乗関数の微分（自然数）",
+          "level": ["high"],
+          "before": "(x^n)'",
+          "after": "n * x^(n-1)",
+          "conditions": ["n is integer >= 1"],
+          "symbols": {
+            "x": "変数",
+            "n": "指数（自然数）"
+          }
+        },
+        {
+          "id": "rule_derivative_linearity",
+          "name": "微分の線形性",
+          "level": ["high"],
+          "before": "(a*f(x) + b*g(x))'",
+          "after": "a*f'(x) + b*g'(x)",
+          "symbols": {
+            "a": "定数",
+            "b": "定数",
+            "f(x)": "xの関数",
+            "g(x)": "xの関数",
+            "x": "変数"
+          }
+        },
+        {
+          "id": "rule_integral_power_basic",
+          "name": "累乗関数の不定積分",
+          "level": ["high"],
+          "before": "∫ x^n dx",
+          "after": "x^(n+1)/(n+1) + C",
+          "conditions": ["n is integer >= 0"],
+          "symbols": {
+            "x": "積分変数",
+            "n": "指数（0以上の整数）",
+            "C": "積分定数"
+          }
+        },
+        {
+          "id": "rule_integral_linearity",
+          "name": "積分の線形性",
+          "level": ["high"],
+          "before": "∫ (a*f(x) + b*g(x)) dx",
+          "after": "a*∫ f(x) dx + b*∫ g(x) dx",
+          "symbols": {
+            "a": "定数",
+            "b": "定数",
+            "f(x)": "xの関数",
+            "g(x)": "xの関数",
+            "x": "積分変数"
+          }
+        },
+        {
+          "id": "rule_ftoc_basic",
+          "name": "定積分と微分の関係",
+          "level": ["high"],
+          "before": "d/dx ∫(a to x) f(t) dt",
+          "after": "f(x)",
+          "symbols": {
+            "a": "積分の下端（定数）",
+            "x": "積分の上端（微分する変数）",
+            "t": "積分変数",
+            "f(t)": "tの関数"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "sequence_rules",
+      "name": "数列（高2〜高3・数B/C）",
+      "rules": [
+        {
+          "id": "rule_arithmetic_general",
+          "name": "等差数列の一般項",
+          "level": ["high"],
+          "before": "a_n",
+          "after": "a + (n-1)*d",
+          "conditions": ["a is first term", "d is common difference"],
+          "symbols": {
+            "a_n": "第n項",
+            "n": "項数（自然数）",
+            "a": "初項（定数）",
+            "d": "公差（定数）"
+          }
+        },
+        {
+          "id": "rule_geometric_general",
+          "name": "等比数列の一般項",
+          "level": ["high"],
+          "before": "a_n",
+          "after": "a * r^(n-1)",
+          "conditions": ["a is first term", "r is common ratio"],
+          "symbols": {
+            "a_n": "第n項",
+            "n": "項数（自然数）",
+            "a": "初項（定数）",
+            "r": "公比（定数）"
+          }
+        },
+        {
+          "id": "rule_arithmetic_sum",
+          "name": "等差数列の和",
+          "level": ["high"],
+          "before": "S_n",
+          "after": "n*(a + l)/2",
+          "conditions": ["l is n-th term"],
+          "symbols": {
+            "S_n": "初項から第n項までの和",
+            "n": "項数",
+            "a": "初項",
+            "l": "末項（第n項）"
+          }
+        },
+        {
+          "id": "rule_geometric_sum",
+          "name": "等比数列の和",
+          "level": ["high"],
+          "before": "S_n",
+          "after": "a*(1 - r^n) / (1 - r)",
+          "conditions": ["r != 1"],
+          "symbols": {
+            "S_n": "初項から第n項までの和",
+            "n": "項数",
+            "a": "初項",
+            "r": "公比"
+          }
+        },
+        {
+          "id": "rule_sigma_linearity",
+          "name": "シグマの線形性",
+          "level": ["high"],
+          "before": "Σ(p*a_k + q*b_k)",
+          "after": "p*Σ(a_k) + q*Σ(b_k)",
+          "symbols": {
+            "k": "総和のインデックス",
+            "a_k": "数列の一般項",
+            "b_k": "数列の一般項",
+            "p": "定数",
+            "q": "定数"
+          }
+        },
+        {
+          "id": "rule_sigma_constant",
+          "name": "シグマ公式（定数）",
+          "level": ["high"],
+          "before": "Σ(k=1 to n) c",
+          "after": "n * c",
+          "conditions": ["c is a constant"],
+          "symbols": {
+            "k": "総和のインデックス（変数）",
+            "n": "項数（自然数）",
+            "c": "定数"
+          }
+        },
+        {
+          "id": "rule_sigma_k",
+          "name": "シグマ公式（自然数の和）",
+          "level": ["high"],
+          "before": "Σ(k=1 to n) k",
+          "after": "(1/2) * n * (n + 1)",
+          "symbols": {
+            "k": "総和のインデックス（変数）",
+            "n": "項数（自然数）"
+          }
+        },
+        {
+          "id": "rule_sigma_k_square",
+          "name": "シグマ公式（自然数の平方の和）",
+          "level": ["high"],
+          "before": "Σ(k=1 to n) k^2",
+          "after": "(1/6) * n * (n + 1) * (2*n + 1)",
+          "symbols": {
+            "k": "総和のインデックス（変数）",
+            "n": "項数（自然数）"
+          }
+        },
+        {
+          "id": "rule_sigma_k_cube",
+          "name": "シグマ公式（自然数の立方の和）",
+          "level": ["high"],
+          "before": "Σ(k=1 to n) k^3",
+          "after": "{(1/2) * n * (n + 1)}^2",
+          "symbols": {
+            "k": "総和のインデックス（変数）",
+            "n": "項数（自然数）"
+          }
+        },
+        {
+          "id": "rule_recurrence_difference",
+          "name": "階差数列による一般項",
+          "level": ["high"],
+          "before": "a_n",
+          "after": "a_1 + Σ(k=1 to n-1) b_k",
+          "conditions": ["n >= 2", "b_k is difference sequence"],
+          "symbols": {
+            "a_n": "元の数列の第n項",
+            "a_1": "元の数列の初項",
+            "n": "項数",
+            "k": "総和のインデックス",
+            "b_k": "階差数列の第k項"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "vector_rules",
+      "name": "ベクトル（高2〜高3・数B/C）",
+      "rules": [
+        {
+          "id": "rule_vector_addition",
+          "name": "ベクトルの加法",
+          "level": ["high"],
+          "before": "vec(a) + vec(b)",
+          "after": "(a1+b1, a2+b2)",
+          "symbols": {
+            "vec(a)": "ベクトル（a1, a2）",
+            "vec(b)": "ベクトル（b1, b2）",
+            "a1": "ベクトルaのx成分",
+            "a2": "ベクトルaのy成分",
+            "b1": "ベクトルbのx成分",
+            "b2": "ベクトルbのy成分"
+          }
+        },
+        {
+          "id": "rule_vector_dot_product_geo",
+          "name": "内積の定義（幾何的）",
+          "level": ["high"],
+          "before": "vec(a) ・ vec(b)",
+          "after": "|vec(a)| * |vec(b)| * cos(θ)",
+          "symbols": {
+            "vec(a)": "ベクトル",
+            "vec(b)": "ベクトル",
+            "|vec(a)|": "ベクトルaの大きさ（スカラー）",
+            "|vec(b)|": "ベクトルbの大きさ（スカラー）",
+            "θ": "2つのベクトルのなす角"
+          }
+        },
+        {
+          "id": "rule_vector_dot_product_alg",
+          "name": "内積の定義（成分）",
+          "level": ["high"],
+          "before": "vec(a) ・ vec(b)",
+          "after": "a1*b1 + a2*b2",
+          "symbols": {
+            "vec(a)": "ベクトル",
+            "vec(b)": "ベクトル",
+            "a1": "ベクトルaのx成分",
+            "a2": "ベクトルaのy成分",
+            "b1": "ベクトルbのx成分",
+            "b2": "ベクトルbのy成分"
+          }
+        },
+        {
+          "id": "rule_vector_parallel",
+          "name": "ベクトルの平行条件",
+          "level": ["high"],
+          "before": "vec(a) // vec(b)",
+          "after": "vec(a) = k * vec(b)",
+          "conditions": ["vec(b) != vec(0)", "k is real"],
+          "symbols": {
+            "vec(a)": "ベクトル",
+            "vec(b)": "零ベクトルではないベクトル",
+            "k": "実数（スカラー）"
+          }
+        },
+        {
+          "id": "rule_vector_orthogonal",
+          "name": "ベクトルの垂直条件",
+          "level": ["high"],
+          "before": "vec(a) ⊥ vec(b)",
+          "after": "vec(a) ・ vec(b) = 0",
+          "conditions": ["vec(a) != vec(0)", "vec(b) != vec(0)"],
+          "symbols": {
+            "vec(a)": "零ベクトルではないベクトル",
+            "vec(b)": "零ベクトルではないベクトル"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "complex_number_plane",
+      "name": "複素数平面（高3・数C）",
+      "rules": [
+        {
+          "id": "rule_imaginary_unit",
+          "name": "虚数単位の定義",
+          "level": ["high"],
+          "before": "i^2",
+          "after": "-1",
+          "symbols": {
+            "i": "虚数単位"
+          }
+        },
+        {
+          "id": "rule_complex_conjugate_product",
+          "name": "共役複素数の積",
+          "level": ["high"],
+          "before": "(a + b*i)*(a - b*i)",
+          "after": "a^2 + b^2",
+          "conditions": ["a,b are real"],
+          "symbols": {
+            "a": "実部（実数）",
+            "b": "虚部（実数）",
+            "i": "虚数単位"
+          }
+        },
+        {
+          "id": "rule_polar_form_product",
+          "name": "極形式の積",
+          "level": ["high"],
+          "before": "z1 * z2",
+          "after": "r1*r2 * (cos(θ1+θ2) + i*sin(θ1+θ2))",
+          "conditions": ["z1=r1(cosθ1+isinθ1)", "z2=r2(cosθ2+isinθ2)"],
+          "symbols": {
+            "z1": "複素数",
+            "z2": "複素数",
+            "r1": "z1の絶対値（正の実数）",
+            "r2": "z2の絶対値（正の実数）",
+            "θ1": "z1の偏角（実数）",
+            "θ2": "z2の偏角（実数）",
+            "i": "虚数単位"
+          }
+        },
+        {
+          "id": "rule_de_moivre",
+          "name": "ド・モアブルの定理",
+          "level": ["high"],
+          "before": "(cos(θ) + i*sin(θ))^n",
+          "after": "cos(n*θ) + i*sin(n*θ)",
+          "conditions": ["n is integer"],
+          "symbols": {
+            "θ": "偏角（実数）",
+            "i": "虚数単位",
+            "n": "指数（整数）"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "limit_rules",
+      "name": "極限（高3・数III）",
+      "rules": [
+        {
+          "id": "rule_limit_linearity",
+          "name": "極限の線形性",
+          "level": ["high"],
+          "before": "lim(x->a) (k*f(x) + l*g(x))",
+          "after": "k * lim(x->a) f(x) + l * lim(x->a) g(x)",
+          "symbols": {
+            "x": "極限をとる変数",
+            "a": "近づく値（定数または無限大）",
+            "k": "定数",
+            "l": "定数",
+            "f(x)": "xの関数",
+            "g(x)": "xの関数"
+          }
+        },
+        {
+          "id": "rule_squeeze_theorem",
+          "name": "はさみうちの原理",
+          "level": ["high"],
+          "before": "lim(x->a) f(x) and lim(x->a) h(x) are α",
+          "after": "lim(x->a) g(x) = α",
+          "conditions": ["f(x) <= g(x) <= h(x) near a"],
+          "symbols": {
+            "x": "極限をとる変数",
+            "a": "近づく値",
+            "f(x)": "下界となる関数",
+            "h(x)": "上界となる関数",
+            "g(x)": "はさまれる関数",
+            "α": "極限値（定数）"
+          }
+        },
+        {
+          "id": "rule_limit_sin_x_x",
+          "name": "三角関数の極限の基本公式",
+          "level": ["high"],
+          "before": "lim(x->0) sin(x)/x",
+          "after": "1",
+          "symbols": {
+            "x": "極限をとる変数（弧度法による角度）"
+          }
+        },
+        {
+          "id": "rule_limit_e_definition",
+          "name": "自然対数の底(e)の定義",
+          "level": ["high"],
+          "before": "lim(x->0) (1 + x)^(1/x)",
+          "after": "e",
+          "symbols": {
+            "x": "極限をとる変数",
+            "e": "ネイピア数（定数）"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "derivative_advanced",
+      "name": "微分法の発展（高3・数III）",
+      "rules": [
+        {
+          "id": "rule_derivative_power_real",
+          "name": "累乗関数の微分（実数）",
+          "level": ["high"],
+          "before": "(x^p)'",
+          "after": "p * x^(p-1)",
+          "conditions": ["p is real number"],
+          "symbols": {
+            "x": "変数",
+            "p": "指数（実数定数）"
+          }
+        },
+        {
+          "id": "rule_derivative_product",
+          "name": "積の微分法則",
+          "level": ["high"],
+          "before": "(f(x)*g(x))'",
+          "after": "f'(x)*g(x) + f(x)*g'(x)",
+          "symbols": {
+            "f(x)": "xの関数",
+            "g(x)": "xの関数",
+            "x": "変数"
+          }
+        },
+        {
+          "id": "rule_derivative_quotient",
+          "name": "商の微分法則",
+          "level": ["high"],
+          "before": "(f(x)/g(x))'",
+          "after": "(f'(x)*g(x) - f(x)*g'(x)) / (g(x)^2)",
+          "symbols": {
+            "f(x)": "分子の関数",
+            "g(x)": "分母の関数",
+            "x": "変数"
+          }
+        },
+        {
+          "id": "rule_derivative_chain",
+          "name": "合成関数の微分法則",
+          "level": ["high"],
+          "before": "(f(g(x)))'",
+          "after": "f'(g(x)) * g'(x)",
+          "symbols": {
+            "f": "外側の関数",
+            "g(x)": "内側の関数",
+            "x": "変数"
+          }
+        },
+        {
+          "id": "rule_derivative_sin",
+          "name": "正弦の微分",
+          "level": ["high"],
+          "before": "(sin(x))'",
+          "after": "cos(x)",
+          "symbols": {
+            "x": "変数"
+          }
+        },
+        {
+          "id": "rule_derivative_cos",
+          "name": "余弦の微分",
+          "level": ["high"],
+          "before": "(cos(x))'",
+          "after": "-sin(x)",
+          "symbols": {
+            "x": "変数"
+          }
+        },
+        {
+          "id": "rule_derivative_exp",
+          "name": "指数関数の微分",
+          "level": ["high"],
+          "before": "(e^x)'",
+          "after": "e^x",
+          "symbols": {
+            "x": "変数",
+            "e": "ネイピア数（定数）"
+          }
+        },
+        {
+          "id": "rule_derivative_log",
+          "name": "対数関数の微分",
+          "level": ["high"],
+          "before": "(log(x))'",
+          "after": "1/x",
+          "symbols": {
+            "x": "変数"
+          }
+        }
+      ]
+    },
+    {
+      "group_id": "integral_advanced",
+      "name": "積分法の発展（高3・数III）",
+      "rules": [
+        {
+          "id": "rule_integral_power_real",
+          "name": "累乗関数の不定積分（実数）",
+          "level": ["high"],
+          "before": "∫ x^p dx",
+          "after": "x^(p+1)/(p+1) + C",
+          "conditions": ["p != -1"],
+          "symbols": {
+            "x": "積分変数",
+            "p": "指数（-1以外の実数）",
+            "C": "積分定数"
+          }
+        },
+        {
+          "id": "rule_integral_inverse",
+          "name": "1/x の不定積分",
+          "level": ["high"],
+          "before": "∫ 1/x dx",
+          "after": "log|x| + C",
+          "symbols": {
+            "x": "積分変数",
+            "C": "積分定数"
+          }
+        },
+        {
+          "id": "rule_integral_substitution",
+          "name": "置換積分法",
+          "level": ["high"],
+          "before": "∫ f(g(x))*g'(x) dx",
+          "after": "∫ f(u) du",
+          "conditions": ["u = g(x)"],
+          "symbols": {
+            "x": "元の積分変数",
+            "g(x)": "置換する関数",
+            "f": "外側の関数",
+            "u": "新しい積分変数（u = g(x)）"
+          }
+        },
+        {
+          "id": "rule_integral_by_parts",
+          "name": "部分積分法",
+          "level": ["high"],
+          "before": "∫ f(x)*g'(x) dx",
+          "after": "f(x)*g(x) - ∫ f'(x)*g(x) dx",
+          "symbols": {
+            "x": "積分変数",
+            "f(x)": "微分する側の関数",
+            "g'(x)": "積分する側の関数（導関数）",
+            "g(x)": "g'(x)の原始関数"
+          }
         }
       ]
     }
