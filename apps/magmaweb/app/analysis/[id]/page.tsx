@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation' 
 import { createClient } from '@supabase/supabase-js'
 import AnswerCard from '../../../components/AnswerCard'
 import DagVisualizer from '../../../components/DagVisualizer'
@@ -20,9 +20,9 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   // 厳密な構造化DAGデータをステートで持つ
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   
-  // 💡 【追加】AIの構築プロセス（文字列の配列）を保存するためのステート
-  const [constructionProcess, setConstructionProcess] = useState<string[]>([])
-  
+  // 💡 【追加】AIが生成したグラフ構築用プログラム（JSON文字列）をそのまま保持するステート
+  const [rawGraphData, setRawGraphData] = useState<string | null>(null)
+
   const [loading, setLoading] = useState(true)
 
   // 既存の処理を壊さずにエラーを画面に露出させるためのデバッグ用ステート
@@ -57,7 +57,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         if (pError) throw pError
         setAnswerData(post)
 
-        // ② api/analyze/route.ts を呼び出す
+        // ② api/analyze/route.ts の仕様 (GET / ?answerId=) に完全に合わせる
         const res = await fetch(`/api/analyze?answerId=${params.id}`, {
           method: 'GET',
         })
@@ -71,21 +71,23 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
           return
         }
 
-        // APIの内部パースエラーなどで error フラグが入っている場合
+        // 200が戻ってきたが、APIの内部パースエラーなどで error フラグが入っている場合
         if (json.error) {
           setDebugError(json.error)
           if (json.rawText) setDebugRawText(json.rawText)
           return
         }
         
-        // グラフデータをセット
+        // APIから戻ってきた { imageUrl, graph } の構造から graph を抽出
         if (json.graph) {
           setGraphData(json.graph)
-        }
-
-        // 💡 【追加】バックエンドから送られてきたAIの構築プロセスをセット
-        if (json.constructionProcess) {
-          setConstructionProcess(json.constructionProcess)
+          
+          // 💡 【追加】受け取ったJSONデータ（プログラム）を整形して文字列として保存
+          const formattedJson = JSON.stringify({
+            graph: json.graph,
+            new_theorems: json.newTheorems || []
+          }, null, 2)
+          setRawGraphData(formattedJson)
         }
 
       } catch (e: any) {
@@ -118,7 +120,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         <h1 style={styles.title}>論理構造 診断書</h1>
       </div>
 
-      {/* デバッグモニター */}
+      {/* 🚨 デバッグモニター（エラー発生時のみ最上部に自動出現） */}
       {(debugError || debugDetails || debugRawText) && (
         <div style={styles.debugBox}>
           <div style={styles.debugHeader}>
@@ -170,20 +172,15 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
             )}
           </div>
 
-          {/* 💡 【追加】グラフのすぐ下にAIの構築プロセスを表示するエリア */}
-          {constructionProcess && constructionProcess.length > 0 && (
-            <div style={styles.processContainer}>
-              <h3 style={styles.processTitle}>🔍 AIのグラフ構築プロセス</h3>
-              <ul style={styles.processList}>
-                {constructionProcess.map((step, index) => (
-                  <li key={index} style={styles.processItem}>
-                    <span style={styles.processBullet}>▶</span> {step}
-                  </li>
-                ))}
-              </ul>
+          {/* 💡 【追加】グラフ構造の下に、AIが作成したプログラム（JSON文字列）を表示するエリア */}
+          {rawGraphData && (
+            <div style={styles.codeContainer}>
+              <h3 style={styles.codeTitle}>📝 グラフ構築プログラム (JSONデータ)</h3>
+              <pre style={styles.codeBlock}>
+                {rawGraphData}
+              </pre>
             </div>
           )}
-
         </div>
       </div>
     </div>
@@ -268,39 +265,29 @@ const styles = {
   debugPre: { backgroundColor: '#edf2f7', padding: '8px', borderRadius: '6px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace' },
   debugRawPre: { backgroundColor: '#1a202c', color: '#aeebd0', padding: '12px', borderRadius: '8px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.4 },
 
-  // 💡 【追加】プロセス表示用のCSSスタイル
-  processContainer: {
+  // 💡 【追加】プログラム（JSON文字列）を画面下部に表示するためのCSSスタイル
+  codeContainer: {
     marginTop: '24px',
     padding: '16px',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1e293b', // 見やすいように暗めの背景色に設定
     borderRadius: '12px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid #334155',
   },
-  processTitle: {
+  codeTitle: {
     fontSize: '15px',
     fontWeight: 'bold' as const,
-    color: '#334155',
+    color: '#f8fafc',
     marginBottom: '12px',
+    marginTop: 0,
   },
-  processList: {
-    listStyleType: 'none',
-    padding: 0,
+  codeBlock: {
+    color: '#e2e8f0',
+    fontFamily: 'Consolas, Monaco, monospace',
+    fontSize: '13px',
+    whiteSpace: 'pre-wrap' as const,
+    wordBreak: 'break-all' as const,
+    maxHeight: '500px',
+    overflowY: 'auto' as const,
     margin: 0,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-  },
-  processItem: {
-    fontSize: '14px',
-    color: '#475569',
-    lineHeight: '1.5',
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '8px',
-  },
-  processBullet: {
-    color: '#3b82f6',
-    fontSize: '12px',
-    marginTop: '2px',
-  },
+  }
 }
