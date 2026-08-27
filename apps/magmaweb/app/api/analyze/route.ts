@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
-import theorems from '../../../lib/constants/theorems.json';
+import theorems from '@/lib/constants/theorems.json';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -65,21 +65,20 @@ export async function GET(request: NextRequest) {
                 あなたは数学教育の専門家であり、論理構造解析に特化したAIアシスタントです。
 
                 [目的]
-                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。さらに、使用された定理が既存のライブラリに存在するか判定し、指定されたJSONフォーマットのみで出力してください。
+                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。さらに、使用された定理が既存のライブラリに存在するか判定し、指定されたJSONフォーマットのみで出力してください。また、グラフを構築したステップごとの思考プロセスも出力してください。
 
-                // （※route.ts の該当部分のみ抜粋）
                 [抽出ルール]
-                1. グラフの基本構造（厳密な交互配置と例外規定）:
-                   - メインの論理フローは、原則として「命題」→「推論」→「命題」→「推論」と交互に配置してください。
-                   - 命題同士が連続する場合は、必ず間に「[推測] 式を整理する」などの推論ノードを補完してください。
+                1. グラフの基本構造（【絶対遵守】厳密な交互配置）:
+                   - メインの論理フローは、必ず「命題」→「推論」→「命題」→「推論」と厳密に交互に繋がるように配置してください。
+                   - 【重要】命題ノード同士、または推論ノード同士が直接繋がることは絶対に禁止します。答案上で数式が連続して書かれている場合でも、必ずその間に「[推測] 式を整理する」「[推測] 次の条件を考慮する」などの推論ノードを補完して挟んでください。
                 2. 命題（proposition）ノード:
-                   - 答案の数式や条件を正確に抽出してください。
-                3. 推論（inference）ノードと定義・定理（theorem）ノードの接続ルール:
+                   - 答案に書かれている数式、条件、結論のみを正確に抽出してください。
+                   - ルート、大なりイコールなどはLaTeXコマンドを使わず、「√」「≧」「≦」「≠」「±」などの環境依存しない文字記号を直接使用してください。
+                3. 推論（inference）ノードと定義・定理（theorem）ノードの接続ルール（基本と特例）:
                    - 【基本原則】定義・定理ノード（type: "theorem"）は、原則としてそれを適用した「推論ノード」から枝分かれさせて接続してください。
-                   - 【特例ルール（命題からの直接接続）】推論の内容が公式変換に直接関係ない場合や、命題の数式自体が定義・定理に直接依存している場合は、「命題ノード」から直接「定義・定理ノード」へエッジを接続して出力することを強く推奨します。
-                     (例: 命題「S = Σk」があり、次の推論が単なる「式を整理する」である場合、推論にΣの公式が明記されていないため、推論ではなく命題「S = Σk」から直接定理「Σの公式」へエッジを引いてください。)
-                   - 【分岐（並行展開）の明示】1つの命題から2つ以上の推論に分岐する場合は、それぞれの推論ラベルの先頭に「[場合分け1]」「[条件A]」などのプレフィックスをつけてください。
-                   - 同じ定理が複数回使われた場合は、毎回新しい定理ノードを作成し、末尾に「(2回目の利用)」と記載してください。
+                   - 【特例ルール（命題からの直接接続）】もし推論ノードの内容（例：「右辺の式を簡略化する」等）が公式変換に直接関係ない場合でも、命題の数式内に「Σ（シグマ）」などの重要な定義・定理が含まれており、解説として必要な場合は、特例として【命題ノードから直接、定義・定理ノードへエッジを繋ぐ】ことを強く推奨します。推論に紐づけられないからといって、重要な定義・定理の抽出を絶対に省略しないでください。
+                   - 【絶対遵守】同じ定理が複数回使われた場合は、毎回新しい定理ノードを作成し、末尾に「(2回目の利用)」と記載してください。
+                   - 【見落とし厳禁の自己チェック機構】: 抽出処理の最後に、画像内のすべての数式を必ず再確認（ダブルチェック）してください。「Σ（シグマ）の公式」「二次方程式の解の公式」「展開・因数分解の公式」などの重要な定義・定理の「抽出漏れ」が絶対に起きないように網羅してください。
                 4. 複数の式の合流（連立方程式など）の扱い:
                    - 複数の命題（数式）を組み合わせて新しい命題を導いている場合、それらの複数の「命題ノード」から、1つの「推論ノード」に向かってエッジを繋げてください。
                 5. グラフや表の除外:
@@ -89,9 +88,8 @@ export async function GET(request: NextRequest) {
 
                 [出力フォーマット（厳守）]
                 - 以下のJSONスキーマに厳密に従って出力してください。
-                - [利用可能な定理ライブラリ]で与えた変形ルール以外一切使用しないでください。
                 - 挨拶、説明、Markdownのコードブロックなどの余分なテキストは一切含めず、パース可能な生のJSON文字列のみを返してください。
-                  
+                 
                 {
                   "graph": {
                     "nodes": [
@@ -124,6 +122,11 @@ export async function GET(request: NextRequest) {
                       "after": "n(n+1)/2",
                       "conditions": ["n is a positive integer"]
                     }
+                  ],
+                  "construction_process": [
+                    "Step 1: 命題「x = 1 - √5」と「y = 2」を抽出しました。",
+                    "Step 2: それらを式に代入する推論を追加し、命題「x + y = 3 - √5」を導きました。",
+                    "Step 3: ..."
                   ]
                 }
                 
@@ -154,7 +157,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ 
         imageUrl: answer.image_url, 
         graph: parsedData.graph, 
-        newTheorems: parsedData.new_theorems 
+        newTheorems: parsedData.new_theorems,
+        constructionProcess: parsedData.construction_process // 💡 プロセスログの出力を追加
       })
     } catch (parseErr) {
       try {
@@ -163,7 +167,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ 
           imageUrl: answer.image_url, 
           graph: parsedData.graph, 
-          newTheorems: parsedData.new_theorems 
+          newTheorems: parsedData.new_theorems,
+          constructionProcess: parsedData.construction_process // 💡 プロセスログの出力を追加
         })
       } catch (innerErr) {
         return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText })

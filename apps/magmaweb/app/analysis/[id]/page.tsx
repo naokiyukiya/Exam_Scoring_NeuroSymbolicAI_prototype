@@ -1,15 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation' 
+import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import AnswerCard from '../../../components/AnswerCard'
-import DagVisualizer from '../../../components/DagVisualizer' // 新設したコンポーネント
+import DagVisualizer from '../../../components/DagVisualizer'
 import { CircleArrowLeft, Layers, AlertTriangle } from 'lucide-react'
 
 // 研究用グラフデータの型宣言
 type GraphData = {
-  nodes: Array<{ id: string; label: string; type: 'proposition' | 'inference' }>
+  nodes: Array<{ id: string; label: string; type: 'proposition' | 'inference' | 'theorem' }>
   edges: Array<{ from: string; to: string }>
 }
 
@@ -19,9 +19,13 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   
   // 厳密な構造化DAGデータをステートで持つ
   const [graphData, setGraphData] = useState<GraphData | null>(null)
+  
+  // 💡 【追加】AIの構築プロセス（文字列の配列）を保存するためのステート
+  const [constructionProcess, setConstructionProcess] = useState<string[]>([])
+  
   const [loading, setLoading] = useState(true)
 
-  // 【追加】既存の処理を壊さずにエラーを画面に露出させるためのデバッグ用ステート
+  // 既存の処理を壊さずにエラーを画面に露出させるためのデバッグ用ステート
   const [debugError, setDebugError] = useState<string | null>(null)
   const [debugDetails, setDebugDetails] = useState<string | null>(null)
   const [debugRawText, setDebugRawText] = useState<string | null>(null)
@@ -53,7 +57,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         if (pError) throw pError
         setAnswerData(post)
 
-        // ② api/analyze/route.ts の仕様 (GET / ?answerId=) に完全に合わせる
+        // ② api/analyze/route.ts を呼び出す
         const res = await fetch(`/api/analyze?answerId=${params.id}`, {
           method: 'GET',
         })
@@ -67,16 +71,21 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
           return
         }
 
-        // 200が戻ってきたが、APIの内部パースエラーなどで error フラグが入っている場合
+        // APIの内部パースエラーなどで error フラグが入っている場合
         if (json.error) {
           setDebugError(json.error)
           if (json.rawText) setDebugRawText(json.rawText)
           return
         }
         
-        // APIから戻ってきた { imageUrl, graph } の構造から graph を抽出
+        // グラフデータをセット
         if (json.graph) {
           setGraphData(json.graph)
+        }
+
+        // 💡 【追加】バックエンドから送られてきたAIの構築プロセスをセット
+        if (json.constructionProcess) {
+          setConstructionProcess(json.constructionProcess)
         }
 
       } catch (e: any) {
@@ -109,7 +118,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         <h1 style={styles.title}>論理構造 診断書</h1>
       </div>
 
-      {/* 🚨 【追加】画面直出しデバッグモニター（エラー発生時のみ最上部に自動出現） */}
+      {/* デバッグモニター */}
       {(debugError || debugDetails || debugRawText) && (
         <div style={styles.debugBox}>
           <div style={styles.debugHeader}>
@@ -133,7 +142,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       )}
 
       <div style={styles.mainGrid}>
-        {/* 左側：答案カード（既存の引数を完全に維持） */}
+        {/* 左側：答案カード */}
         <div style={styles.cardSection}>
           <AnswerCard
             image={answerData.image_url}
@@ -160,6 +169,21 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
               </div>
             )}
           </div>
+
+          {/* 💡 【追加】グラフのすぐ下にAIの構築プロセスを表示するエリア */}
+          {constructionProcess && constructionProcess.length > 0 && (
+            <div style={styles.processContainer}>
+              <h3 style={styles.processTitle}>🔍 AIのグラフ構築プロセス</h3>
+              <ul style={styles.processList}>
+                {constructionProcess.map((step, index) => (
+                  <li key={index} style={styles.processItem}>
+                    <span style={styles.processBullet}>▶</span> {step}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
@@ -231,8 +255,6 @@ const styles = {
     textAlign: 'center' as const,
     padding: '20px 0',
   },
-  
-  // デバッグ表示用の拡張CSSスタイル
   debugBox: {
     backgroundColor: '#fff5f5',
     border: '2px solid #ffcccc',
@@ -244,5 +266,41 @@ const styles = {
   debugTitle: { fontWeight: 'bold' as const, color: '#e53e3e', fontSize: '15px' },
   debugItem: { fontSize: '13px', color: '#2d3748', marginBottom: '8px' },
   debugPre: { backgroundColor: '#edf2f7', padding: '8px', borderRadius: '6px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace' },
-  debugRawPre: { backgroundColor: '#1a202c', color: '#aeebd0', padding: '12px', borderRadius: '8px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.4 }
+  debugRawPre: { backgroundColor: '#1a202c', color: '#aeebd0', padding: '12px', borderRadius: '8px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.4 },
+
+  // 💡 【追加】プロセス表示用のCSSスタイル
+  processContainer: {
+    marginTop: '24px',
+    padding: '16px',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+  },
+  processTitle: {
+    fontSize: '15px',
+    fontWeight: 'bold' as const,
+    color: '#334155',
+    marginBottom: '12px',
+  },
+  processList: {
+    listStyleType: 'none',
+    padding: 0,
+    margin: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+  },
+  processItem: {
+    fontSize: '14px',
+    color: '#475569',
+    lineHeight: '1.5',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '8px',
+  },
+  processBullet: {
+    color: '#3b82f6',
+    fontSize: '12px',
+    marginTop: '2px',
+  },
 }
