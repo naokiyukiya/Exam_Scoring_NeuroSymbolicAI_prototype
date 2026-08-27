@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
-import theorems from '../../../lib/constants/theorems.json';
+import theorems from '@/lib/constants/theorems.json';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -85,6 +85,9 @@ export async function GET(request: NextRequest) {
                    - 関数グラフ、幾何的な図形、増減表などは解析の対象外とします。
                 6. 忠実性の原則:
                    - 誤った数式はそのまま「命題」ノードとして抽出してください。
+                7. 推論ノードの検証ステータス（【絶対遵守】）:
+                   - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status" というプロパティを追加してください。「命題（proposition）」や「定義・定理（theorem）」ノードには絶対に追加しないでください。
+                   - 出力時には、必ず "検証前" とだけ入力してください。「検証済み」と出力することは固く禁じます。
 
                 [出力フォーマット（厳守）]
                 - 以下のJSONスキーマに厳密に従って出力してください。
@@ -95,11 +98,11 @@ export async function GET(request: NextRequest) {
                     "nodes": [
                       { "id": "p1", "label": "x = 1 - √5", "type": "proposition" },
                       { "id": "p2", "label": "y = 2", "type": "proposition" },
-                      { "id": "i1", "label": "xとyの値を式に代入する", "type": "inference" },
+                      { "id": "i1", "label": "xとyの値を式に代入する", "type": "inference", "verification_status": "検証前" },
                       { "id": "p3", "label": "x + y = 3 - √5", "type": "proposition" },
                       { "id": "p4", "label": "S = Σ_{k=1}^{n} k", "type": "proposition" },
                       { "id": "t1", "label": "総和記号(Σ)の定義: 数列の和を簡易的に表す記号", "type": "theorem" },
-                      { "id": "i2", "label": "[推測] 自然数の和の公式を利用し、右辺の式を簡略化して展開する", "type": "inference", "applied_theorem": "自然数の和の公式" },
+                      { "id": "i2", "label": "[推測] 自然数の和の公式を利用し、右辺の式を簡略化して展開する", "type": "inference", "applied_theorem": "自然数の和の公式", "verification_status": "検証前" },
                       { "id": "t2", "label": "自然数の和の公式: Σ_{k=1}^{n} k = n(n+1)/2", "type": "theorem" },
                       { "id": "p5", "label": "S = n(n+1)/2", "type": "proposition" }
                     ],
