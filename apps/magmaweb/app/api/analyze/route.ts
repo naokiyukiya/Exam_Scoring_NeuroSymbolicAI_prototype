@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
-import theorems from '../../../lib/constants/theorems.json';
+import theorems from '@/lib/constants/theorems.json';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
                 あなたは数学教育の専門家であり、論理構造解析に特化したAIアシスタントです。
 
                 [目的]
-                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。さらに、使用された定理が既存のライブラリに存在するか判定し、指定されたJSONフォーマットのみで出力してください。また、グラフを構築したステップごとの思考プロセスも出力してください。
+                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。指定されたJSONフォーマットのみで出力し、併せてグラフを構築したステップごとの思考プロセスも出力してください。
 
                 [抽出ルール]
                 1. グラフの基本構造（【絶対遵守】厳密な交互配置）:
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
                       { "id": "p3", "label": "x + y = 3 - √5", "type": "proposition" },
                       { "id": "p4", "label": "S = Σ_{k=1}^{n} k", "type": "proposition" },
                       { "id": "t1", "label": "総和記号(Σ)の定義: 数列の和を簡易的に表す記号", "type": "theorem" },
-                      { "id": "i2", "label": "[推測] 自然数の和の公式を利用し、右辺の式を簡略化して展開する", "type": "inference", "applied_theorem": "自然数の和の公式", "is_in_library": false },
+                      { "id": "i2", "label": "[推測] 自然数の和の公式を利用し、右辺の式を簡略化して展開する", "type": "inference", "applied_theorem": "自然数の和の公式" },
                       { "id": "t2", "label": "自然数の和の公式: Σ_{k=1}^{n} k = n(n+1)/2", "type": "theorem" },
                       { "id": "p5", "label": "S = n(n+1)/2", "type": "proposition" }
                     ],
@@ -113,16 +113,6 @@ export async function GET(request: NextRequest) {
                       { "from": "i2", "to": "p5" }
                     ]
                   },
-                  "new_theorems": [
-                    {
-                      "id": "rule_sigma_k",
-                      "name": "自然数の和の公式",
-                      "level": ["high"],
-                      "before": "Σ_{k=1}^{n} k",
-                      "after": "n(n+1)/2",
-                      "conditions": ["n is a positive integer"]
-                    }
-                  ],
                   "construction_process": [
                     "Step 1: 命題「x = 1 - √5」と「y = 2」を抽出しました。",
                     "Step 2: それらを式に代入する推論を追加し、命題「x + y = 3 - √5」を導きました。",
@@ -157,8 +147,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ 
         imageUrl: answer.image_url, 
         graph: parsedData.graph, 
-        newTheorems: parsedData.new_theorems,
-        constructionProcess: parsedData.construction_process // 💡 プロセスログの出力を追加
+        constructionProcess: parsedData.construction_process
       })
     } catch (parseErr) {
       try {
@@ -167,8 +156,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ 
           imageUrl: answer.image_url, 
           graph: parsedData.graph, 
-          newTheorems: parsedData.new_theorems,
-          constructionProcess: parsedData.construction_process // 💡 プロセスログの出力を追加
+          constructionProcess: parsedData.construction_process
         })
       } catch (innerErr) {
         return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText })
