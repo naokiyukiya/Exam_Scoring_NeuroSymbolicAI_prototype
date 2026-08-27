@@ -21,7 +21,13 @@ import {
 
 import '@xyflow/react/dist/style.css'
 
-type GraphNode = { id: string; label: string; type: 'proposition' | 'inference' | 'theorem' }
+// 💡 1. 型定義に verification_status を追加
+type GraphNode = { 
+  id: string; 
+  label: string; 
+  type: 'proposition' | 'inference' | 'theorem';
+  verification_status?: string; 
+}
 type GraphEdge = { from: string; to: string }
 type DagVisualizerProps = { graphData: { nodes: GraphNode[]; edges: GraphEdge[] } }
 
@@ -79,7 +85,6 @@ const CustomEdgeWithLabels = ({
     labelY = cY
   }
 
-  // 💡 定理への接続線はタグなしで直線を描画
   if (isReference) {
     const [path] = getStraightPath({ sourceX, sourceY, targetX, targetY })
     return (
@@ -224,6 +229,7 @@ export default function DagVisualizer({ graphData }: DagVisualizerProps) {
 
     return rawNodes.map((node) => {
       const isTheorem = node.type === 'theorem'
+      const isInference = node.type === 'inference' // 💡 推論ノード判定
       let x = 400
       let y = 0
 
@@ -286,9 +292,19 @@ export default function DagVisualizer({ graphData }: DagVisualizerProps) {
           content: (
             <div style={styles.nodeContent}>
               <div style={styles.nodeHeader}>
-                <span style={isTheorem ? styles.theoremBadge : node.type === 'proposition' ? styles.propositionBadge : styles.inferenceBadge}>
-                  {isTheorem ? '定義・定理' : node.type === 'proposition' ? '命題' : '推論'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={isTheorem ? styles.theoremBadge : node.type === 'proposition' ? styles.propositionBadge : styles.inferenceBadge}>
+                    {isTheorem ? '定義・定理' : node.type === 'proposition' ? '命題' : '推論'}
+                  </span>
+                  
+                  {/* 💡 【追加】推論ノードの場合のみ「verification_status」をタグとして表示 */}
+                  {isInference && node.verification_status && (
+                    <span style={styles.statusBadge}>
+                      {node.verification_status}
+                    </span>
+                  )}
+                </div>
+
                 <span style={styles.nodeId}>{node.id}</span>
               </div>
               <div style={styles.nodeLabel}>{node.label}</div>
@@ -381,7 +397,6 @@ export default function DagVisualizer({ graphData }: DagVisualizerProps) {
         sourceHandle,
         targetHandle,
         type: 'customEdge',
-        // 💡 ここが修正ポイント！メインの線(!isReference)は「常に」アニメーション(点の動き)をONにします。
         animated: !isReference, 
         data: {
           jumpIndex,
@@ -458,7 +473,19 @@ const styles = {
   nodeHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   propositionBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#4D96FF', backgroundColor: '#edf4ff', padding: '1px 6px', borderRadius: '4px' },
   inferenceBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#6BCB77', backgroundColor: '#eefaf0', padding: '1px 6px', borderRadius: '4px' },
-  theoremBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#ea580c', backgroundColor: '#ffedd5', padding: '1px 6px', borderRadius: '4px' },
+  theoremBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#ea580c', backgroundColor: 'ffedd5', padding: '1px 6px', borderRadius: '4px' },
+  
+  // 💡 【追加】検証ステータス（「検証前」など）を表示するバッジのスタイル
+  statusBadge: { 
+    fontSize: '9px', 
+    fontWeight: 'bold' as const, 
+    color: '#d97706', 
+    backgroundColor: '#fef3c7', 
+    border: '1px solid #f59e0b',
+    padding: '1px 5px', 
+    borderRadius: '4px' 
+  },
+
   nodeId: { fontSize: '10px', color: '#94a3b8', fontFamily: 'monospace' },
   nodeLabel: { fontSize: '12px', fontWeight: 500, whiteSpace: 'pre-wrap' as const, fontFamily: 'Consolas, Monaco, monospace', wordBreak: 'break-all' as const, lineHeight: 1.4 },
 }
