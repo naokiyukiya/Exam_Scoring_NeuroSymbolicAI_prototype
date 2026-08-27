@@ -11,14 +11,14 @@ import ImageEditorModalForLS from './ImageEditorModalForLS'
 import ReactionEditorModal from './ReactionEditorModalForLS'
 import {
   UserRound,
-  Sparkles,
   Search,
   BarChart3,
-  MessageCircleQuestionIcon,
+  Scan,        // ★ 解析（スキャン）用アイコン
+  GitFork,     // ★ 空き枠用（論理グラフ/DAGイメージ）
   X,
   ChevronLeft,
   Camera,
-  SquarePen // 「問題を書き記す・作成する」イメージのアイコン
+  SquarePen
 } from 'lucide-react'
 
 type Props = {
@@ -144,14 +144,14 @@ export default function LayoutShell({ children }: Props) {
 
   return (
     <div style={styles.wrapper}>
-      <header style={styles.header} onClick={() => router.push('/feed')}>
+      <header style={styles.header} onClick={() => router.push('/search')}>
         <span style={styles.logo}>Magmathe</span>
       </header>
 
       <main style={styles.main}>{children}</main>
 
-      {/* 「おすすめ(feed)」の時だけ表示される、純粋な「問題投稿」ボタン */}
-      {pathname === '/feed' && (
+      {/* 「SNS(search)」の時だけ表示される問題投稿ボタン */}
+      {pathname === '/search' && (
         <button 
           style={styles.floatingPlus} 
           onClick={() => simplePostInputRef.current?.click()}
@@ -161,14 +161,32 @@ export default function LayoutShell({ children }: Props) {
         </button>
       )}
 
+      {/* フッターナビゲーション */}
       <footer style={styles.footer}>
-        <button style={styles.icon} onClick={() => router.push('/feed')}><Sparkles size={28} /></button>
-        <button style={styles.icon} onClick={() => router.push('/search')}><Search size={28} /></button>
-        <button style={styles.icon} onClick={() => goToStep(1)}>
-          <MessageCircleQuestionIcon size={28} />
+        {/* 1. SNS（検索＋フィード統合画面） */}
+        <button style={styles.icon} onClick={() => router.push('/search')}>
+          <Search size={28} />
         </button>
-        <button style={styles.icon} onClick={() => router.push('/analysis')}><BarChart3 size={28} /></button>
-        <button style={styles.icon} onClick={() => router.push('/me')}><UserRound size={28} /></button>
+
+        {/* 2. 新設予定の空き枠（仮：思考グラフ / DAGビュー） */}
+        <button style={styles.icon} onClick={() => router.push('/graph')}>
+          <GitFork size={28} />
+        </button>
+
+        {/* 3. 【主役】解析 / スキャン (旧：投稿ボタン) */}
+        <button style={styles.scanIconBtn} onClick={() => goToStep(1)}>
+          <Scan size={30} color="#fff" />
+        </button>
+
+        {/* 4. 分析・ダッシュボード */}
+        <button style={styles.icon} onClick={() => router.push('/analysis')}>
+          <BarChart3 size={28} />
+        </button>
+
+        {/* 5. マイページ */}
+        <button style={styles.icon} onClick={() => router.push('/me')}>
+          <UserRound size={28} />
+        </button>
       </footer>
 
       {step > 0 && (
@@ -203,7 +221,7 @@ export default function LayoutShell({ children }: Props) {
               <div style={styles.stepContainer}>
                 {!rawFile ? (
                   <>
-                    <h2 style={styles.stepTitle}>問題文を撮影</h2>
+                    <h2 style={styles.stepTitle}>答案・問題を解析（スキャン）</h2>
                     <button style={styles.mainActionBtn} onClick={() => cameraInputRef.current?.click()}>
                       <Camera size={24} /> カメラを起動
                     </button>
@@ -231,7 +249,7 @@ export default function LayoutShell({ children }: Props) {
                       <Camera size={24} /> カメラを起動
                     </button>
                     <button style={styles.skipBtn} onClick={() => handleFinalSubmit()}>
-                      スキップして問題のみで質問を投稿
+                      スキップして解析を実行
                     </button>
                   </>
                 ) : (
@@ -318,6 +336,20 @@ const styles: { [key: string]: CSSProperties } = {
   footer: { position: 'fixed', bottom: 0, left: 0, right: 0, height: 54, display: 'flex', justifyContent: 'space-around', alignItems: 'center', background: BASE_COLOR, zIndex: 1000 },
   icon: { background: 'none', border: 'none', color: '#eee', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
   
+  // ★ 解析ボタン強調スタイル（中央を少し目立たせる）
+  scanIconBtn: {
+    background: '#00aaff',
+    border: 'none',
+    width: 44,
+    height: 44,
+    borderRadius: '22px',
+    display: 'flex',
+    alignItems: 'center',
+    justify: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
+  },
+
   floatingPlus: {
     position: 'fixed',
     right: 20,
