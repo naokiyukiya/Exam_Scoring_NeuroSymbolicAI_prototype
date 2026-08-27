@@ -337,18 +337,18 @@ const styles: { [key: string]: CSSProperties } = {
   icon: { background: 'none', border: 'none', color: '#eee', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
   
   // ★ 解析ボタン強調スタイル（中央を少し目立たせる）
-  scanIconBtn: {
-    background: '#00aaff',
-    border: 'none',
-    width: 44,
-    height: 44,
-    borderRadius: '22px',
-    display: 'flex',
-    alignItems: 'center',
-    justify: 'center',
-    cursor: 'pointer',
-    boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
-  },
+scanIconBtn: {
+  background: '#00aaff',
+  border: 'none',
+  width: 44,
+  height: 44,
+  borderRadius: '22px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center', // ← `justifyContent` に変更
+  cursor: 'pointer',
+  boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
+},
 
   floatingPlus: {
     position: 'fixed',
