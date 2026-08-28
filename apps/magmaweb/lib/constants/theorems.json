@@ -120,6 +120,20 @@
       ]
     },
     {
+      "group_id": "domain_and_definition",
+      "name": "式の定義と定義域（中1〜）",
+      "rules": [
+        {
+          "id": "rule_fraction_denominator_not_zero",
+          "name": "分母は0にならない（分数の定義）",
+          "level": ["middle", "high"],
+          "before": ["Divide", "a", "b"],
+          "after": ["NotEqual", "b", 0],
+          "symbols": { "a": "分子の式や値", "b": "分母の式や値" }
+        }
+      ]
+    },
+    {
       "group_id": "power_basic",
       "name": "指数法則（中1〜高2）",
       "rules": [
