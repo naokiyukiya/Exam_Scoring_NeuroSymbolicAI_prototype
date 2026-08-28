@@ -247,6 +247,14 @@
           "before": ["Equal", ["Divide", "A", "b"], ["Divide", "C", "d"]],
           "after": ["Equal", ["Multiply", "d", "A"], ["Multiply", "b", "C"]],
           "symbols": { "A": "分子1", "b": "分母1", "C": "分子2", "d": "分母2" }
+        },
+        {
+          "id": "rule_clear_denominator_single",
+          "name": "分母を払う（片辺のみ）",
+          "level": ["middle", "high"],
+          "before": ["Equal", ["Divide", "A", "b"], "C"],
+          "after": ["Equal", "A", ["Multiply", "b", "C"]],
+          "symbols": { "A": "左辺の分子", "b": "左辺の分母", "C": "右辺の式" }
         }
       ]
     },
