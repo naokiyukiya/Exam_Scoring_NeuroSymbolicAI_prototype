@@ -253,27 +253,61 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 解析成功時に Supabase へ自動保存 (upsert)
+    // ★ Supabase への保存処理（UPDATE/INSERT に明示分岐）
+    let dbSaveError: any = null
     if (parsedData && parsedData.graph) {
-      const { error: dbError } = await supabase
-        .from('logic_graphs')
-        .upsert({
-          post_id: answerId,
-          graph_data: parsedData.graph,
-          construction_process: parsedData.construction_process || [],
-          status: 'unverified',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'post_id' })
+      try {
+        // 1. 既存のレコードがあるか探す
+        const { data: existing } = await supabase
+          .from('logic_graphs')
+          .select('id')
+          .eq('post_id', answerId)
+          .maybeSingle()
 
-      if (dbError) {
-        console.error('logic_graphs への保存に失敗しました:', dbError)
+        if (existing) {
+          // 既存があれば UPDATE
+          const { error: updateErr } = await supabase
+            .from('logic_graphs')
+            .update({
+              graph_data: parsedData.graph,
+              construction_process: parsedData.construction_process || [],
+              status: 'unverified',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id)
+
+          if (updateErr) {
+            console.error('logic_graphs Update Error:', updateErr)
+            dbSaveError = updateErr
+          }
+        } else {
+          // 既存がなければ INSERT
+          const { error: insertErr } = await supabase
+            .from('logic_graphs')
+            .insert({
+              post_id: answerId,
+              graph_data: parsedData.graph,
+              construction_process: parsedData.construction_process || [],
+              status: 'unverified'
+            })
+
+          if (insertErr) {
+            console.error('logic_graphs Insert Error:', insertErr)
+            dbSaveError = insertErr
+          }
+        }
+      } catch (dbEx) {
+        console.error('Supabase処理中に例外が発生しました:', dbEx)
+        dbSaveError = dbEx
       }
     }
 
     return NextResponse.json({ 
       imageUrl: answer.image_url, 
       graph: parsedData.graph, 
-      constructionProcess: parsedData.construction_process || []
+      constructionProcess: parsedData.construction_process || [],
+      dbSaved: !dbSaveError,
+      dbError: dbSaveError ? (dbSaveError.message || String(dbSaveError)) : null
     })
 
   } catch (err: any) {
