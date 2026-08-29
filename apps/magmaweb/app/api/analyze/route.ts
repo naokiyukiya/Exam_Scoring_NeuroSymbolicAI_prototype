@@ -5,6 +5,75 @@ import theorems from '../../../lib/constants/theorems.json';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
+/**
+ * 途中で切れたJSON文字列のカッコを自動補完するヘパー関数
+ */
+function repairTruncatedJson(jsonStr: string): string {
+  let cleaned = jsonStr.trim();
+  
+  // 文字列リテラルの途中で切れている場合のレスキュー
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < cleaned.length; i++) {
+    const char = cleaned[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === '\\') {
+      escape = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+    }
+  }
+  if (inString) {
+    cleaned += '"';
+  }
+
+  // カンマやコロンで終わっている場合は削除
+  cleaned = cleaned.replace(/[,:\s]+$/, '');
+
+  // スタックを使って閉じられていない括弧を補完
+  const stack: string[] = [];
+  inString = false;
+  escape = false;
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const char = cleaned[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === '\\') {
+      escape = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === '{' || char === '[') {
+        stack.push(char);
+      } else if (char === '}') {
+        if (stack.length > 0 && stack[stack.length - 1] === '{') stack.pop();
+      } else if (char === ']') {
+        if (stack.length > 0 && stack[stack.length - 1] === '[') stack.pop();
+      }
+    }
+  }
+
+  while (stack.length > 0) {
+    const open = stack.pop();
+    if (open === '{') cleaned += '}';
+    else if (open === '[') cleaned += ']';
+  }
+
+  return cleaned;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const answerId = searchParams.get('answerId')
@@ -26,7 +95,7 @@ export async function GET(request: NextRequest) {
     }, { status: 404 })
   }
 
-  // ★ 追加1: すでにlogic_graphsに保存されていればGeminiを叩かずにそれを返す（API制限・高速化対策）
+  // キャッシュチェック（すでに存在する場合はGeminiを叩かず返却）
   const { data: existingGraph } = await supabase
     .from('logic_graphs')
     .select('graph_data, construction_process')
@@ -95,7 +164,7 @@ export async function GET(request: NextRequest) {
                    - 【絶対遵守】同じ定理が複数回使われた場合は、毎回新しい定理ノードを作成し、末尾に「(2回目の利用)」と記載してください。
                    - 【見落とし厳禁の自己チェック機構】: 抽出処理の最後に、画像内のすべての数式を必ず再確認（ダブルチェック）してください。「Σ（シグマ）の公式」「二次方程式の解の公式」「展開・因数分解の公式」などの重要な定義・定理の「抽出漏れ」が絶対に起きないように網羅してください。
                 4. 複数の式の合流（連立方程式など）の扱い:
-                   - 複数の命題（数式）を組み合わせて新しい命題を導いている場合、それらの複数の「命題ノード」から、1つの「推論ノード」に向かってエッジを繋げてください。
+                   - 複数の命題（数式）を組みまして新しい命題を導いている場合、それらの複数の「命題ノード」から、1つの「推論ノード」に向かってエッジを繋げてください。
                 5. グラフや表の除外:
                    - 関数グラフ、幾何的な図形、増減表などは解析の対象外とします。
                 6. 忠実性の原則:
@@ -145,32 +214,46 @@ export async function GET(request: NextRequest) {
       ],
       config: {
         responseMimeType: 'application/json',
-        temperature: 0.0
+        temperature: 0.0,
+        maxOutputTokens: 8192
       }
     })
 
-    const rawText = response.text
+    const rawText = response.text || ''
 
     let parsedData: any = null
 
+    // 文字列クレンジング
+    let cleanText = rawText.trim()
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim()
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim()
+    }
+
+    // 段階的にパースを試行
     try {
-      let cleanText = rawText.trim()
-      if (cleanText.startsWith('```json')) {
-        cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim()
-      } else if (cleanText.startsWith('```')) {
-        cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim()
-      }
       parsedData = JSON.parse(cleanText)
-    } catch (parseErr) {
+    } catch (parseErr1) {
       try {
-        const fixedText = rawText.replace(/\\/g, '\\\\').replace(/\\\\"|\\\\'|\\\\n/g, (match) => match.substring(2))
+        // エスケープ処理の試行
+        const fixedText = cleanText.replace(/\\/g, '\\\\').replace(/\\\\"|\\\\'|\\\\n/g, (match) => match.substring(2))
         parsedData = JSON.parse(fixedText)
-      } catch (innerErr) {
-        return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText })
+      } catch (parseErr2) {
+        try {
+          // 途中切れJSONの自動補完・修復試行
+          const repairedText = repairTruncatedJson(cleanText)
+          parsedData = JSON.parse(repairedText)
+        } catch (parseErr3) {
+          return NextResponse.json({ 
+            error: 'Geminiの出力データがJSONとして不適正です', 
+            rawText: rawText 
+          })
+        }
       }
     }
 
-    // ★ 追加2: 解析成功時に Supabase の logic_graphs テーブルへ自動保存 (upsert)
+    // 解析成功時に Supabase へ自動保存 (upsert)
     if (parsedData && parsedData.graph) {
       const { error: dbError } = await supabase
         .from('logic_graphs')
@@ -190,7 +273,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       imageUrl: answer.image_url, 
       graph: parsedData.graph, 
-      constructionProcess: parsedData.construction_process
+      constructionProcess: parsedData.construction_process || []
     })
 
   } catch (err: any) {
