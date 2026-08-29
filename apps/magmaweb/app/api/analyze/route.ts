@@ -26,6 +26,21 @@ export async function GET(request: NextRequest) {
     }, { status: 404 })
   }
 
+  // ★ 追加1: すでにlogic_graphsに保存されていればGeminiを叩かずにそれを返す（API制限・高速化対策）
+  const { data: existingGraph } = await supabase
+    .from('logic_graphs')
+    .select('graph_data, construction_process')
+    .eq('post_id', answerId)
+    .maybeSingle()
+
+  if (existingGraph) {
+    return NextResponse.json({
+      imageUrl: answer.image_url,
+      graph: existingGraph.graph_data,
+      constructionProcess: existingGraph.construction_process
+    })
+  }
+
   let theoremListString = "";
   const data: any = theorems; 
   
@@ -91,7 +106,7 @@ export async function GET(request: NextRequest) {
                 [出力フォーマット（厳守）]
                 - 以下のJSONスキーマに厳密に従って出力してください。
                 - 挨拶、説明、Markdownのコードブロックなどの余分なテキストは一切含めず、パース可能な生のJSON文字列のみを返してください。
-                 
+                  
                 {
                   "graph": {
                     "nodes": [
@@ -136,6 +151,8 @@ export async function GET(request: NextRequest) {
 
     const rawText = response.text
 
+    let parsedData: any = null
+
     try {
       let cleanText = rawText.trim()
       if (cleanText.startsWith('```json')) {
@@ -143,26 +160,38 @@ export async function GET(request: NextRequest) {
       } else if (cleanText.startsWith('```')) {
         cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim()
       }
-
-      const parsedData = JSON.parse(cleanText)
-      return NextResponse.json({ 
-        imageUrl: answer.image_url, 
-        graph: parsedData.graph, 
-        constructionProcess: parsedData.construction_process
-      })
+      parsedData = JSON.parse(cleanText)
     } catch (parseErr) {
       try {
         const fixedText = rawText.replace(/\\/g, '\\\\').replace(/\\\\"|\\\\'|\\\\n/g, (match) => match.substring(2))
-        const parsedData = JSON.parse(fixedText)
-        return NextResponse.json({ 
-          imageUrl: answer.image_url, 
-          graph: parsedData.graph, 
-          constructionProcess: parsedData.construction_process
-        })
+        parsedData = JSON.parse(fixedText)
       } catch (innerErr) {
         return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText })
       }
     }
+
+    // ★ 追加2: 解析成功時に Supabase の logic_graphs テーブルへ自動保存 (upsert)
+    if (parsedData && parsedData.graph) {
+      const { error: dbError } = await supabase
+        .from('logic_graphs')
+        .upsert({
+          post_id: answerId,
+          graph_data: parsedData.graph,
+          construction_process: parsedData.construction_process || [],
+          status: 'unverified',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'post_id' })
+
+      if (dbError) {
+        console.error('logic_graphs への保存に失敗しました:', dbError)
+      }
+    }
+
+    return NextResponse.json({ 
+      imageUrl: answer.image_url, 
+      graph: parsedData.graph, 
+      constructionProcess: parsedData.construction_process
+    })
 
   } catch (err: any) {
     return NextResponse.json({ error: 'APIリクエストで致命的エラーが発生しました', details: err?.message || String(err) }, { status: 500 })
