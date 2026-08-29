@@ -270,9 +270,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#f9fafb',
     minHeight: '100vh',
   },
-  headerSection: {
+headerSection: {
     position: 'sticky',
     top: 32,
+    marginTop: -32,
     zIndex: 500,
     background: '#2C3E50',
     paddingTop: 12,
