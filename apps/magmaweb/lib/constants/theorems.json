@@ -73,7 +73,10 @@
           "level": ["middle", "high"],
           "before": ["Divide", ["Multiply", "a", "c"], ["Multiply", "b", "c"]],
           "after": ["Divide", "a", "b"],
-          "conditions": ["NotEqual", "c", 0],
+          "conditions":[
+            ["NotEqual", "c", 0],
+            ["NotEqual", "b", 0]
+          ] ,
           "symbols": { "a": "分子の因数", "b": "分母の因数", "c": "共通因数" }
         },
         {
@@ -82,7 +85,10 @@
           "level": ["middle", "high"],
           "before": ["Divide", "a", "b"],
           "after": ["Divide", ["Multiply", "a", "c"], ["Multiply", "b", "c"]],
-          "conditions": ["NotEqual", "b", 0],
+          "conditions":[
+             ["NotEqual", "b", 0],
+             ["NotEqual", "c", 0]
+          ],
           "symbols": { "a": "分子", "b": "分母", "c": "掛ける式" }
         },
         {
@@ -91,6 +97,7 @@
           "level": ["middle", "high"],
           "before": ["Add", ["Divide", "a", "c"], ["Divide", "b", "c"]],
           "after": ["Divide", ["Add", "a", "b"], "c"],
+          "conditions": ["NotEqual", "c", 0],
           "symbols": { "a": "分子1", "b": "分子2", "c": "共通分母" }
         },
         {
@@ -99,6 +106,10 @@
           "level": ["middle", "high"],
           "before": ["Add", ["Divide", "a", "b"], ["Divide", "c", "d"]],
           "after": ["Divide", ["Add", ["Multiply", "a", "d"], ["Multiply", "b", "c"]], ["Multiply", "b", "d"]],
+          "conditions": [
+            ["NotEqual", "b", 0],
+            ["NotEqual", "d", 0]
+          ],
           "symbols": { "a": "分子1", "b": "分母1", "c": "分子2", "d": "分母2" }
         },
         {
@@ -107,6 +118,10 @@
           "level": ["middle", "high"],
           "before": ["Multiply", ["Divide", "a", "b"], ["Divide", "c", "d"]],
           "after": ["Divide", ["Multiply", "a", "c"], ["Multiply", "b", "d"]],
+          "conditions": [
+            ["NotEqual", "b", 0]
+            ["NotEqual", "d", 0]
+          ],
           "symbols": { "a": "分子1", "b": "分母1", "c": "分子2", "d": "分母2" }
         },
         {
