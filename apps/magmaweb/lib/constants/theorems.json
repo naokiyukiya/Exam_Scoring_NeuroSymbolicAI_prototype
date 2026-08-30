@@ -76,7 +76,7 @@
           "conditions":[
             ["NotEqual", "c", 0],
             ["NotEqual", "b", 0]
-          ] ,
+          ],
           "symbols": { "a": "分子の因数", "b": "分母の因数", "c": "共通因数" }
         },
         {
@@ -119,7 +119,7 @@
           "before": ["Multiply", ["Divide", "a", "b"], ["Divide", "c", "d"]],
           "after": ["Divide", ["Multiply", "a", "c"], ["Multiply", "b", "d"]],
           "conditions": [
-            ["NotEqual", "b", 0]
+            ["NotEqual", "b", 0],
             ["NotEqual", "d", 0]
           ],
           "symbols": { "a": "分子1", "b": "分母1", "c": "分子2", "d": "分母2" }
@@ -130,6 +130,11 @@
           "level": ["middle", "high"],
           "before": ["Divide", ["Divide", "a", "b"], ["Divide", "c", "d"]],
           "after": ["Multiply", ["Divide", "a", "b"], ["Divide", "d", "c"]],
+          "conditions": [
+            ["NotEqual", "b", 0],
+            ["NotEqual", "c", 0],
+            ["NotEqual", "d", 0]
+          ],
           "symbols": { "a": "分子1", "b": "分母1", "c": "分子2", "d": "分母2" }
         }
       ]
