@@ -233,6 +233,7 @@
           "level": ["middle", "high"],
           "before": ["Equal", "A", "B"],
           "after": ["Equal", ["Multiply", "A", "C"], ["Multiply", "B", "C"]],
+          "conditions": ["NotEqual", "c", 0],
           "symbols": { "A": "左辺", "B": "右辺", "C": "掛ける式" }
         },
         {
@@ -266,6 +267,10 @@
           "level": ["middle", "high"],
           "before": ["Equal", ["Divide", "A", "b"], ["Divide", "C", "d"]],
           "after": ["Equal", ["Multiply", "d", "A"], ["Multiply", "b", "C"]],
+          "conditions": [
+            ["NotEqual", "b", 0],
+            ["NotEqual", "d", 0]
+          ],
           "symbols": { "A": "分子1", "b": "分母1", "C": "分子2", "d": "分母2" }
         },
         {
@@ -274,6 +279,7 @@
           "level": ["middle", "high"],
           "before": ["Equal", ["Divide", "A", "b"], "C"],
           "after": ["Equal", "A", ["Multiply", "b", "C"]],
+          "conditions": ["NotEqual", "b", 0],
           "symbols": { "A": "左辺の分子", "b": "左辺の分母", "C": "右辺の式" }
         }
       ]
