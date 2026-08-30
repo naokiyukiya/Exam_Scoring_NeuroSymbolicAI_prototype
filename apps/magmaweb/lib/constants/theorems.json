@@ -195,6 +195,10 @@
           "level": ["high"],
           "before": ["Power", "a", ["Negate", "n"]],
           "after": ["Divide", 1, ["Power", "a", "n"]],
+          "conditions": [
+            ["NotEqual", "a", 0]
+            ["Grater", "n", 0]
+          ],
           "symbols": { "a": "底", "n": "正の指数" }
         },
         {
@@ -203,6 +207,10 @@
           "level": ["high"],
           "before": ["Power", "a", ["Divide", "m", "n"]],
           "after": ["Root", ["Power", "a", "m"], "n"],
+          "conditions": [
+            ["Greater", "a", 0],
+            ["Grater", "n", 0]
+          ],
           "symbols": { "a": "底", "m": "分子", "n": "分母" }
         }
       ]
@@ -334,14 +342,6 @@
             ["Min", ["Map", "GetUpperBound", "conditions"]]
           ],
           "symbols": { "conditions": "不等式条件のリスト", "GetLowerBound": "下限取得関数", "GetUpperBound": "上限取得関数" }
-        },
-        {
-          "id": "rule_equality_condition_general",
-          "name": "等号が成立する変数を求める（一般）",
-          "level": ["middle", "high"],
-          "before": ["GreaterEqual", "A", "B"],
-          "after": ["Equal", "A", "B"],
-          "symbols": { "A": "大きい側", "B": "小さい側" }
         },
         {
           "id": "rule_equality_condition_am_gm",
@@ -522,6 +522,7 @@
             ["Multiply", "a", ["Power", ["Add", "x", ["Divide", "b", ["Multiply", 2, "a"]]], 2]],
             ["Subtract", "c", ["Divide", ["Power", "b", 2], ["Multiply", 4, "a"]]]
           ],
+          "conditions": ["NotEqual", "a", 0],
           "symbols": { "x": "変数", "a": "係数", "b": "係数", "c": "定数" }
         },
         {
