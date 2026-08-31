@@ -196,7 +196,7 @@
           "before": ["Power", "a", ["Negate", "n"]],
           "after": ["Divide", 1, ["Power", "a", "n"]],
           "conditions": [
-            ["NotEqual", "a", 0]
+            ["NotEqual", "a", 0],
             ["Grater", "n", 0]
           ],
           "symbols": { "a": "底", "n": "正の指数" }
