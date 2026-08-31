@@ -413,6 +413,10 @@
           "level": ["middle", "high"],
           "before": ["Multiply", ["Sqrt", "a"], ["Sqrt", "b"]],
           "after": ["Sqrt", ["Multiply", "a", "b"]],
+          "conditions": [
+            ["GreaterEqual", "a", 0],
+            ["GreaterEqual", "b", 0]
+          ],
           "symbols": { "a": "正の数", "b": "正の数" }
         },
         {
@@ -421,6 +425,7 @@
           "level": ["middle", "high"],
           "before": ["Divide", "a", ["Sqrt", "b"]],
           "after": ["Divide", ["Multiply", "a", ["Sqrt", "b"]], "b"],
+          "conditions": ["Greater", "b", 0],
           "symbols": { "a": "分子", "b": "分母の根号内" }
         },
         {
@@ -429,6 +434,11 @@
           "level": ["high"],
           "before": ["Divide", "c", ["Add", ["Sqrt", "a"], ["Sqrt", "b"]]],
           "after": ["Divide", ["Multiply", "c", ["Subtract", ["Sqrt", "a"], ["Sqrt", "b"]]], ["Subtract", "a", "b"]],
+          "conditions": [
+            ["GreaterEqual", "a", 0],
+            ["GreaterEqual", "b", 0],
+            ["NotEqual", "a", "b"]
+          ],
           "symbols": { "c": "分子", "a": "分母の項1", "b": "分母の項2" }
         },
         {
@@ -553,6 +563,7 @@
           "level": ["high"],
           "before": ["Tan", "x"],
           "after": ["Divide", ["Sin", "x"], ["Cos", "x"]],
+          "conditions": ["NotEqual", ["Cos", "x"], 0],
           "symbols": { "x": "角度" }
         },
         {
@@ -812,6 +823,11 @@
           "level": ["high"],
           "before": ["Equal", ["Power", "a", "p"], "M"],
           "after": ["Equal", "p", ["LogBase", "a", "M"]],
+          "conditions": [
+            ["Greater", "a",0],
+            ["NotEqual", "a",1],
+            ["Greater", "M", 0]
+          ],
           "symbols": { "a": "底", "p": "指数", "M": "真数" }
         },
         {
@@ -820,6 +836,12 @@
           "level": ["high"],
           "before": ["LogBase", "a", ["Multiply", "M", "N"]],
           "after": ["Add", ["LogBase", "a", "M"], ["LogBase", "a", "N"]],
+          "conditions": [
+            ["Greater", "a", 0],
+            ["NotEqual", "M", 1],
+            ["Greater","M", 0],
+            ["Greater", "N", 0]
+          ],
           "symbols": { "a": "底", "M": "真数", "N": "真数" }
         },
         {
@@ -828,6 +850,12 @@
           "level": ["high"],
           "before": ["LogBase", "a", ["Divide", "M", "N"]],
           "after": ["Subtract", ["LogBase", "a", "M"], ["LogBase", "a", "N"]],
+          "conditions": [
+            ["Greater", "a", 0],
+            ["NotEqual", "a", 0],
+            ["Greater", "M", 0],
+            ["Greater", "N", 0]
+          ],
           "symbols": { "a": "底", "M": "真数", "N": "真数" }
         },
         {
