@@ -864,6 +864,11 @@
           "level": ["high"],
           "before": ["LogBase", "a", ["Power", "M", "k"]],
           "after": ["Multiply", "k", ["LogBase", "a", "M"]],
+          "conditions": [
+            ["Grater", "a", 0],
+            ["NotEqual", "a", 1],
+            ["Grater", "M", 0]
+          ],
           "symbols": { "a": "底", "M": "真数", "k": "真数の指数" }
         },
         {
@@ -872,6 +877,13 @@
           "level": ["high"],
           "before": ["LogBase", "a", "b"],
           "after": ["Divide", ["LogBase", "c", "b"], ["LogBase", "c", "a"]],
+          "conditions": [
+            ["Greater", "a", 0],
+            ["NotEqual", "a", 1],
+            ["Greater", "b", 0],
+            ["Greater", "c", 0],
+            ["NotEqual", "c", 1]
+          ],
           "symbols": { "a": "元の底", "b": "真数", "c": "新しい底" }
         }
       ]
@@ -884,8 +896,9 @@
           "id": "rule_sigma_k",
           "name": "シグマ公式（自然数の和）",
           "level": ["high"],
-          "before": ["Sum", "k", ["k", 1, "n"]],
+          "before": ["Sum", "k", ["Tuple", "k", 1, "n"]],
           "after": ["Multiply", ["Divide", 1, 2], "n", ["Add", "n", 1]],
+          "conditions": ["GreaterEqual", "n", 0],
           "symbols": { "k": "変数", "n": "項数" }
         },
         {
