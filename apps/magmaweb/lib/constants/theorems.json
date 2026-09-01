@@ -731,7 +731,11 @@
           "name": "解と係数の関係（3次）",
           "level": ["high"],
           "before": ["And", ["Equal", ["Add", ["Multiply", "a", ["Power", "x", 3]], ["Multiply", "b", ["Power", "x", 2]], ["Multiply", "c", "x"], "d"], 0], ["In", "x", ["Set", "α", "β", "γ"]]],
-          "after": ["And", ["Equal", ["Add", "α", "β", "γ"], ["Negate", ["Divide", "b", "a"]]], ["Equal", ["Multiply", "α", "β", "γ"], ["Negate", ["Divide", "d", "a"]]]],
+          "after": ["And",
+          ["Equal", ["Add", "α", "β", "γ"], ["Negate", ["Divide", "b", "a"]]],
+          ["Equal", ["Add", ["Multiply", "α", "β"], ["Multiply", "β", "γ"], ["Multiply", "γ", "α"]], ["Divide", "c", "a"]],
+          ["Equal", ["Multiply", "α", "β", "γ"], ["Negate", ["Divide", "d", "a"]]]],
+          "conditions": ["NotEqual", "a",0],
           "symbols": { "a": "係数", "b": "係数", "c": "係数", "d": "定数", "α": "解", "β": "解", "γ": "解" }
         }
       ]
@@ -905,16 +909,18 @@
           "id": "rule_sigma_k_square",
           "name": "シグマ公式（平方の和）",
           "level": ["high"],
-          "before": ["Sum", ["Power", "k", 2], ["k", 1, "n"]],
+          "before": ["Sum", ["Power", "k", 2], ["Tuple","k", 1, "n"]],
           "after": ["Multiply", ["Divide", 1, 6], "n", ["Add", "n", 1], ["Add", ["Multiply", 2, "n"], 1]],
+          "conditions": ["GraterEqual", "n", 1],
           "symbols": { "k": "変数", "n": "項数" }
         },
         {
           "id": "rule_sigma_k_cube",
           "name": "シグマ公式（立方の和）",
           "level": ["high"],
-          "before": ["Sum", ["Power", "k", 3], ["k", 1, "n"]],
+          "before": ["Sum", ["Power", "k", 3], ["Tuple","k", 1, "n"]],
           "after": ["Power", ["Multiply", ["Divide", 1, 2], "n", ["Add", "n", 1]], 2],
+          "conditions": ["GreaterEqual", "n",1],
           "symbols": { "k": "変数", "n": "項数" }
         },
         {
