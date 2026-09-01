@@ -3,10 +3,13 @@ import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
+// ★ プロンプトのバージョン（プロンプト改修時にここをインクリメント）
+const PROMPT_VERSION = "1.0.0";
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
 /**
- * 途中で切れたJSON文字列のカッコを自動補完するヘパー関数
+ * 途中で切れたJSON文字列のカッコを自動補完するヘルパー関数
  */
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
@@ -95,10 +98,14 @@ export async function GET(request: NextRequest) {
     }, { status: 404 })
   }
 
+  // ★ theorems.json からバージョンを取得（存在しない場合のフォールバック付き）
+  const data: any = theorems;
+  const theoremVersion = data?.version || "unknown";
+
   // キャッシュチェック（すでに存在する場合はGeminiを叩かず返却）
   const { data: existingGraph } = await supabase
     .from('logic_graphs')
-    .select('graph_data, construction_process')
+    .select('graph_data, construction_process, prompt_version, theorem_version')
     .eq('post_id', answerId)
     .maybeSingle()
 
@@ -106,12 +113,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       imageUrl: answer.image_url,
       graph: existingGraph.graph_data,
-      constructionProcess: existingGraph.construction_process
+      constructionProcess: existingGraph.construction_process,
+      metadata: {
+        promptVersion: existingGraph.prompt_version || null,
+        theoremVersion: existingGraph.theorem_version || null,
+        cached: true
+      }
     })
   }
 
   let theoremListString = "";
-  const data: any = theorems; 
   
   try {
     if (data?.theorems?.rule_groups) {
@@ -253,7 +264,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ★ Supabase への保存処理（UPDATE/INSERT に明示分岐）
+    // ★ Supabase への保存処理（UPDATE/INSERT に明示分岐 & バージョン情報を追加）
     let dbSaveError: any = null
     if (parsedData && parsedData.graph) {
       try {
@@ -264,16 +275,20 @@ export async function GET(request: NextRequest) {
           .eq('post_id', answerId)
           .maybeSingle()
 
+        const payload = {
+          graph_data: parsedData.graph,
+          construction_process: parsedData.construction_process || [],
+          status: 'unverified',
+          prompt_version: PROMPT_VERSION,       // ★ プロンプトバージョン
+          theorem_version: theoremVersion,      // ★ theorems.jsonのバージョン
+          updated_at: new Date().toISOString()
+        };
+
         if (existing) {
           // 既存があれば UPDATE
           const { error: updateErr } = await supabase
             .from('logic_graphs')
-            .update({
-              graph_data: parsedData.graph,
-              construction_process: parsedData.construction_process || [],
-              status: 'unverified',
-              updated_at: new Date().toISOString()
-            })
+            .update(payload)
             .eq('id', existing.id)
 
           if (updateErr) {
@@ -286,9 +301,7 @@ export async function GET(request: NextRequest) {
             .from('logic_graphs')
             .insert({
               post_id: answerId,
-              graph_data: parsedData.graph,
-              construction_process: parsedData.construction_process || [],
-              status: 'unverified'
+              ...payload
             })
 
           if (insertErr) {
@@ -306,6 +319,11 @@ export async function GET(request: NextRequest) {
       imageUrl: answer.image_url, 
       graph: parsedData.graph, 
       constructionProcess: parsedData.construction_process || [],
+      metadata: {
+        promptVersion: PROMPT_VERSION,
+        theoremVersion: theoremVersion,
+        cached: false
+      },
       dbSaved: !dbSaveError,
       dbError: dbSaveError ? (dbSaveError.message || String(dbSaveError)) : null
     })
