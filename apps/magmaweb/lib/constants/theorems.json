@@ -140,20 +140,6 @@
       ]
     },
     {
-      "group_id": "domain_and_definition",
-      "name": "式の定義と定義域（中1〜）",
-      "rules": [
-        {
-          "id": "rule_fraction_denominator_not_zero",
-          "name": "分母は0にならない（分数の定義）",
-          "level": ["middle", "high"],
-          "before": ["Divide", "a", "b"],
-          "after": ["NotEqual", "b", 0],
-          "symbols": { "a": "分子の式や値", "b": "分母の式や値" }
-        }
-      ]
-    },
-    {
       "group_id": "power_basic",
       "name": "指数法則（中1〜高2）",
       "rules": [
@@ -1173,7 +1159,75 @@
           "after": ["f", "x"],
           "symbols": { "f": "関数", "t": "積分変数", "a": "定数の下端", "x": "変数である上端" }
         }
-      ]
-    }
-  ]
-}
+      ] 
+    },
+    {
+      "group_id": "middle_school_functions",
+      "name": "中学の関数（中1〜中3）",
+      "rules":[
+        {
+          "id": "rule_proportional_function",
+          "name": "比例",
+          "level": ["middle"],
+          "before": ["Proportional", "x", "y", "a"],
+          "after": ["Equal", "y", ["Multiply", "a", "x"]],
+          "symbols": {"x": "変数","y": "変数", "a": "比例定数" } 
+        },
+        {
+          "id": "rule_inverse_proportional_function",
+          "name": "反比例",
+          "level": ["middle"],
+          "before": ["InverseProportional", "x", "y", "a"],
+          "after": ["Equal", "y", ["Divide", "a", "x"]],
+          "conditions": ["NotEqual", "x", 0],
+          "symbols": {"x": "変数","y": "変数","a": "比例定数"} 
+        },
+        {
+          "id": "rule_linear_function",
+          "name": "一次関数",
+          "level": ["middle"],
+          "before": ["LinearFunction", "x", "y", "a", "b"],
+          "after": ["Equal", "y", ["Add", ["Multiply", "a", "x"], "b"]],
+          "symbols": {
+            "x": "変数",
+            "y": "変数",
+            "a": "傾き",
+            "b": "切片"
+          }
+        },
+        {
+          "id": "rule_quadratic_function_middle",
+          "name": "二次関数",
+          "level": ["middle"],
+          "before": ["QuadraticFunction", "x", "y", "a"],
+          "after": ["Equal", "y", ["Multiply", "a", ["Power", "x", 2]]],
+          "conditions": ["NotEqual", "a", 0],
+          "symbols": {
+            "x": "変数",
+            "y": "変数",
+            "a": "比例定数"
+          }
+        }
+        ]
+      },
+      {
+        "group_id": "middle_school_geometry",
+        "name": "中学の図形（中3）",
+        "rules": [
+          {
+            "id": "rule_pythagorean_theorem",
+            "name": "三平方の定理",
+            "level": ["middle"],
+            "before": ["RightTriangle", "a", "b", "c"],
+            "after": ["Equal",["Add", ["Power", "a", 2], ["Power", "b", 2]],["Power", "c", 2] ],
+            "conditions": [
+              ["Greater", "a", 0],
+              ["Greater", "b", 0],
+              ["Greater", "c", 0]
+            ],
+            "symbols": {"a": "直角をはさむ辺","b": "直角をはさむ辺","c": "斜辺"}
+          }
+        ]
+      }
+    ]
+  }
