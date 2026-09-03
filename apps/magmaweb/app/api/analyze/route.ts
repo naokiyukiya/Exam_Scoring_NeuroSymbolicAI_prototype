@@ -24,7 +24,7 @@ function repairTruncatedJson(jsonStr: string): string {
       continue;
     }
     if (char === '\\') {
-      escape = true;
+      escape = true; 
       continue;
     }
     if (char === '"') {

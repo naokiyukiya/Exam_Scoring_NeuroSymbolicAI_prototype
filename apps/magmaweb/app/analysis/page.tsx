@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   AlertTriangle,
   ArrowRight,
@@ -8,496 +9,328 @@ import {
   ChevronRight,
   Flame,
   Lightbulb,
-  MessageCircle,
   Target,
   TrendingUp,
   Trophy,
   Users,
+  X,
+  Zap,
 } from 'lucide-react'
 
+type ModalType = 'revenge' | 'detail' | 'recommended' | 'challenge' | null
+
 export default function AnalysisPage() {
+  const [modal, setModal] = useState<ModalType>(null)
+
   return (
     <main style={styles.page}>
-      {/* ヘッダー */}
-      <header style={styles.header}>
-        <div>
-          <p style={styles.smallLabel}>MAGMATHE</p>
-          <h1 style={styles.title}>誤り分析</h1>
-          <p style={styles.subtitle}>
-            あなたの「間違い方」と成長を分析します
-          </p>
-        </div>
-      </header>
-
       <div style={styles.container}>
 
-        {/* =========================
-            今日の伸びしろ
-        ========================= */}
-        <section style={styles.mainCard}>
-          <div style={styles.cardTop}>
-            <div style={styles.iconBlue}>
-              <Target size={21} />
-            </div>
-
-            <span style={styles.tagBlue}>TODAY</span>
+        {/* Header */}
+        <header style={styles.header}>
+          <div>
+            <div style={styles.logo}>MAGMATHE</div>
+            <h1 style={styles.title}>誤り分析</h1>
+            <p style={styles.subtitle}>
+              あなたの「間違い方」を分析します
+            </p>
           </div>
 
-          <p style={styles.cardLabel}>✨ 今日の伸びしろ</p>
+          <div style={styles.studentBadge}>STUDENT</div>
+        </header>
 
-          <h2 style={styles.mainCardTitle}>
-            「式の整理」を
-            <br />
-            もう少し練習してみよう！
-          </h2>
+        {/* 今日の伸びしろ */}
+        <section style={styles.growthCard}>
+          <div style={styles.growthTop}>
+            <div>
+              <div style={styles.smallWhite}>
+                ✨ 今日の伸びしろ
+              </div>
 
-          <p style={styles.mainCardText}>
-            あなたの最近の答案では、
+              <div style={styles.growthTitle}>
+                式の整理
+              </div>
+
+              <div style={styles.growthCount}>
+                6回
+              </div>
+            </div>
+
+            <div style={styles.growthIcon}>
+              <Target size={28} />
+            </div>
+          </div>
+
+          <p style={styles.growthDescription}>
+            最近の答案で一番多かったミスです。
             <br />
-            「式の整理」のミスが一番多く見られます。
+            今日は「式の整理」を練習してみよう！
           </p>
 
-          <div style={styles.numberBox}>
-            <div>
-              <span style={styles.bigNumber}>6</span>
-              <span style={styles.numberUnit}>回</span>
-            </div>
-
-            <span style={styles.numberText}>
-              最近の「式の整理」のミス
-            </span>
-          </div>
-
-          <button style={styles.primaryButton}>
-            <span>リベンジ問題に挑戦</span>
-            <ArrowRight size={18} />
+          <button
+            type="button"
+            style={styles.whiteButton}
+            onClick={() => setModal('revenge')}
+          >
+            <Flame size={18} />
+            リベンジ問題に挑戦
+            <ArrowRight size={17} />
           </button>
         </section>
 
-        {/* =========================
-            ミスのクセ
-        ========================= */}
+        {/* ミスのクセ */}
         <section style={styles.card}>
-          <div style={styles.sectionTitleArea}>
-            <div style={styles.iconPurple}>
-              <AlertTriangle size={19} />
-            </div>
+          <SectionTitle
+            icon={<AlertTriangle size={19} />}
+            title="あなたのミスのクセ"
+            description="これまでの答案から見つかった傾向"
+          />
 
-            <div>
-              <h2 style={styles.sectionTitle}>
-                あなたのミスのクセ
-              </h2>
-
-              <p style={styles.sectionSub}>
-                最近の答案から分析
-              </p>
-            </div>
+          <div style={styles.errorList}>
+            <ErrorBar label="式の整理" count={6} percent={100} first />
+            <ErrorBar label="符号のミス" count={4} percent={67} />
+            <ErrorBar label="代入のミス" count={2} percent={34} />
+            <ErrorBar label="計算ミス" count={1} percent={17} />
           </div>
 
-          <div style={styles.barList}>
-            <ErrorBar
-              name="式の整理"
-              count={6}
-              width="100%"
-              comment="一番多い"
-            />
-
-            <ErrorBar
-              name="符号のミス"
-              count={4}
-              width="67%"
-              comment=""
-            />
-
-            <ErrorBar
-              name="代入のミス"
-              count={2}
-              width="34%"
-              comment=""
-            />
-
-            <ErrorBar
-              name="計算ミス"
-              count={1}
-              width="17%"
-              comment=""
-            />
-          </div>
-
-          <div style={styles.analysisHint}>
-            <Lightbulb size={16} />
+          <div style={styles.infoBox}>
+            <Lightbulb size={17} />
             <span>
-              「式の整理」が現在の一番の伸びしろです
+              「式の整理」が今いちばんの伸びしろです！
             </span>
           </div>
         </section>
 
-        {/* =========================
-            ここまで合っていました
-        ========================= */}
-        <section style={styles.successCard}>
-          <div style={styles.successHeader}>
-            <div style={styles.iconGreen}>
-              <CheckCircle2 size={19} />
-            </div>
-
-            <div>
-              <h2 style={styles.sectionTitle}>
-                ここまで合っていました！
-              </h2>
-
-              <p style={styles.sectionSub}>
-                間違いだけでなく、正しく考えられた部分も確認
-              </p>
-            </div>
-          </div>
+        {/* ここまで合っていました */}
+        <section style={styles.card}>
+          <SectionTitle
+            icon={<CheckCircle2 size={19} />}
+            title="ここまで合っていました！"
+            description="今回の答案では、ここから間違いが始まりました"
+          />
 
           <div style={styles.stepBox}>
-            <div style={styles.stepDone}>
-              <span>✓</span>
-            </div>
-
+            <Step number="1" text="解と係数の関係" correct />
             <div style={styles.stepLine} />
 
-            <div style={styles.stepDone}>
-              <span>✓</span>
-            </div>
-
+            <Step number="2" text="式を立てる" correct />
             <div style={styles.stepLine} />
 
-            <div style={styles.stepError}>
-              <span>!</span>
-            </div>
+            <Step number="3" text="式を整理する" error />
           </div>
 
-          <div style={styles.stepLabels}>
-            <span>解と係数の関係</span>
-            <span>式を立てる</span>
-            <span>式を整理する</span>
-          </div>
-
-          <p style={styles.successText}>
-            実は、途中までは正しく考えられています。
-            <br />
-            <b>「どこから間違ったか」</b>
-            を確認してみよう！
-          </p>
-
-          <button style={styles.secondaryButton}>
+          <button
+            type="button"
+            style={styles.outlineButton}
+            onClick={() => setModal('detail')}
+          >
             間違いを詳しく見る
             <ChevronRight size={17} />
           </button>
         </section>
 
-        {/* =========================
-            単元別おすすめ問題
-        ========================= */}
+        {/* 単元別おすすめ問題 */}
         <section style={styles.card}>
-          <div style={styles.sectionTitleArea}>
-            <div style={styles.iconBlueLight}>
-              <BookOpen size={19} />
-            </div>
+          <SectionTitle
+            icon={<BookOpen size={19} />}
+            title="単元別おすすめ問題"
+            description="自分で単元を選んで練習できます"
+          />
 
-            <div>
-              <h2 style={styles.sectionTitle}>
-                単元別おすすめ問題
-              </h2>
+          <div style={styles.topicGrid}>
+            <TopicButton
+              title="二次方程式"
+              level="おすすめ ★★★★★"
+              active
+              onClick={() => setModal('recommended')}
+            />
 
-              <p style={styles.sectionSub}>
-                自分で好きな単元を選んで練習
-              </p>
-            </div>
-          </div>
+            <TopicButton
+              title="二次関数"
+              level="おすすめ ★★★★☆"
+              onClick={() => setModal('recommended')}
+            />
 
-          <div style={styles.recommendBox}>
-            <div>
-              <p style={styles.recommendLabel}>
-                ✨ あなたへのおすすめ
-              </p>
+            <TopicButton
+              title="三角関数"
+              level="おすすめ ★★★☆☆"
+              onClick={() => setModal('recommended')}
+            />
 
-              <h3 style={styles.recommendTitle}>
-                二次方程式
-              </h3>
-
-              <p style={styles.recommendText}>
-                「式の整理」の問題から
-                <br />
-                練習してみませんか？
-              </p>
-            </div>
-
-            <button style={styles.smallActionButton}>
-              挑戦する
-              <ArrowRight size={15} />
-            </button>
-          </div>
-
-          <div style={styles.unitGrid}>
-            <UnitButton name="二次方程式" />
-            <UnitButton name="二次関数" />
-            <UnitButton name="図形と方程式" />
-            <UnitButton name="三角関数" />
-            <UnitButton name="微分" />
-            <UnitButton name="積分" />
+            <TopicButton
+              title="微分"
+              level="おすすめ ★★☆☆☆"
+              onClick={() => setModal('recommended')}
+            />
           </div>
         </section>
 
-        {/* =========================
-            最近の成長
-        ========================= */}
+        {/* 最近の成長 */}
         <section style={styles.card}>
-          <div style={styles.sectionTitleArea}>
-            <div style={styles.iconOrange}>
-              <TrendingUp size={19} />
+          <SectionTitle
+            icon={<TrendingUp size={19} />}
+            title="最近の成長"
+            description="最近の答案から見た変化"
+          />
+
+          <div style={styles.progressArea}>
+            <div style={styles.progressNumber}>
+              <span>72%</span>
+              <ArrowRight size={20} />
+              <strong>81%</strong>
             </div>
 
-            <div>
-              <h2 style={styles.sectionTitle}>
-                最近の成長
-              </h2>
-
-              <p style={styles.sectionSub}>
-                前回と比べてどうなった？
-              </p>
-            </div>
-          </div>
-
-          <div style={styles.growthBox}>
-            <div style={styles.growthNumber}>
-              <span>72</span>
-              <small>%</small>
-            </div>
-
-            <div style={styles.growthArrow}>→</div>
-
-            <div style={styles.growthNumberAfter}>
-              <span>81</span>
-              <small>%</small>
+            <div style={styles.progressUp}>
+              +9ポイント
             </div>
           </div>
 
-          <div style={styles.growthMessage}>
-            <TrendingUp size={17} />
-
-            <span>
-              正答率が <b>9ポイントアップ！</b>
-            </span>
+          <div style={styles.progressTrack}>
+            <div style={styles.progressFill} />
           </div>
+
+          <p style={styles.mutedText}>
+            前回より正しく解ける問題が増えています！
+          </p>
         </section>
 
-        {/* =========================
-            できるようになったこと
-        ========================= */}
+        {/* できるようになったこと */}
         <section style={styles.card}>
-          <div style={styles.sectionTitleArea}>
-            <div style={styles.iconYellow}>
-              <Trophy size={19} />
-            </div>
-
-            <div>
-              <h2 style={styles.sectionTitle}>
-                できるようになったこと
-              </h2>
-
-              <p style={styles.sectionSub}>
-                あなたの成長記録
-              </p>
-            </div>
-          </div>
+          <SectionTitle
+            icon={<Trophy size={19} />}
+            title="できるようになったこと"
+            description="最近の答案から見つかった成長"
+          />
 
           <Achievement
             title="二次方程式の基本的な立式"
-            text="以前より安定してできています！"
+            text="問題文から条件を読み取り、式を立てられるようになりました。"
           />
 
           <Achievement
             title="解と係数の関係"
-            text="正しく使える問題が増えました！"
-          />
-
-          <Achievement
-            title="途中式を書く習慣"
-            text="考え方が以前より分かりやすくなっています！"
+            text="α＋β、αβの関係を使って式を作れるようになりました。"
           />
         </section>
 
-        {/* =========================
-            みんなの学習
-        ========================= */}
+        {/* みんなの学習 */}
         <section style={styles.card}>
-          <div style={styles.sectionTitleArea}>
-            <div style={styles.iconPeople}>
-              <Users size={19} />
-            </div>
+          <SectionTitle
+            icon={<Users size={19} />}
+            title="みんなの学習"
+            description="みんなの投稿・答案から集計しています"
+          />
 
-            <div>
-              <h2 style={styles.sectionTitle}>
-                みんなの学習
-              </h2>
-
-              <p style={styles.sectionSub}>
-                投稿された解答から見る、みんなの数学
-              </p>
-            </div>
-          </div>
-
-          {/* 人気の問題 */}
-          <div style={styles.communitySection}>
-            <div style={styles.communityHeading}>
-              <Flame size={17} />
-              <span>最近よく投稿されている問題</span>
-            </div>
-
-            <CommunityProblem
-              title="二次関数の最大・最小"
-              detail="128件の解答が投稿されています"
-              badge="人気"
-            />
-
-            <CommunityProblem
-              title="因数分解"
-              detail="96件の解答が投稿されています"
-              badge="注目"
-            />
-
-            <CommunityProblem
-              title="三角関数のグラフ"
-              detail="74件の解答が投稿されています"
-              badge="注目"
-            />
-          </div>
-
-          {/* つまずき問題 */}
-          <div style={styles.communitySection}>
-            <div style={styles.communityHeading}>
-              <AlertTriangle size={17} />
-              <span>みんながつまずいている問題</span>
-            </div>
-
-            <div style={styles.difficultProblem}>
-              <div>
-                <span style={styles.difficultBadge}>
-                  正答率 32%
-                </span>
-
-                <h3 style={styles.difficultTitle}>
-                  二次方程式の応用問題
-                </h3>
-
-                <p style={styles.difficultText}>
-                  みんなもこの問題で苦戦しているみたい
-                </p>
-              </div>
-
-              <ChevronRight
-                size={20}
-                color="#8995a1"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* =========================
-            CM風・みんなからの挑戦状
-        ========================= */}
-        <section style={styles.challengeCard}>
-          <div style={styles.challengeTop}>
-            <div style={styles.challengeIcon}>
-              <MessageCircle size={21} />
-            </div>
-
-            <span style={styles.challengeLabel}>
-              CHALLENGE
+          <div style={styles.communityNote}>
+            <Users size={17} />
+            <span>
+              個人名は表示せず、みんなの学習データを集計しています。
             </span>
           </div>
 
-          <p style={styles.challengeSmall}>
-            📣 みんなからの挑戦状
-          </p>
+          <CommunityCard
+            icon={<TrendingUp size={19} />}
+            tag="今週人気"
+            title="二次関数の最大・最小"
+            text="128件の答案が集まっています"
+            button="問題を見る"
+            onClick={() => setModal('challenge')}
+          />
 
-          <h2 style={styles.challengeTitle}>
-            まだ正解者がいません！
-          </h2>
+          <CommunityCard
+            icon={<AlertTriangle size={19} />}
+            tag="みんなが苦戦中"
+            title="因数分解を利用した二次方程式"
+            text="正答率 32%｜84件の答案"
+            button="挑戦する"
+            onClick={() => setModal('challenge')}
+          />
 
-          <p style={styles.challengeText}>
-            18人が挑戦したこの問題。
-            <br />
-            あなたが最初の正解者になるかも？
-          </p>
-
-          <div style={styles.challengeStats}>
-            <div>
-              <strong>18</strong>
-              <span>人が挑戦</span>
-            </div>
-
-            <div>
-              <strong>0</strong>
-              <span>人が正解</span>
-            </div>
-
-            <div>
-              <strong>0%</strong>
-              <span>正答率</span>
-            </div>
-          </div>
-
-          <button style={styles.challengeButton}>
-            問題を見てみる
-            <ArrowRight size={18} />
-          </button>
+          <CommunityCard
+            icon={<Zap size={19} />}
+            tag="正解者募集中！"
+            title="チャレンジ問題 #204"
+            text="17人が挑戦中｜まだ正解者なし"
+            button="挑戦する"
+            onClick={() => setModal('challenge')}
+            special
+          />
         </section>
 
-        {/* =========================
-            フッター
-        ========================= */}
-        <p style={styles.footerText}>
-          ※ 現在表示されている数値はUI試作用の仮データです
+        {/* Footer */}
+        <p style={styles.footer}>
+          ※ 現在はUI確認用のサンプルデータを表示しています
         </p>
-
       </div>
+
+      {/* Modal */}
+      {modal && (
+        <Modal modal={modal} onClose={() => setModal(null)} />
+      )}
     </main>
   )
 }
 
 
-/* =========================
-   ミスの棒グラフ
-========================= */
+/* ---------- Components ---------- */
 
-function ErrorBar({
-  name,
-  count,
-  width,
-  comment,
+function SectionTitle({
+  icon,
+  title,
+  description,
 }: {
-  name: string
-  count: number
-  width: string
-  comment: string
+  icon: React.ReactNode
+  title: string
+  description: string
 }) {
   return (
-    <div style={styles.barItem}>
-      <div style={styles.barTop}>
-        <span style={styles.barName}>{name}</span>
+    <div style={styles.sectionTitle}>
+      <div style={styles.sectionTitleRow}>
+        <span style={styles.sectionIcon}>{icon}</span>
+        <h2 style={styles.sectionHeading}>{title}</h2>
+      </div>
 
-        <span style={styles.barCount}>
-          {count}回
+      <p style={styles.sectionDescription}>
+        {description}
+      </p>
+    </div>
+  )
+}
 
-          {comment && (
-            <span style={styles.barComment}>
-              {' '}
-              {comment}
+
+function ErrorBar({
+  label,
+  count,
+  percent,
+  first = false,
+}: {
+  label: string
+  count: number
+  percent: number
+  first?: boolean
+}) {
+  return (
+    <div style={styles.errorItem}>
+      <div style={styles.errorHeader}>
+        <span style={styles.errorLabel}>
+          {label}
+          {first && (
+            <span style={styles.firstBadge}>
+              一番多い
             </span>
           )}
         </span>
+
+        <span style={styles.errorCount}>
+          {count}回
+        </span>
       </div>
 
-      <div style={styles.barBackground}>
+      <div style={styles.barTrack}>
         <div
           style={{
-            ...styles.bar,
-            width,
+            ...styles.barFill,
+            width: `${percent}%`,
           }}
         />
       </div>
@@ -506,9 +339,72 @@ function ErrorBar({
 }
 
 
-/* =========================
-   成長記録
-========================= */
+function Step({
+  number,
+  text,
+  correct = false,
+  error = false,
+}: {
+  number: string
+  text: string
+  correct?: boolean
+  error?: boolean
+}) {
+  return (
+    <div style={styles.step}>
+      <div
+        style={{
+          ...styles.stepNumber,
+          ...(error ? styles.stepNumberError : {}),
+        }}
+      >
+        {error ? '!' : number}
+      </div>
+
+      <div>
+        <div style={styles.stepText}>{text}</div>
+
+        <div
+          style={{
+            ...styles.stepStatus,
+            ...(error ? styles.stepStatusError : {}),
+          }}
+        >
+          {error ? 'ここでミス' : '正しくできています'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+function TopicButton({
+  title,
+  level,
+  active = false,
+  onClick,
+}: {
+  title: string
+  level: string
+  active?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        ...styles.topicButton,
+        ...(active ? styles.topicButtonActive : {}),
+      }}
+    >
+      <div style={styles.topicTitle}>{title}</div>
+      <div style={styles.topicLevel}>{level}</div>
+      <ChevronRight size={16} />
+    </button>
+  )
+}
+
 
 function Achievement({
   title,
@@ -519,789 +415,804 @@ function Achievement({
 }) {
   return (
     <div style={styles.achievement}>
-      <CheckCircle2 size={20} />
+      <div style={styles.achievementIcon}>
+        <CheckCircle2 size={18} />
+      </div>
 
       <div>
-        <b style={styles.achievementTitle}>
+        <div style={styles.achievementTitle}>
           {title}
-        </b>
+        </div>
 
-        <p style={styles.achievementText}>
+        <div style={styles.achievementText}>
           {text}
-        </p>
+        </div>
       </div>
     </div>
   )
 }
 
 
-/* =========================
-   単元ボタン
-========================= */
-
-function UnitButton({
-  name,
-}: {
-  name: string
-}) {
-  return (
-    <button style={styles.unitButton}>
-      <span>{name}</span>
-      <ChevronRight size={15} />
-    </button>
-  )
-}
-
-
-/* =========================
-   みんなの問題
-========================= */
-
-function CommunityProblem({
+function CommunityCard({
+  icon,
+  tag,
   title,
-  detail,
-  badge,
+  text,
+  button,
+  onClick,
+  special = false,
 }: {
+  icon: React.ReactNode
+  tag: string
   title: string
-  detail: string
-  badge: string
+  text: string
+  button: string
+  onClick: () => void
+  special?: boolean
 }) {
   return (
-    <div style={styles.communityProblem}>
-      <div style={styles.communityProblemMain}>
-        <div style={styles.communityBadge}>
-          {badge}
-        </div>
+    <div
+      style={{
+        ...styles.communityCard,
+        ...(special ? styles.communityCardSpecial : {}),
+      }}
+    >
+      <div style={styles.communityTop}>
+        <span style={styles.communityIcon}>
+          {icon}
+        </span>
 
-        <div>
-          <b style={styles.communityTitle}>
-            {title}
-          </b>
-
-          <p style={styles.communityDetail}>
-            {detail}
-          </p>
-        </div>
+        <span style={styles.communityTag}>
+          {tag}
+        </span>
       </div>
 
-      <ChevronRight
-        size={18}
-        color="#8995a1"
-      />
+      <div style={styles.communityTitle}>
+        {title}
+      </div>
+
+      <div style={styles.communityText}>
+        {text}
+      </div>
+
+      <button
+        type="button"
+        style={styles.communityButton}
+        onClick={onClick}
+      >
+        {button}
+        <ArrowRight size={16} />
+      </button>
     </div>
   )
 }
 
 
-/* =========================
-   スタイル
-========================= */
+/* ---------- Modal ---------- */
 
-const styles: {
-  [key: string]: React.CSSProperties
-} = {
+function Modal({
+  modal,
+  onClose,
+}: {
+  modal: ModalType
+  onClose: () => void
+}) {
+  if (!modal) return null
 
+  let content = {
+    title: '',
+    icon: <Target size={22} />,
+    text: '',
+    problem: '',
+    answer: '',
+  }
+
+  if (modal === 'revenge') {
+    content = {
+      title: '🔥 リベンジ問題',
+      icon: <Flame size={22} />,
+      text: '最近あなたが一番多く間違えていた「式の整理」の問題です。',
+      problem:
+        'a² - 8a + 36 = 21 を整理して、aの値を求めなさい。',
+      answer:
+        'a² - 8a + 15 = 0 → (a - 3)(a - 5) = 0',
+    }
+  }
+
+  if (modal === 'detail') {
+    content = {
+      title: '🔎 間違いの詳細',
+      icon: <AlertTriangle size={22} />,
+      text: '今回の答案では、ここで誤りが発生しています。',
+      problem:
+        'α + β = -a としていました。',
+      answer:
+        '正しくは α + β = a です。最高次係数が -1 であることによる符号に注意しましょう。',
+    }
+  }
+
+  if (modal === 'recommended') {
+    content = {
+      title: '📚 おすすめ問題',
+      icon: <BookOpen size={22} />,
+      text: 'あなたの学習状況から、この問題がおすすめです。',
+      problem:
+        'x² - 7x + 12 = 0 の2解を求めなさい。',
+      answer:
+        '(x - 3)(x - 4) = 0 より、x = 3, 4',
+    }
+  }
+
+  if (modal === 'challenge') {
+    content = {
+      title: '🌏 みんなの挑戦状',
+      icon: <Users size={22} />,
+      text: 'みんなが挑戦している問題です。あなたも挑戦してみよう！',
+      problem:
+        'x² - 6x + 8 = 0 の2解を求めなさい。',
+      answer:
+        'x = 2, 4',
+    }
+  }
+
+  return (
+    <div style={styles.overlay} onClick={onClose}>
+      <div
+        style={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={styles.modalHeader}>
+          <div style={styles.modalTitleRow}>
+            <span style={styles.modalIcon}>
+              {content.icon}
+            </span>
+
+            <h3 style={styles.modalTitle}>
+              {content.title}
+            </h3>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={styles.closeButton}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <p style={styles.modalText}>
+          {content.text}
+        </p>
+
+        <div style={styles.problemBox}>
+          <div style={styles.problemLabel}>
+            問題
+          </div>
+
+          <div style={styles.problemText}>
+            {content.problem}
+          </div>
+        </div>
+
+        <details style={styles.answerDetails}>
+          <summary style={styles.answerSummary}>
+            答え・ポイントを見る
+          </summary>
+
+          <div style={styles.answerText}>
+            {content.answer}
+          </div>
+        </details>
+
+        <button
+          type="button"
+          style={styles.startButton}
+          onClick={onClose}
+        >
+          <CheckCircle2 size={18} />
+          この問題に挑戦する
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
+/* ---------- Styles ---------- */
+
+const styles: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100dvh',
+    minHeight: '100vh',
     background: '#f5f7fb',
-    color: '#263238',
-    paddingBottom: '40px',
-  },
-
-  header: {
-    background: '#ffffff',
-    padding: '24px 20px 20px',
-    borderBottom: '1px solid #e9edf3',
-  },
-
-  smallLabel: {
-    margin: 0,
-    fontSize: '10px',
-    fontWeight: 800,
-    color: '#4D96FF',
-    letterSpacing: '0.14em',
-  },
-
-  title: {
-    margin: '4px 0 2px',
-    fontSize: '27px',
-    fontWeight: 800,
-    letterSpacing: '-0.04em',
-  },
-
-  subtitle: {
-    margin: 0,
-    fontSize: '13px',
-    color: '#7b8794',
+    padding: '24px 14px 40px',
+    color: '#263746',
   },
 
   container: {
     width: '100%',
     maxWidth: '600px',
     margin: '0 auto',
-    padding: '16px',
-    boxSizing: 'border-box',
   },
 
-  /* メインカード */
-
-  mainCard: {
-    background:
-      'linear-gradient(145deg, #4D96FF, #397de0)',
-    borderRadius: '24px',
-    padding: '22px',
-    color: '#ffffff',
-    boxShadow:
-      '0 8px 24px rgba(77, 150, 255, 0.20)',
-    marginBottom: '14px',
-  },
-
-  cardTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  iconBlue: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '13px',
-    background: 'rgba(255,255,255,0.18)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  tagBlue: {
-    fontSize: '10px',
-    fontWeight: 800,
-    letterSpacing: '0.12em',
-    background: 'rgba(255,255,255,0.16)',
-    padding: '6px 9px',
-    borderRadius: '999px',
-  },
-
-  cardLabel: {
-    fontSize: '13px',
-    fontWeight: 700,
-    margin: '20px 0 8px',
-    opacity: 0.9,
-  },
-
-  mainCardTitle: {
-    fontSize: '23px',
-    lineHeight: 1.45,
-    margin: 0,
-    fontWeight: 800,
-    letterSpacing: '-0.03em',
-  },
-
-  mainCardText: {
-    fontSize: '13px',
-    lineHeight: 1.7,
-    opacity: 0.88,
-    margin: '12px 0 16px',
-  },
-
-  numberBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px 14px',
-    background: 'rgba(255,255,255,0.13)',
-    borderRadius: '15px',
-    marginBottom: '14px',
-  },
-
-  bigNumber: {
-    fontSize: '28px',
-    fontWeight: 900,
-  },
-
-  numberUnit: {
-    fontSize: '12px',
-    fontWeight: 700,
-    marginLeft: '2px',
-  },
-
-  numberText: {
-    fontSize: '12px',
-    opacity: 0.9,
-  },
-
-  primaryButton: {
-    width: '100%',
-    border: 'none',
-    borderRadius: '14px',
-    background: '#ffffff',
-    color: '#397de0',
-    padding: '13px 16px',
-    fontSize: '14px',
-    fontWeight: 800,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    cursor: 'pointer',
-  },
-
-  /* 共通カード */
-
-  card: {
-    background: '#ffffff',
-    borderRadius: '21px',
-    padding: '20px',
-    marginBottom: '14px',
-    boxShadow:
-      '0 2px 10px rgba(30, 50, 70, 0.05)',
-    border: '1px solid #edf0f5',
-  },
-
-  sectionTitleArea: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '11px',
-  },
-
-  sectionTitle: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: 800,
-  },
-
-  sectionSub: {
-    margin: '3px 0 0',
-    fontSize: '11px',
-    color: '#929eaa',
-  },
-
-  /* アイコン */
-
-  iconPurple: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#f1edff',
-    color: '#7b61d9',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  iconGreen: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#e8f8ef',
-    color: '#31a866',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  iconOrange: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#fff2e5',
-    color: '#e8943c',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  iconYellow: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#fff8db',
-    color: '#d6a514',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  iconBlueLight: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#eaf3ff',
-    color: '#4D96FF',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  iconPeople: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#edf1ff',
-    color: '#6377d8',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  /* ミス棒グラフ */
-
-  barList: {
-    marginTop: '22px',
-  },
-
-  barItem: {
-    marginBottom: '17px',
-  },
-
-  barTop: {
+  header: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '7px',
-  },
-
-  barName: {
-    fontSize: '13px',
-    fontWeight: 700,
-  },
-
-  barCount: {
-    fontSize: '12px',
-    fontWeight: 700,
-    color: '#66727e',
-  },
-
-  barComment: {
-    fontSize: '10px',
-    color: '#4D96FF',
-  },
-
-  barBackground: {
-    height: '8px',
-    background: '#edf1f6',
-    borderRadius: '999px',
-    overflow: 'hidden',
-  },
-
-  bar: {
-    height: '100%',
-    background: '#4D96FF',
-    borderRadius: '999px',
-  },
-
-  analysisHint: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '7px',
-    marginTop: '4px',
-    padding: '10px 12px',
-    background: '#f4f8ff',
-    borderRadius: '12px',
-    color: '#4D96FF',
-    fontSize: '11px',
-    fontWeight: 700,
-  },
-
-  /* 正しい部分 */
-
-  successCard: {
-    background: '#f3fbf6',
-    borderRadius: '21px',
-    padding: '20px',
-    marginBottom: '14px',
-    border: '1px solid #dcefe4',
-  },
-
-  successHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '11px',
-  },
-
-  stepBox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: '24px',
-    padding: '0 10px',
-  },
-
-  stepDone: {
-    width: '31px',
-    height: '31px',
-    borderRadius: '50%',
-    background: '#43b978',
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: '14px',
-  },
-
-  stepError: {
-    width: '31px',
-    height: '31px',
-    borderRadius: '50%',
-    background: '#ffb15c',
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: '14px',
-  },
-
-  stepLine: {
-    height: '3px',
-    background: '#9ed8b6',
-    flex: 1,
-  },
-
-  stepLabels: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '9px',
-    color: '#708078',
-    marginTop: '8px',
-    textAlign: 'center',
-  },
-
-  successText: {
-    fontSize: '12px',
-    lineHeight: 1.7,
-    color: '#627069',
-    margin: '18px 0 14px',
-  },
-
-  secondaryButton: {
-    width: '100%',
-    padding: '11px',
-    borderRadius: '12px',
-    border: '1px solid #bfe4cc',
-    background: '#ffffff',
-    color: '#31955d',
-    fontSize: '12px',
-    fontWeight: 700,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '5px',
-    cursor: 'pointer',
-  },
-
-  /* 単元おすすめ */
-
-  recommendBox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '12px',
-    marginTop: '18px',
-    padding: '15px',
-    background: '#f4f8ff',
-    borderRadius: '15px',
-    border: '1px solid #e2edff',
-  },
-
-  recommendLabel: {
-    margin: 0,
-    fontSize: '10px',
-    fontWeight: 800,
-    color: '#4D96FF',
-  },
-
-  recommendTitle: {
-    margin: '4px 0 2px',
-    fontSize: '17px',
-    fontWeight: 800,
-  },
-
-  recommendText: {
-    margin: 0,
-    fontSize: '10px',
-    lineHeight: 1.5,
-    color: '#7d8995',
-  },
-
-  smallActionButton: {
-    border: 'none',
-    borderRadius: '11px',
-    background: '#4D96FF',
-    color: '#ffffff',
-    padding: '10px 11px',
-    fontSize: '11px',
-    fontWeight: 800,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    cursor: 'pointer',
-    flexShrink: 0,
-  },
-
-  unitGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '9px',
-    marginTop: '12px',
-  },
-
-  unitButton: {
-    border: '1px solid #e7ebf0',
-    background: '#ffffff',
-    borderRadius: '12px',
-    padding: '11px 10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    color: '#4b5965',
-    fontSize: '11px',
-    fontWeight: 700,
-    cursor: 'pointer',
-  },
-
-  /* 成長 */
-
-  growthBox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '18px',
-    margin: '22px 0 15px',
-  },
-
-  growthNumber: {
-    fontSize: '31px',
-    fontWeight: 900,
-    color: '#9ba5af',
-  },
-
-  growthNumberAfter: {
-    fontSize: '36px',
-    fontWeight: 900,
-    color: '#4D96FF',
-  },
-
-  growthArrow: {
-    fontSize: '24px',
-    color: '#b7c0c9',
-  },
-
-  growthMessage: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '7px',
-    fontSize: '12px',
-    color: '#4b8f68',
-    background: '#eff9f2',
-    borderRadius: '12px',
-    padding: '10px',
-  },
-
-  /* できるようになったこと */
-
-  achievement: {
-    display: 'flex',
     alignItems: 'flex-start',
-    gap: '10px',
-    marginTop: '13px',
-    padding: '12px',
-    background: '#f8fafc',
-    borderRadius: '13px',
-    color: '#36a568',
+    marginBottom: '20px',
   },
 
-  achievementTitle: {
-    color: '#263238',
-    fontSize: '12px',
-  },
-
-  achievementText: {
-    color: '#78848e',
-    fontSize: '10px',
-    margin: '4px 0 0',
-    lineHeight: 1.5,
-  },
-
-  /* みんなの学習 */
-
-  communitySection: {
-    marginTop: '20px',
-  },
-
-  communityHeading: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '12px',
+  logo: {
+    fontSize: '11px',
     fontWeight: 800,
-    color: '#53616e',
-    marginBottom: '9px',
-  },
-
-  communityProblem: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px',
-    borderRadius: '13px',
-    background: '#f8fafc',
-    marginBottom: '8px',
-  },
-
-  communityProblemMain: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-
-  communityBadge: {
-    fontSize: '9px',
-    fontWeight: 800,
+    letterSpacing: '2px',
     color: '#4D96FF',
-    background: '#eaf3ff',
-    borderRadius: '999px',
-    padding: '5px 7px',
+    marginBottom: '5px',
   },
 
-  communityTitle: {
-    fontSize: '12px',
-    color: '#263238',
+  title: {
+    fontSize: '24px',
+    fontWeight: 800,
+    margin: 0,
   },
 
-  communityDetail: {
-    margin: '3px 0 0',
-    fontSize: '9px',
-    color: '#929eaa',
+  subtitle: {
+    margin: '5px 0 0',
+    color: '#7c8794',
+    fontSize: '13px',
   },
 
-  difficultProblem: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '14px',
-    borderRadius: '14px',
-    background: '#fff8ef',
-    border: '1px solid #f6e5cf',
-  },
-
-  difficultBadge: {
-    display: 'inline-block',
+  studentBadge: {
     fontSize: '9px',
     fontWeight: 800,
-    color: '#d77d22',
-    background: '#fff0dc',
+    letterSpacing: '1px',
+    background: '#e9f2ff',
+    color: '#4D96FF',
+    padding: '7px 9px',
     borderRadius: '999px',
-    padding: '5px 7px',
   },
 
-  difficultTitle: {
-    margin: '7px 0 2px',
-    fontSize: '12px',
-  },
-
-  difficultText: {
-    margin: 0,
-    fontSize: '9px',
-    color: '#8c8175',
-  },
-
-  /* CM風カード */
-
-  challengeCard: {
-    background:
-      'linear-gradient(145deg, #263746, #344b5d)',
-    color: '#ffffff',
+  growthCard: {
+    background: '#4D96FF',
     borderRadius: '22px',
-    padding: '21px',
+    padding: '22px',
+    color: '#fff',
     marginBottom: '14px',
-    boxShadow:
-      '0 8px 20px rgba(38, 55, 70, 0.15)',
+    boxShadow: '0 8px 24px rgba(77, 150, 255, 0.18)',
   },
 
-  challengeTop: {
+  growthTop: {
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
 
-  challengeIcon: {
-    width: '41px',
-    height: '41px',
-    borderRadius: '13px',
-    background: 'rgba(255,255,255,0.1)',
+  smallWhite: {
+    fontSize: '12px',
+    fontWeight: 700,
+    opacity: 0.9,
+  },
+
+  growthTitle: {
+    fontSize: '27px',
+    fontWeight: 800,
+    marginTop: '6px',
+  },
+
+  growthCount: {
+    fontSize: '13px',
+    marginTop: '2px',
+    opacity: 0.9,
+  },
+
+  growthIcon: {
+    width: '50px',
+    height: '50px',
+    borderRadius: '16px',
+    background: 'rgba(255,255,255,0.16)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  challengeLabel: {
-    fontSize: '9px',
-    fontWeight: 800,
-    letterSpacing: '0.15em',
-    opacity: 0.55,
-  },
-
-  challengeSmall: {
-    margin: '19px 0 5px',
+  growthDescription: {
     fontSize: '12px',
-    fontWeight: 700,
-    opacity: 0.8,
+    lineHeight: 1.8,
+    margin: '16px 0',
+    opacity: 0.94,
   },
 
-  challengeTitle: {
-    margin: 0,
-    fontSize: '23px',
-    fontWeight: 900,
-    letterSpacing: '-0.03em',
-  },
-
-  challengeText: {
-    margin: '10px 0 17px',
-    fontSize: '12px',
-    lineHeight: 1.7,
-    opacity: 0.72,
-  },
-
-  challengeStats: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    gap: '8px',
-    marginBottom: '14px',
-  },
-
-  challengeStat: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-  },
-
-  challengeButton: {
+  whiteButton: {
     width: '100%',
     border: 'none',
     borderRadius: '13px',
-    background: '#ffffff',
+    background: '#fff',
     color: '#263746',
     padding: '13px',
     fontSize: '13px',
     fontWeight: 800,
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: '7px',
     cursor: 'pointer',
   },
 
-  footerText: {
+  card: {
+    background: '#fff',
+    borderRadius: '20px',
+    padding: '20px',
+    marginBottom: '14px',
+    boxShadow: '0 2px 10px rgba(30,50,70,0.04)',
+  },
+
+  sectionTitle: {
+    marginBottom: '18px',
+  },
+
+  sectionTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+
+  sectionIcon: {
+    color: '#4D96FF',
+    display: 'flex',
+  },
+
+  sectionHeading: {
+    margin: 0,
+    fontSize: '17px',
+    fontWeight: 800,
+  },
+
+  sectionDescription: {
+    margin: '5px 0 0',
+    fontSize: '11px',
+    color: '#8a95a1',
+  },
+
+  errorList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+  },
+
+  errorItem: {
+    width: '100%',
+  },
+
+  errorHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '6px',
+  },
+
+  errorLabel: {
+    fontSize: '12px',
+    fontWeight: 700,
+  },
+
+  firstBadge: {
+    marginLeft: '7px',
+    fontSize: '9px',
+    color: '#4D96FF',
+    background: '#edf5ff',
+    padding: '3px 6px',
+    borderRadius: '999px',
+  },
+
+  errorCount: {
+    fontSize: '11px',
+    color: '#7c8794',
+  },
+
+  barTrack: {
+    height: '7px',
+    background: '#edf0f4',
+    borderRadius: '999px',
+    overflow: 'hidden',
+  },
+
+  barFill: {
+    height: '100%',
+    background: '#4D96FF',
+    borderRadius: '999px',
+  },
+
+  infoBox: {
+    marginTop: '17px',
+    padding: '11px',
+    background: '#f5f9ff',
+    borderRadius: '12px',
+    color: '#4D96FF',
+    fontSize: '11px',
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '7px',
+  },
+
+  stepBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+
+  step: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '11px',
+  },
+
+  stepNumber: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    background: '#eaf3ff',
+    color: '#4D96FF',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 800,
+    fontSize: '12px',
+    flexShrink: 0,
+  },
+
+  stepNumberError: {
+    background: '#fff0ed',
+    color: '#e86b55',
+  },
+
+  stepText: {
+    fontSize: '12px',
+    fontWeight: 700,
+  },
+
+  stepStatus: {
+    fontSize: '10px',
+    color: '#45a878',
+    marginTop: '2px',
+  },
+
+  stepStatusError: {
+    color: '#e86b55',
+  },
+
+  stepLine: {
+    width: '2px',
+    height: '20px',
+    background: '#e5e9ee',
+    marginLeft: '14px',
+  },
+
+  outlineButton: {
+    marginTop: '18px',
+    width: '100%',
+    background: '#fff',
+    border: '1px solid #e1e6ec',
+    borderRadius: '12px',
+    padding: '11px',
+    color: '#4D96FF',
+    fontWeight: 700,
+    fontSize: '12px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '5px',
+    cursor: 'pointer',
+  },
+
+  topicGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '9px',
+  },
+
+  topicButton: {
+    border: '1px solid #e4e8ee',
+    background: '#fff',
+    borderRadius: '14px',
+    padding: '13px',
+    textAlign: 'left',
+    cursor: 'pointer',
+    display: 'grid',
+    gridTemplateColumns: '1fr auto',
+    alignItems: 'center',
+  },
+
+  topicButtonActive: {
+    border: '1px solid #4D96FF',
+    background: '#f5f9ff',
+  },
+
+  topicTitle: {
+    fontSize: '12px',
+    fontWeight: 800,
+    gridColumn: '1 / 2',
+  },
+
+  topicLevel: {
+    fontSize: '9px',
+    color: '#4D96FF',
+    marginTop: '4px',
+    gridColumn: '1 / 2',
+  },
+
+  progressArea: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  progressNumber: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '9px',
+    color: '#7c8794',
+    fontSize: '18px',
+    fontWeight: 700,
+  },
+
+  progressUp: {
+    color: '#45a878',
+    background: '#edf9f3',
+    padding: '6px 9px',
+    borderRadius: '999px',
+    fontSize: '11px',
+    fontWeight: 800,
+  },
+
+  progressTrack: {
+    marginTop: '14px',
+    height: '10px',
+    background: '#edf0f4',
+    borderRadius: '999px',
+    overflow: 'hidden',
+  },
+
+  progressFill: {
+    width: '81%',
+    height: '100%',
+    background: '#4D96FF',
+    borderRadius: '999px',
+  },
+
+  mutedText: {
+    margin: '9px 0 0',
+    color: '#8a95a1',
+    fontSize: '11px',
+  },
+
+  achievement: {
+    display: 'flex',
+    gap: '11px',
+    padding: '13px',
+    borderRadius: '13px',
+    background: '#f7f9fc',
+    marginBottom: '9px',
+  },
+
+  achievementIcon: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    background: '#eaf8f1',
+    color: '#45a878',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  achievementTitle: {
+    fontSize: '12px',
+    fontWeight: 800,
+  },
+
+  achievementText: {
+    marginTop: '4px',
+    color: '#7c8794',
+    fontSize: '10px',
+    lineHeight: 1.6,
+  },
+
+  communityNote: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '7px',
+    padding: '10px',
+    background: '#f7f9fc',
+    borderRadius: '11px',
+    color: '#7c8794',
+    fontSize: '10px',
+    marginBottom: '12px',
+  },
+
+  communityCard: {
+    border: '1px solid #e7ebf0',
+    borderRadius: '15px',
+    padding: '14px',
+    marginBottom: '9px',
+  },
+
+  communityCardSpecial: {
+    background: '#f5f9ff',
+    border: '1px solid #dceaff',
+  },
+
+  communityTop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '7px',
+  },
+
+  communityIcon: {
+    color: '#4D96FF',
+    display: 'flex',
+  },
+
+  communityTag: {
+    fontSize: '9px',
+    fontWeight: 800,
+    color: '#4D96FF',
+    background: '#edf5ff',
+    padding: '4px 7px',
+    borderRadius: '999px',
+  },
+
+  communityTitle: {
+    fontSize: '13px',
+    fontWeight: 800,
+    marginTop: '9px',
+  },
+
+  communityText: {
+    color: '#7c8794',
+    fontSize: '10px',
+    marginTop: '4px',
+  },
+
+  communityButton: {
+    marginTop: '11px',
+    border: 'none',
+    background: 'transparent',
+    color: '#4D96FF',
+    fontWeight: 800,
+    fontSize: '11px',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    cursor: 'pointer',
+  },
+
+  footer: {
     textAlign: 'center',
     color: '#a0a9b2',
     fontSize: '9px',
-    margin: '20px 0',
+    margin: '20px 0 0',
+  },
+
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(20, 30, 40, 0.45)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '18px',
+    zIndex: 100,
+  },
+
+  modal: {
+    width: '100%',
+    maxWidth: '500px',
+    background: '#fff',
+    borderRadius: '22px',
+    padding: '20px',
+    boxShadow: '0 15px 50px rgba(0,0,0,0.2)',
+  },
+
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  modalTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+
+  modalIcon: {
+    color: '#4D96FF',
+    display: 'flex',
+  },
+
+  modalTitle: {
+    margin: 0,
+    fontSize: '17px',
+    fontWeight: 800,
+  },
+
+  closeButton: {
+    border: 'none',
+    background: '#f2f4f7',
+    width: '34px',
+    height: '34px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: '#6f7a86',
+  },
+
+  modalText: {
+    fontSize: '11px',
+    color: '#7c8794',
+    lineHeight: 1.7,
+    margin: '15px 0',
+  },
+
+  problemBox: {
+    background: '#f6f8fb',
+    borderRadius: '14px',
+    padding: '16px',
+  },
+
+  problemLabel: {
+    color: '#4D96FF',
+    fontSize: '10px',
+    fontWeight: 800,
+    marginBottom: '8px',
+  },
+
+  problemText: {
+    fontSize: '14px',
+    fontWeight: 700,
+    lineHeight: 1.7,
+  },
+
+  answerDetails: {
+    marginTop: '11px',
+    background: '#f5f9ff',
+    borderRadius: '12px',
+    padding: '11px',
+  },
+
+  answerSummary: {
+    cursor: 'pointer',
+    color: '#4D96FF',
+    fontSize: '11px',
+    fontWeight: 800,
+  },
+
+  answerText: {
+    marginTop: '10px',
+    fontSize: '11px',
+    color: '#52606d',
+    lineHeight: 1.7,
+  },
+
+  startButton: {
+    width: '100%',
+    marginTop: '15px',
+    border: 'none',
+    borderRadius: '13px',
+    background: '#4D96FF',
+    color: '#fff',
+    padding: '13px',
+    fontSize: '12px',
+    fontWeight: 800,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '7px',
+    cursor: 'pointer',
   },
 }
