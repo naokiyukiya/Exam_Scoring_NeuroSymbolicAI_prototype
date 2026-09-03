@@ -1,738 +1,246 @@
-'use client'
+'use client';
 
-import {
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
-  ChevronRight,
-  Lightbulb,
-  Target,
-  TrendingUp,
+import React, { useState } from 'react';
+import { 
+  BarChart3, 
+  BrainCircuit, 
+  Sparkles, 
+  CheckCircle2, 
+  AlertTriangle, 
+  ChevronRight, 
+  RefreshCw, 
+  Users, 
+  BookOpen, 
   Trophy,
-} from 'lucide-react'
+  Flame,
+  ArrowUpRight
+} from 'lucide-react';
 
-export default function AnalysisPage() {
+// ダミーデータ（DBからの取得を想定した構造）
+const mockAnalyticsData = {
+  studentName: "山田 太郎",
+  weakPoints: [
+    { id: 1, category: "数学II", title: "三角関数の合成ミス", count: 4, severity: "high", lastDate: "2026-09-02" },
+    { id: 2, category: "英語", title: "関係代名詞 what の識別", count: 3, severity: "medium", lastDate: "2026-09-01" },
+    { id: 3, category: "物理", title: "力学的エネルギー保存則の符号ミス", count: 2, severity: "low", lastDate: "2026-08-29" },
+  ],
+  overcomeHistory: [
+    { id: 101, title: "2次方程式の判別式", solvedDate: "2026-09-03", streak: 3 },
+    { id: 102, title: "不定形極限の計算", solvedDate: "2026-09-02", streak: 5 },
+  ],
+  recommendedQuiz: {
+    id: "q-108",
+    subject: "数学II",
+    title: "三角関数の最大値・最小値の決定",
+    estimatedTime: "3分",
+    reason: "あなたが最近つまずきやすい「三角関数の合成」を含む実践問題です"
+  }
+};
+
+export default function AnalyzePage() {
+  const [activeTab, setActiveTab] = useState<'student' | 'teacher' | 'parent'>('student');
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+
   return (
-    <main style={styles.page}>
-      {/* ヘッダー */}
-      <header style={styles.header}>
-        <div>
-          <p style={styles.smallLabel}>MAGMATHE</p>
-          <h1 style={styles.title}>誤り分析</h1>
-          <p style={styles.subtitle}>
-            あなたの「間違い方」を分析します
-          </p>
+    <div className="min-h-screen bg-slate-50 text-slate-800 pb-24">
+      {/* ヘッダーエリア */}
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-200">
+              <BrainCircuit className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                誤り分析・AI診断
+              </h1>
+              <p className="text-xs text-slate-500">あなたの「つまずき」を強みに変える</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setIsGeneratingQuiz(true)}
+            className="p-2 text-slate-500 hover:text-indigo-600 rounded-full hover:bg-indigo-50 transition-colors"
+            title="データを更新"
+          >
+            <RefreshCw className={`w-5 h-5 ${isGeneratingQuiz ? 'animate-spin text-indigo-600' : ''}`} />
+          </button>
         </div>
       </header>
 
-      <div style={styles.container}>
-
-        {/* 今日の伸びしろ */}
-        <section style={styles.mainCard}>
-          <div style={styles.cardTop}>
-            <div style={styles.iconBlue}>
-              <Target size={21} />
-            </div>
-            <span style={styles.tagBlue}>TODAY</span>
-          </div>
-
-          <p style={styles.cardLabel}>✨ 今日の伸びしろ</p>
-
-          <h2 style={styles.mainCardTitle}>
-            「式の整理」を
-            <br />
-            もう少し練習してみよう！
-          </h2>
-
-          <p style={styles.mainCardText}>
-            最近の答案を見ると、式を変形するときに
-            間違えることが多いみたいです。
-          </p>
-
-          <div style={styles.numberBox}>
-            <div>
-              <span style={styles.bigNumber}>6</span>
-              <span style={styles.numberUnit}>回</span>
-            </div>
-            <span style={styles.numberText}>
-              最近の「式の整理」のミス
-            </span>
-          </div>
-
-          <button style={styles.primaryButton}>
-            <span>リベンジ問題に挑戦</span>
-            <ArrowRight size={18} />
+      {/* 視点切替タブ (生徒 / 先生 / 保護者) */}
+      <div className="max-w-md mx-auto px-4 mt-4">
+        <div className="flex bg-slate-200 p-1 rounded-xl text-xs font-semibold">
+          <button
+            onClick={() => setActiveTab('student')}
+            className={`flex-1 py-2 rounded-lg transition-all ${
+              activeTab === 'student' 
+                ? 'bg-white text-indigo-600 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            :上半身シルエット_1: 生徒モード
           </button>
-        </section>
-
-        {/* ミスのクセ */}
-        <section style={styles.card}>
-          <div style={styles.sectionHeader}>
-            <div style={styles.sectionTitleArea}>
-              <div style={styles.iconPurple}>
-                <AlertTriangle size={19} />
-              </div>
-              <div>
-                <h2 style={styles.sectionTitle}>あなたのミスのクセ</h2>
-                <p style={styles.sectionSub}>最近の答案から分析</p>
-              </div>
-            </div>
-          </div>
-
-          <div style={styles.barList}>
-            <ErrorBar
-              name="式の整理"
-              count={6}
-              width="100%"
-              comment="一番多いミス"
-            />
-            <ErrorBar
-              name="符号のミス"
-              count={4}
-              width="67%"
-              comment=""
-            />
-            <ErrorBar
-              name="代入のミス"
-              count={2}
-              width="34%"
-              comment=""
-            />
-            <ErrorBar
-              name="計算ミス"
-              count={1}
-              width="17%"
-              comment=""
-            />
-          </div>
-        </section>
-
-        {/* ここまで合っていました */}
-        <section style={styles.successCard}>
-          <div style={styles.successHeader}>
-            <div style={styles.iconGreen}>
-              <CheckCircle2 size={19} />
-            </div>
-            <div>
-              <h2 style={styles.sectionTitle}>ここまで合っていました！</h2>
-              <p style={styles.sectionSub}>間違いだけを見るのではなく…</p>
-            </div>
-          </div>
-
-          <div style={styles.stepBox}>
-            <div style={styles.stepDone}>
-              <span>✓</span>
-            </div>
-
-            <div style={styles.stepLine} />
-
-            <div style={styles.stepDone}>
-              <span>✓</span>
-            </div>
-
-            <div style={styles.stepLine} />
-
-            <div style={styles.stepError}>
-              <span>!</span>
-            </div>
-          </div>
-
-          <div style={styles.stepLabels}>
-            <span>解と係数の関係</span>
-            <span>式を立てる</span>
-            <span>式を整理する</span>
-          </div>
-
-          <p style={styles.successText}>
-            実は、途中までは正しく考えられています。
-            <br />
-            <b>「どこから間違ったか」</b>を確認してみよう！
-          </p>
-
-          <button style={styles.secondaryButton}>
-            間違いを詳しく見る
-            <ChevronRight size={17} />
+          <button
+            onClick={() => setActiveTab('teacher')}
+            className={`flex-1 py-2 rounded-lg transition-all ${
+              activeTab === 'teacher' 
+                ? 'bg-white text-indigo-600 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            :先生_男性: 先生モード
           </button>
-        </section>
-
-        {/* 最近の成長 */}
-        <section style={styles.card}>
-          <div style={styles.sectionTitleArea}>
-            <div style={styles.iconOrange}>
-              <TrendingUp size={19} />
-            </div>
-            <div>
-              <h2 style={styles.sectionTitle}>最近の成長</h2>
-              <p style={styles.sectionSub}>前回と比べてどうなった？</p>
-            </div>
-          </div>
-
-          <div style={styles.growthBox}>
-            <div style={styles.growthNumber}>
-              <span>72</span>
-              <small>%</small>
-            </div>
-
-            <div style={styles.growthArrow}>→</div>
-
-            <div style={styles.growthNumberAfter}>
-              <span>81</span>
-              <small>%</small>
-            </div>
-          </div>
-
-          <div style={styles.growthMessage}>
-            <TrendingUp size={17} />
-            <span>
-              正答率が <b>9ポイントアップ！</b>
-            </span>
-          </div>
-        </section>
-
-        {/* 今週できるようになったこと */}
-        <section style={styles.card}>
-          <div style={styles.sectionTitleArea}>
-            <div style={styles.iconYellow}>
-              <Trophy size={19} />
-            </div>
-            <div>
-              <h2 style={styles.sectionTitle}>できるようになったこと</h2>
-              <p style={styles.sectionSub}>あなたの成長記録</p>
-            </div>
-          </div>
-
-          <div style={styles.achievement}>
-            <CheckCircle2 size={20} />
-            <div>
-              <b>二次方程式の基本的な立式</b>
-              <p>以前より安定してできています！</p>
-            </div>
-          </div>
-
-          <div style={styles.achievement}>
-            <CheckCircle2 size={20} />
-            <div>
-              <b>解と係数の関係</b>
-              <p>正しく使える問題が増えました！</p>
-            </div>
-          </div>
-        </section>
-
-        {/* 次にやること */}
-        <section style={styles.nextCard}>
-          <div style={styles.nextIcon}>
-            <Lightbulb size={22} />
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <p style={styles.nextLabel}>NEXT STEP</p>
-            <h2 style={styles.nextTitle}>次は「式の整理」を攻略しよう</h2>
-            <p style={styles.nextText}>
-              あなたの間違いから選んだ問題を用意しています。
-            </p>
-          </div>
-
-          <ChevronRight size={21} />
-        </section>
-
-        <p style={styles.footerText}>
-          ※ 現在表示されている数値はUI試作用の仮データです
-        </p>
-
-      </div>
-    </main>
-  )
-}
-
-
-/* ミスの棒グラフ */
-function ErrorBar({
-  name,
-  count,
-  width,
-  comment,
-}: {
-  name: string
-  count: number
-  width: string
-  comment: string
-}) {
-  return (
-    <div style={styles.barItem}>
-      <div style={styles.barTop}>
-        <span style={styles.barName}>{name}</span>
-        <span style={styles.barCount}>
-          {count}回
-          {comment && (
-            <span style={styles.barComment}> {comment}</span>
-          )}
-        </span>
+          <button
+            onClick={() => setActiveTab('parent')}
+            className={`flex-1 py-2 rounded-lg transition-all ${
+              activeTab === 'parent' 
+                ? 'bg-white text-indigo-600 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            :家: 保護者モード
+          </button>
+        </div>
       </div>
 
-      <div style={styles.barBackground}>
-        <div
-          style={{
-            ...styles.bar,
-            width,
-          }}
-        />
-      </div>
+      <main className="max-w-md mx-auto px-4 mt-6 space-y-6">
+
+        {/* ------------------- 生徒モード ------------------- */}
+        {activeTab === 'student' && (
+          <>
+            {/* 本日の克服おすすめクイズ */}
+            <section className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-5 text-white shadow-lg shadow-indigo-200 relative overflow-hidden">
+              <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 opacity-10">
+                <Sparkles className="w-32 h-32" />
+              </div>
+              <div className="flex items-center gap-2 text-indigo-200 text-xs font-semibold mb-2">
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>AIパーソナライズ問題</span>
+              </div>
+              <h2 className="text-lg font-bold mb-1">{mockAnalyticsData.recommendedQuiz.title}</h2>
+              <p className="text-xs text-indigo-100 mb-4 leading-relaxed">
+                {mockAnalyticsData.recommendedQuiz.reason}
+              </p>
+              <div className="flex items-center justify-between pt-2 border-t border-indigo-400/30">
+                <span className="text-xs bg-indigo-500/50 px-2.5 py-1 rounded-full border border-indigo-300/30">
+                  :ストップウォッチ: 目安: {mockAnalyticsData.recommendedQuiz.estimatedTime}
+                </span>
+                <button className="bg-white text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold shadow hover:bg-indigo-50 transition-all flex items-center gap-1">
+                  今すぐチャレンジ
+                  <ArrowUpRight className="w-4 h-4" />
+                </button>
+              </div>
+            </section>
+
+            {/* つまずきパターンカード一覧 */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  検出されたつまずき傾向 ({mockAnalyticsData.weakPoints.length})
+                </h3>
+              </div>
+              <div className="space-y-3">
+                {mockAnalyticsData.weakPoints.map((item) => (
+                  <div key={item.id} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                        {item.category}
+                      </span>
+                      <span className="text-xs text-slate-400">直近の誤り: {item.lastDate}</span>
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-800 mb-2">{item.title}</h4>
+                    <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+                      <span>過去の累計誤り: <strong className="text-rose-500">{item.count}回</strong></span>
+                      <button className="text-indigo-600 font-semibold flex items-center hover:underline">
+                        分析と解説を見る
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* 克服ログ（モチベーションUP） */}
+            <section className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-bold">最近克服できた問題！</h3>
+              </div>
+              <div className="space-y-2">
+                {mockAnalyticsData.overcomeHistory.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-2.5 bg-emerald-50/60 rounded-lg border border-emerald-100">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-xs font-semibold text-slate-700">{item.title}</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Flame className="w-3 h-3" /> {item.streak}問連続正解
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* ------------------- 先生モード ------------------- */}
+        {activeTab === 'teacher' && (
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-900 text-xs leading-relaxed">
+              <strong>:先生_男性: 授業サポートAI:</strong> クラス全体の答案データから、多くの生徒がつまずいている共通要因を抽出しています。
+            </div>
+
+            <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <Users className="w-4 h-4 text-indigo-600" />
+                  クラス全体の要フォロー項目
+                </h3>
+              </div>
+              <div className="space-y-3">
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="font-bold">数学II: 三角関数の合成</span>
+                    <span className="text-rose-500 font-bold">42% がつまずき中</span>
+                  </div>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-2">
+                    <div className="bg-rose-500 h-full w-[42%]" />
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    :電球: 提示案: 次回の授業冒頭で $a \sin \theta + b \cos \theta$ の図形的意味を5分おさらいするのが効果的です。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ------------------- 保護者モード ------------------- */}
+        {activeTab === 'parent' && (
+          <div className="space-y-4">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-900 text-xs leading-relaxed">
+              <strong>:家: ご家庭での声かけヒント:</strong> 「間違えたこと」ではなく、「どこを工夫して解き直したか」を褒めてあげると学習意欲が高まります！
+            </div>
+
+            <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm space-y-3">
+              <h3 className="text-sm font-bold">今週の学習の成果</h3>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="p-3 bg-slate-50 rounded-xl">
+                  <span className="text-xs text-slate-500 block">克服したつまずき</span>
+                  <span className="text-lg font-bold text-emerald-600">3 つ</span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl">
+                  <span className="text-xs text-slate-500 block">解き直し完了率</span>
+                  <span className="text-lg font-bold text-indigo-600">85 %</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
     </div>
-  )
-}
-
-
-const styles: { [key: string]: React.CSSProperties } = {
-  page: {
-    minHeight: '100dvh',
-    background: '#f5f7fb',
-    color: '#263238',
-    paddingBottom: '40px',
-  },
-
-  header: {
-    background: '#ffffff',
-    padding: '24px 20px 20px',
-    borderBottom: '1px solid #e9edf3',
-  },
-
-  smallLabel: {
-    margin: 0,
-    fontSize: '10px',
-    fontWeight: 800,
-    color: '#4D96FF',
-    letterSpacing: '0.14em',
-  },
-
-  title: {
-    margin: '4px 0 2px',
-    fontSize: '27px',
-    fontWeight: 800,
-    letterSpacing: '-0.04em',
-  },
-
-  subtitle: {
-    margin: 0,
-    fontSize: '13px',
-    color: '#7b8794',
-  },
-
-  container: {
-    width: '100%',
-    maxWidth: '600px',
-    margin: '0 auto',
-    padding: '16px',
-    boxSizing: 'border-box',
-  },
-
-  mainCard: {
-    background: 'linear-gradient(145deg, #4D96FF, #397de0)',
-    borderRadius: '24px',
-    padding: '22px',
-    color: '#ffffff',
-    boxShadow: '0 8px 24px rgba(77, 150, 255, 0.20)',
-    marginBottom: '14px',
-  },
-
-  cardTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  iconBlue: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '13px',
-    background: 'rgba(255,255,255,0.18)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  tagBlue: {
-    fontSize: '10px',
-    fontWeight: 800,
-    letterSpacing: '0.12em',
-    background: 'rgba(255,255,255,0.16)',
-    padding: '6px 9px',
-    borderRadius: '999px',
-  },
-
-  cardLabel: {
-    fontSize: '13px',
-    fontWeight: 700,
-    margin: '20px 0 8px',
-    opacity: 0.9,
-  },
-
-  mainCardTitle: {
-    fontSize: '23px',
-    lineHeight: 1.45,
-    margin: 0,
-    fontWeight: 800,
-    letterSpacing: '-0.03em',
-  },
-
-  mainCardText: {
-    fontSize: '13px',
-    lineHeight: 1.7,
-    opacity: 0.88,
-    margin: '12px 0 16px',
-  },
-
-  numberBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px 14px',
-    background: 'rgba(255,255,255,0.13)',
-    borderRadius: '15px',
-    marginBottom: '14px',
-  },
-
-  bigNumber: {
-    fontSize: '28px',
-    fontWeight: 900,
-  },
-
-  numberUnit: {
-    fontSize: '12px',
-    fontWeight: 700,
-    marginLeft: '2px',
-  },
-
-  numberText: {
-    fontSize: '12px',
-    opacity: 0.9,
-  },
-
-  primaryButton: {
-    width: '100%',
-    border: 'none',
-    borderRadius: '14px',
-    background: '#ffffff',
-    color: '#397de0',
-    padding: '13px 16px',
-    fontSize: '14px',
-    fontWeight: 800,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    cursor: 'pointer',
-  },
-
-  card: {
-    background: '#ffffff',
-    borderRadius: '21px',
-    padding: '20px',
-    marginBottom: '14px',
-    boxShadow: '0 2px 10px rgba(30, 50, 70, 0.05)',
-    border: '1px solid #edf0f5',
-  },
-
-  sectionTitleArea: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '11px',
-  },
-
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-  },
-
-  sectionTitle: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: 800,
-  },
-
-  sectionSub: {
-    margin: '3px 0 0',
-    fontSize: '11px',
-    color: '#929eaa',
-  },
-
-  iconPurple: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#f1edff',
-    color: '#7b61d9',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  iconGreen: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#e8f8ef',
-    color: '#31a866',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  iconOrange: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#fff2e5',
-    color: '#e8943c',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  iconYellow: {
-    width: '39px',
-    height: '39px',
-    borderRadius: '12px',
-    background: '#fff8db',
-    color: '#d6a514',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  barList: {
-    marginTop: '22px',
-  },
-
-  barItem: {
-    marginBottom: '17px',
-  },
-
-  barTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '7px',
-  },
-
-  barName: {
-    fontSize: '13px',
-    fontWeight: 700,
-  },
-
-  barCount: {
-    fontSize: '12px',
-    fontWeight: 700,
-    color: '#66727e',
-  },
-
-  barComment: {
-    fontSize: '10px',
-    color: '#4D96FF',
-  },
-
-  barBackground: {
-    height: '8px',
-    background: '#edf1f6',
-    borderRadius: '999px',
-    overflow: 'hidden',
-  },
-
-  bar: {
-    height: '100%',
-    background: '#4D96FF',
-    borderRadius: '999px',
-  },
-
-  successCard: {
-    background: '#f3fbf6',
-    borderRadius: '21px',
-    padding: '20px',
-    marginBottom: '14px',
-    border: '1px solid #dcefe4',
-  },
-
-  successHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '11px',
-  },
-
-  stepBox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: '24px',
-    padding: '0 10px',
-  },
-
-  stepDone: {
-    width: '31px',
-    height: '31px',
-    borderRadius: '50%',
-    background: '#43b978',
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: '14px',
-  },
-
-  stepError: {
-    width: '31px',
-    height: '31px',
-    borderRadius: '50%',
-    background: '#ffb15c',
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: '14px',
-  },
-
-  stepLine: {
-    height: '3px',
-    background: '#9ed8b6',
-    flex: 1,
-  },
-
-  stepLabels: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '9px',
-    color: '#708078',
-    marginTop: '8px',
-    textAlign: 'center',
-  },
-
-  successText: {
-    fontSize: '12px',
-    lineHeight: 1.7,
-    color: '#627069',
-    margin: '18px 0 14px',
-  },
-
-  secondaryButton: {
-    width: '100%',
-    padding: '11px',
-    borderRadius: '12px',
-    border: '1px solid #bfe4cc',
-    background: '#ffffff',
-    color: '#31955d',
-    fontSize: '12px',
-    fontWeight: 700,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '5px',
-    cursor: 'pointer',
-  },
-
-  growthBox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '18px',
-    margin: '22px 0 15px',
-  },
-
-  growthNumber: {
-    fontSize: '31px',
-    fontWeight: 900,
-    color: '#9ba5af',
-  },
-
-  growthNumberAfter: {
-    fontSize: '36px',
-    fontWeight: 900,
-    color: '#4D96FF',
-  },
-
-  growthArrow: {
-    fontSize: '24px',
-    color: '#b7c0c9',
-  },
-
-  growthMessage: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '7px',
-    fontSize: '12px',
-    color: '#4b8f68',
-    background: '#eff9f2',
-    borderRadius: '12px',
-    padding: '10px',
-  },
-
-  achievement: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '10px',
-    marginTop: '17px',
-    padding: '12px',
-    background: '#f8fafc',
-    borderRadius: '13px',
-    color: '#36a568',
-  },
-
-  achievementText: {
-    color: '#263238',
-  },
-
-  nextCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '13px',
-    background: '#263746',
-    color: '#ffffff',
-    borderRadius: '21px',
-    padding: '18px',
-    marginBottom: '14px',
-  },
-
-  nextIcon: {
-    width: '42px',
-    height: '42px',
-    borderRadius: '13px',
-    background: 'rgba(255,255,255,0.1)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#ffd66b',
-    flexShrink: 0,
-  },
-
-  nextLabel: {
-    fontSize: '9px',
-    fontWeight: 800,
-    letterSpacing: '0.13em',
-    margin: 0,
-    opacity: 0.6,
-  },
-
-  nextTitle: {
-    fontSize: '14px',
-    margin: '4px 0',
-    fontWeight: 800,
-  },
-
-  nextText: {
-    fontSize: '10px',
-    margin: 0,
-    opacity: 0.65,
-    lineHeight: 1.5,
-  },
-
-  footerText: {
-    textAlign: 'center',
-    color: '#a0a9b2',
-    fontSize: '9px',
-    margin: '20px 0',
-  },
+  );
 }
