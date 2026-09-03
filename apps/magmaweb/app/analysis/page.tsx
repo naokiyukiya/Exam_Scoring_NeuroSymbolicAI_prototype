@@ -681,17 +681,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#36a568',
   },
 
-  achievement: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '10px',
-    marginTop: '17px',
-    padding: '12px',
-    background: '#f8fafc',
-    borderRadius: '13px',
-    color: '#36a568',
-  },
-
   achievementText: {
     color: '#263238',
   },
