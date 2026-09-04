@@ -1188,12 +1188,7 @@
           "level": ["middle"],
           "before": ["LinearFunction", "x", "y", "a", "b"],
           "after": ["Equal", "y", ["Add", ["Multiply", "a", "x"], "b"]],
-          "symbols": {
-            "x": "変数",
-            "y": "変数",
-            "a": "傾き",
-            "b": "切片"
-          }
+          "symbols": {"x": "変数","y": "変数","a": "傾き","b": "切片"}
         },
         {
           "id": "rule_quadratic_function_middle",
@@ -1202,11 +1197,7 @@
           "before": ["QuadraticFunction", "x", "y", "a"],
           "after": ["Equal", "y", ["Multiply", "a", ["Power", "x", 2]]],
           "conditions": ["NotEqual", "a", 0],
-          "symbols": {
-            "x": "変数",
-            "y": "変数",
-            "a": "比例定数"
-          }
+          "symbols": {"x": "変数","y": "変数","a": "比例定数"}
         }
         ]
       },
@@ -1220,11 +1211,7 @@
             "level": ["middle"],
             "before": ["RightTriangle", "a", "b", "c"],
             "after": ["Equal",["Add", ["Power", "a", 2], ["Power", "b", 2]],["Power", "c", 2] ],
-            "conditions": [
-              ["Greater", "a", 0],
-              ["Greater", "b", 0],
-              ["Greater", "c", 0]
-            ],
+            "conditions": [["Greater", "a", 0],["Greater", "b", 0],["Greater", "c", 0]],
             "symbols": {"a": "直角をはさむ辺","b": "直角をはさむ辺","c": "斜辺"}
           }
         ]
