@@ -41,6 +41,11 @@ export default function AnalysisPage() {
     router.push(`/question/${id}`)
   }
 
+  // 指定したスレッドへ移動
+  const goToThread = (threadId: number) => {
+    router.push(`/thread/${threadId}`)
+  }
+
   const isCorrect = answer.trim() === correctAnswer
 
   return (
