@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
 // ★ プロンプトのバージョン（プロンプト改修時にここをインクリメント）
-const PROMPT_VERSION = "1.1.0";
+const PROMPT_VERSION = "1.2.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -14,7 +14,6 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
   
-  // 文字列リテラルの途中で切れている場合のレスキュー
   let inString = false;
   let escape = false;
   for (let i = 0; i < cleaned.length; i++) {
@@ -35,10 +34,8 @@ function repairTruncatedJson(jsonStr: string): string {
     cleaned += '"';
   }
 
-  // カンマやコロンで終わっている場合は削除
   cleaned = cleaned.replace(/[,:\s]+$/, '');
 
-  // スタックを使って閉じられていない括弧を補完
   const stack: string[] = [];
   inString = false;
   escape = false;
@@ -98,11 +95,9 @@ export async function GET(request: NextRequest) {
     }, { status: 404 })
   }
 
-  // ★ theorems.json からバージョンを取得（存在しない場合のフォールバック付き）
   const data: any = theorems;
   const theoremVersion = data?.version || "unknown";
 
-  // キャッシュチェック（PROMPT_VERSION が一致する場合のみキャッシュを利用して古いデータを防ぐ）
   const { data: existingGraph } = await supabase
     .from('logic_graphs')
     .select('graph_data, construction_process, prompt_version, theorem_version')
@@ -163,27 +158,19 @@ export async function GET(request: NextRequest) {
                 入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。指定されたJSONフォーマットのみで出力し、併せてグラフを構築したステップごとの思考プロセスも出力してください。
 
                 [抽出ルール]
-                1. グラフの基本構造（【絶対遵守】厳密な交互配置）:
-                   - メインの論理フローは、必ず「命題」→「推論」→「命題」→「推論」と厳密に交互に繋がるように配置してください。
-                   - 【重要】命題ノード同士、または推論ノード同士が直接繋がることは絶対に禁止します。答案上で数式が連続して書かれている場合でも、必ずその間に「[推測] 式を整理する」「[推測] 次の条件を考慮する」などの推論ノードを補完して挟んでください。
+                1. グラフの基本構造（【絶対遵守】厳密な交互配置と終端）:
+                   - メインの論理フローは、必ず「命題」→「推論」→「命題」→「推論」と交互に配置し、**グラフの最後のノードは必ず「命題（proposition）」で終了してください。** 推論ノードや定理ノードでグラフを終わらせることは絶対に禁止します。
+                   - 命題ノード同士、または推論ノード同士が直接繋がることは絶対に禁止します。
                 2. 命題（proposition）ノード:
                    - 答案に書かれている数式、条件、結論のみを正確に抽出してください。
                    - ルート、大なりイコールなどはLaTeXコマンドを使わず、「√」「≧」「≦」「≠」「±」などの環境依存しない文字記号を直接使用してください。
-                3. 推論（inference）ノードと定義・定理（theorem）ノードの接続ルール（基本と特例）:
-                   - 【基本原則】定義・定理ノード（type: "theorem"）は、原則としてそれを適用した「推論ノード」から枝分かれさせて接続してください。
-                   - 【特例ルール（命題からの直接接続）】もし推論ノードの内容（例：「右辺の式を簡略化する」等）が公式変換に直接関係ない場合でも、命題の数式内に「Σ（シグマ）」などの重要な定義・定理が含まれており、解説として必要な場合は、特例として【命題ノードから直接、定義・定理ノードへエッジを繋ぐ】ことを強く推奨します。推論に紐づけられないからといって、重要な定義・定理の抽出を絶対に省略しないでください。
-                   - 【絶対遵守】同じ定理が複数回使われた場合は、毎回新しい定理ノードを作成し、末尾に「(2回目の利用)」と記載してください。
-                   - 【見落とし厳禁の自己チェック機構】: 抽出処理の最後に、画像内のすべての数式を必ず再確認（ダブルチェック）してください。「Σ（シグマ）の公式」「二次方程式の解の公式」「展開・因数分解の公式」などの重要な定義・定理の「抽出漏れ」が絶対に起きないように網羅してください。
-                4. 複数の式の合流（連立方程式など）の扱い:
-                   - 複数の命題（数式）を組み合わせて新しい命題を導いている場合、それらの複数の「命題ノード」から、1つの「推論ノード」に向かってエッジを繋げてください。
-                5. グラフや表の除外:
-                   - 関数グラフ、幾何的な図形、増減表などは解析の対象外とします。
-                6. 忠実性の原則:
-                   - 誤った数式はそのまま「命題」ノードとして抽出してください。
-                7. 推論ノードの検証ステータスと数式データの付与（【絶対遵守】）:
+                3. 定理（theorem）ノードの接続ルール（【絶対遵守】）:
+                   - 答案で使用された定理は必ずノード（type: "theorem"）として作成し、**必ず対応する「推論ノード」または「命題ノード」から `edges` で矢印（接続）を確実に繋いでください。** 画面の左側に定理ノードが孤立して残るような中途半端な出力は絶対に避けてください。
+                   - 生成されたすべての定理ノードには、`edges` 配列において必ず有効な接続関係（from / to）が定義されていなければなりません。
+                4. 推論ノードの検証ステータスと数式データの付与（【絶対遵守】）:
                    - ノードの種類が「推論（inference）」である場合、必ず以下のプロパティをすべて含めてください：
-                     - "verification_status": 必ず「検証前」にしてください。「検証済み」と出力することは固く禁じます。
-                     - "theorem": 適用した定理の "before" と "after"（例: {"before": "P * (Q + R)", "after": "P * Q + P * R"}）
+                     - "verification_status": 必ず「検証前」にしてください。
+                     - "theorem": 適用した定理の "before" と "after"
                      - "input_expression": 変形する前の入力式（文字列）
                      - "output_expression": 変形した後の出力式（文字列）
                    - 命題や定義・定理ノードにはこれらを追加しないでください。
@@ -206,33 +193,17 @@ export async function GET(request: NextRequest) {
                         "verification_status": "検証前" 
                       },
                       { "id": "p2", "label": "3 * x + 6 > 0", "type": "proposition" },
-                      { "id": "p4", "label": "S = Σ_{k=1}^{n} k", "type": "proposition" },
-                      { "id": "t1", "label": "総和記号(Σ)の定義: 数列の和を簡易的に表す記号", "type": "theorem" },
-                      { 
-                        "id": "i2", 
-                        "label": "[推測] 自然数の和の公式を利用し、右辺の式を簡略化して展開する", 
-                        "type": "inference", 
-                        "theorem": { "before": "Σ_{k=1}^{n} k", "after": "n(n+1)/2" },
-                        "input_expression": "Σ_{k=1}^{n} k",
-                        "output_expression": "n(n+1)/2",
-                        "applied_theorem": "自然数の和の公式", 
-                        "verification_status": "検証前" 
-                      },
-                      { "id": "t2", "label": "自然数の和の公式: Σ_{k=1}^{n} k = n(n+1)/2", "type": "theorem" },
-                      { "id": "p5", "label": "S = n(n+1)/2", "type": "proposition" }
+                      { "id": "t1", "label": "分配法則（展開）: P * (Q + R) = P * Q + P * R", "type": "theorem" }
                     ],
                     "edges": [
                       { "from": "p1", "to": "i1" },
                       { "from": "i1", "to": "p2" },
-                      { "from": "p4", "to": "t1" }, 
-                      { "from": "p4", "to": "i2" },
-                      { "from": "i2", "to": "t2" },
-                      { "from": "i2", "to": "p5" }
+                      { "from": "i1", "to": "t1" }
                     ]
                   },
                   "construction_process": [
                     "Step 1: 命題「x - 2 > 0」を抽出しました。",
-                    "Step 2: 分配法則を適用する推論を追加し、命題「3 * x + 6 > 0」を導きました。"
+                    "Step 2: 分配法則を適用する推論と定理を接続し、命題「3 * x + 6 > 0」を導きました。"
                   ]
                 }
                 
