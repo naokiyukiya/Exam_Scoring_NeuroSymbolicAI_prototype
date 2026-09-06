@@ -102,14 +102,14 @@ export async function GET(request: NextRequest) {
   const data: any = theorems;
   const theoremVersion = data?.version || "unknown";
 
-  // キャッシュチェック（すでに存在する場合はGeminiを叩かず返却）
+  // キャッシュチェック（PROMPT_VERSION が一致する場合のみキャッシュを利用して古いデータを防ぐ）
   const { data: existingGraph } = await supabase
     .from('logic_graphs')
     .select('graph_data, construction_process, prompt_version, theorem_version')
     .eq('post_id', answerId)
     .maybeSingle()
 
-  if (existingGraph) {
+  if (existingGraph && existingGraph.prompt_version === PROMPT_VERSION) {
     return NextResponse.json({
       imageUrl: answer.image_url,
       graph: existingGraph.graph_data,
@@ -254,7 +254,6 @@ export async function GET(request: NextRequest) {
 
     let parsedData: any = null
 
-    // 文字列クレンジング
     let cleanText = rawText.trim()
     if (cleanText.startsWith('```json')) {
       cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim()
@@ -262,17 +261,14 @@ export async function GET(request: NextRequest) {
       cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim()
     }
 
-    // 段階的にパースを試行
     try {
       parsedData = JSON.parse(cleanText)
     } catch (parseErr1) {
       try {
-        // エスケープ処理の試行
         const fixedText = cleanText.replace(/\\/g, '\\\\').replace(/\\\\"|\\\\'|\\\\n/g, (match) => match.substring(2))
         parsedData = JSON.parse(fixedText)
       } catch (parseErr2) {
         try {
-          // 途中切れJSONの自動補完・修復試行
           const repairedText = repairTruncatedJson(cleanText)
           parsedData = JSON.parse(repairedText)
         } catch (parseErr3) {
@@ -284,11 +280,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ★ Supabase への保存処理（UPDATE/INSERT に明示分岐 & バージョン情報を追加）
     let dbSaveError: any = null
     if (parsedData && parsedData.graph) {
       try {
-        // 1. 既存のレコードがあるか探す
         const { data: existing } = await supabase
           .from('logic_graphs')
           .select('id')
@@ -299,13 +293,12 @@ export async function GET(request: NextRequest) {
           graph_data: parsedData.graph,
           construction_process: parsedData.construction_process || [],
           status: 'unverified',
-          prompt_version: PROMPT_VERSION,       // ★ プロンプトバージョン
-          theorem_version: theoremVersion,      // ★ theorems.jsonのバージョン
+          prompt_version: PROMPT_VERSION,       
+          theorem_version: theoremVersion,      
           updated_at: new Date().toISOString()
         };
 
         if (existing) {
-          // 既存があれば UPDATE
           const { error: updateErr } = await supabase
             .from('logic_graphs')
             .update(payload)
@@ -316,7 +309,6 @@ export async function GET(request: NextRequest) {
             dbSaveError = updateErr
           }
         } else {
-          // 既存がなければ INSERT
           const { error: insertErr } = await supabase
             .from('logic_graphs')
             .insert({
