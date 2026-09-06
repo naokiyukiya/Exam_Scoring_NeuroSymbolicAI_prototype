@@ -1,162 +1,293 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@supabase/supabase-js'
+import AnswerCard from '../../../components/AnswerCard'
+import DagVisualizer from '../../../components/DagVisualizer'
+import { CircleArrowLeft, Layers, AlertTriangle } from 'lucide-react'
 
-// ==========================================
-// 型定義 (Type Definitions)
-// ==========================================
-
-type NodeType = 'proposition' | 'inference';
-
-interface Theorem {
-  before: string;
-  after: string;
-}
-
-interface LogicNode {
-  id: string;
-  type: NodeType;
-  expression?: string;
-  theorem?: Theorem;
-  input_expression?: string;
-  output_expression?: string;
-  verification_status?: '未検証' | '問題なし' | '問題あり';
-}
-
-interface LogicGraph {
-  nodes: LogicNode[];
+// 研究用グラフデータの型宣言
+type GraphData = {
+  nodes: Array<{ id: string; label: string; type: 'proposition' | 'inference' | 'theorem' }>
+  edges: Array<{ from: string; to: string }>
 }
 
 export default function AnalysisPage({ params }: { params: { id: string } }) {
-  // サンプルとして、検証対象のグラフデータ（初期状態）を用意
-  const [graphData, setGraphData] = useState<LogicGraph>({
-    nodes: [
-      {
-        id: 'node-1',
-        type: 'proposition',
-        expression: 'A * x + B * x',
-      },
-      {
-        id: 'node-2',
-        type: 'inference',
-        theorem: {
-          before: 'P * x + Q * x',
-          after: '(P + Q) * x',
-        },
-        input_expression: 'A * x + B * x',
-        output_expression: '(A + B) * x',
-        verification_status: '未検証',
-      },
-    ],
-  });
+  const router = useRouter()
+  const [answerData, setAnswerData] = useState<any>(null)
+ 
+  // 厳密な構造化DAGデータをステートで持つ
+  const [graphData, setGraphData] = useState<GraphData | null>(null)
+ 
+  // 💡 【追加】AIが生成したグラフ構築用プログラム（JSON文字列）をそのまま保持するステート
+  const [rawGraphData, setRawGraphData] = useState<string | null>(null)
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true)
 
-  // APIを呼び出してグラフを検証する関数
-  const handleVerify = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
+  // 既存の処理を壊さずにエラーを画面に露出させるためのデバッグ用ステート
+  const [debugError, setDebugError] = useState<string | null>(null)
+  const [debugDetails, setDebugDetails] = useState<string | null>(null)
+  const [debugRawText, setDebugRawText] = useState<string | null>(null)
 
-    try {
-      const response = await fetch('/api/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(graphData),
-      });
+  useEffect(() => {
+    async function loadAnalysisData() {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
 
-      if (!response.ok) {
-        throw new Error('サーバーでの検証処理に失敗しました。');
+        // ① posts から該当の答案データを取得
+        const { data: post, error: pError } = await supabase
+          .from('posts')
+          .select(`
+            id,
+            image_url,
+            type,
+            anonymous,
+            created_at,
+            user_id,
+            parent_id,
+            profiles ( handle )
+          `)
+          .eq('id', params.id)
+          .single()
+
+        if (pError) throw pError
+        setAnswerData(post)
+
+        // ② api/analyze/route.ts の仕様 (GET / ?answerId=) に完全に合わせる
+        const res = await fetch(`/api/analyze?answerId=${params.id}`, {
+          method: 'GET',
+        })
+
+        const json = await res.json()
+
+        // HTTPステータスが200以外のエラーだった場合
+        if (!res.ok) {
+          setDebugError(`APIがエラーステータス ${res.status} を返しました`)
+          setDebugDetails(json.error + (json.details ? `\n${json.details}` : ''))
+          return
+        }
+
+        // 200が戻ってきたが、APIの内部パースエラーなどで error フラグが入っている場合
+        if (json.error) {
+          setDebugError(json.error)
+          if (json.rawText) setDebugRawText(json.rawText)
+          return
+        }
+       
+        // APIから戻ってきた { imageUrl, graph } の構造から graph を抽出
+        if (json.graph) {
+          setGraphData(json.graph)
+         
+          // 💡 【追加】受け取ったJSONデータ（プログラム）を整形して文字列として保存
+          const formattedJson = JSON.stringify({
+            graph: json.graph,
+            new_theorems: json.newTheorems || []
+          }, null, 2)
+          setRawGraphData(formattedJson)
+        }
+
+      } catch (e: any) {
+        console.error('診断書データ同期エラー:', e)
+        setDebugError('フロントエンドの処理中に例外が発生しました')
+        setDebugDetails(e?.message || String(e))
+      } finally {
+        setLoading(false)
       }
-
-      const result = await response.json();
-      
-      // APIから返ってきた更新済みのノード情報で画面の状態を更新
-      setGraphData({ nodes: result.nodes });
-    } catch (error: any) {
-      console.error(error);
-      setErrorMessage(error.message || '予期せぬエラーが発生しました。');
-    } finally {
-      setIsLoading(false);
     }
-  };
+
+    loadAnalysisData()
+  }, [params.id])
+
+  if (loading) {
+    return <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>論理構造の解析中…</div>
+  }
+
+  if (!answerData) {
+    return <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>答案が見つかりませんでした</div>
+  }
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>論理グラフ検証ダッシュボード (ID: {params.id})</h1>
-      <p style={{ color: '#666' }}>
-        mathjsのASTパターンマッチングと代数簡約を用いて、推論ステップの数式変形が正しいかを検証します。
-      </p>
-
-      <div style={{ margin: '1.5rem 0' }}>
-        <button
-          onClick={handleVerify}
-          disabled={isLoading}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: isLoading ? '#ccc' : '#0070f3',
-            color: '#white',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '1rem',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {isLoading ? '検証中...' : 'AI論理グラフを検証する'}
+    <div style={styles.container}>
+      {/* ヘッダーエリア */}
+      <div style={styles.header}>
+        <button onClick={() => router.back()} style={styles.backButton}>
+          <CircleArrowLeft size={30} />
         </button>
+        <h1 style={styles.title}>論理構造 診断書</h1>
       </div>
 
-      {errorMessage && (
-        <div style={{ padding: '1rem', backgroundColor: '#ffebee', color: '#c62828', borderRadius: '4px', marginBottom: '1rem' }}>
-          {errorMessage}
+      {/* 🚨 デバッグモニター（エラー発生時のみ最上部に自動出現） */}
+      {(debugError || debugDetails || debugRawText) && (
+        <div style={styles.debugBox}>
+          <div style={styles.debugHeader}>
+            <AlertTriangle size={20} color="#ff4d4d" />
+            <span style={styles.debugTitle}>デバッグモニター (データ未着の原因)</span>
+          </div>
+          {debugError && <p style={styles.debugItem}><strong>Error:</strong> {debugError}</p>}
+          {debugDetails && (
+            <div style={styles.debugItem}>
+              <strong>Details:</strong>
+              <pre style={styles.debugPre}>{debugDetails}</pre>
+            </div>
+          )}
+          {debugRawText && (
+            <div style={styles.debugItem}>
+              <strong>Geminiが返してきた生のテキストデータ:</strong>
+              <pre style={styles.debugRawPre}>{debugRawText}</pre>
+            </div>
+          )}
         </div>
       )}
 
-      <h2>ノード一覧・検証結果</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {graphData.nodes.map((node) => (
-          <div
-            key={node.id}
-            style={{
-              border: '1px solid #ddd',
-              padding: '1rem',
-              borderRadius: '6px',
-              backgroundColor: '#fafafa',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <strong>ID: {node.id} ({node.type})</strong>
-              <span
-                style={{
-                  fontWeight: 'bold',
-                  color:
-                    node.verification_status === '問題なし'
-                      ? '#2e7d32'
-                      : node.verification_status === '問題あり'
-                      ? '#c62828'
-                      : '#555',
-                }}
-              >
-                ステータス: {node.verification_status || '未検証'}
-              </span>
-            </div>
+      <div style={styles.mainGrid}>
+        {/* 左側：答案カード */}
+        <div style={styles.cardSection}>
+          <AnswerCard
+            image={answerData.image_url}
+            answerId={answerData.id}
+            rootId={answerData.parent_id || answerData.id}
+            username={answerData.profiles?.handle || 'unknown'}
+            createdAt={answerData.created_at}
+            anonymous={answerData.anonymous}
+          />
+        </div>
 
-            {node.type === 'proposition' && (
-              <p>数式: <code>{node.expression}</code></p>
-            )}
-
-            {node.type === 'inference' && node.theorem && (
-              <div style={{ fontSize: '0.95rem', color: '#444' }}>
-                <p>適用定理: <code>{node.theorem.before}</code> ⇒ <code>{node.theorem.after}</code></p>
-                <p>入力式: <code>{node.input_expression}</code></p>
-                <p>出力式: <code>{node.output_expression}</code></p>
+        {/* 右側：解析された論理のDAG構造可視化エリア */}
+        <div style={styles.analysisSection}>
+          <div style={styles.analysisHeader}>
+            <Layers size={20} color="#4D96FF" />
+            <span style={styles.analysisTitle}>解析された論理のDAG構造</span>
+          </div>
+          <div style={styles.analysisBody}>
+            {graphData ? (
+              <DagVisualizer graphData={graphData} />
+            ) : (
+              <div style={styles.errorText}>
+                論理構造のグラフデータを読み込めませんでした。上のデバッグモニターを確認してください。
               </div>
             )}
           </div>
-        ))}
+
+          {/* 💡 【追加】グラフ構造の下に、AIが作成したプログラム（JSON文字列）を表示するエリア */}
+          {rawGraphData && (
+            <div style={styles.codeContainer}>
+              <h3 style={styles.codeTitle}>📝 グラフ構築プログラム (JSONデータ)</h3>
+              <pre style={styles.codeBlock}>
+                {rawGraphData}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
     </div>
-  );
+  )
+}
+
+const styles = {
+  container: {
+    maxWidth: '800px',
+    margin: '0 auto',
+    padding: '16px 8px 48px',
+    backgroundColor: '#fff',
+    minHeight: '100vh',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  backButton: {
+    background: 'none',
+    border: 'none',
+    color: '#333',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#222',
+  },
+  mainGrid: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 20,
+  },
+  cardSection: {
+    width: '100%',
+    filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.05))',
+  },
+  analysisSection: {
+    background: '#f9f9fb',
+    border: '1px solid #f0f0f4',
+    borderRadius: '20px',
+    padding: '20px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.01)',
+  },
+  analysisHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    borderBottom: '1px solid #eee',
+    paddingBottom: 10,
+    marginBottom: 14,
+  },
+  analysisTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#333',
+  },
+  analysisBody: {
+    width: '100%',
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: '14px',
+    textAlign: 'center' as const,
+    padding: '20px 0',
+  },
+  debugBox: {
+    backgroundColor: '#fff5f5',
+    border: '2px solid #ffcccc',
+    borderRadius: '16px',
+    padding: '16px',
+    marginBottom: '20px',
+  },
+  debugHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: '12px' },
+  debugTitle: { fontWeight: 'bold' as const, color: '#e53e3e', fontSize: '15px' },
+  debugItem: { fontSize: '13px', color: '#2d3748', marginBottom: '8px' },
+  debugPre: { backgroundColor: '#edf2f7', padding: '8px', borderRadius: '6px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace' },
+  debugRawPre: { backgroundColor: '#1a202c', color: '#aeebd0', padding: '12px', borderRadius: '8px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.4 },
+
+  // 💡 【追加】プログラム（JSON文字列）を画面下部に表示するためのCSSスタイル
+  codeContainer: {
+    marginTop: '24px',
+    padding: '16px',
+    backgroundColor: '#1e293b', // 見やすいように暗めの背景色に設定
+    borderRadius: '12px',
+    border: '1px solid #334155',
+  },
+  codeTitle: {
+    fontSize: '15px',
+    fontWeight: 'bold' as const,
+    color: '#f8fafc',
+    marginBottom: '12px',
+    marginTop: 0,
+  },
+  codeBlock: {
+    color: '#e2e8f0',
+    fontFamily: 'Consolas, Monaco, monospace',
+    fontSize: '13px',
+    whiteSpace: 'pre-wrap' as const,
+    wordBreak: 'break-all' as const,
+    maxHeight: '500px',
+    overflowY: 'auto' as const,
+    margin: 0,
+  }
 }
