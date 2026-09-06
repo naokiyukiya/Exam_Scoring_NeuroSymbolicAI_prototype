@@ -33,7 +33,7 @@ function LoginForm() {
       if (nextPath) {
         router.push(nextPath)
       } else {
-        router.push('/feed')
+        router.push('/search')
       }
     } catch (e: any) {
       setError(e.message ?? 'エラーが発生しました')
