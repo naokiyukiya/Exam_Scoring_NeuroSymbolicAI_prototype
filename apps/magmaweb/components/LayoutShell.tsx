@@ -13,8 +13,8 @@ import {
   UserRound,
   Search,
   BarChart3,
-  Scan,        // ★ 解析（スキャン）用アイコン
-  GitFork,     // ★ 空き枠用（論理グラフ/DAGイメージ）
+  Scan,
+  GitFork,
   X,
   ChevronLeft,
   Camera,
@@ -69,6 +69,7 @@ export default function LayoutShell({ children }: Props) {
     return <>{children}</>
   }
 
+  // ★ 投稿処理：問題はコンテキストとして保存し、答案（解答）画像のみをAI解析の対象とする
   const handleFinalSubmit = async (reactionData?: any) => {
     if (!problemFile) return
     setUploading(true)
@@ -82,6 +83,7 @@ export default function LayoutShell({ children }: Props) {
       if (userError || !userData.user) throw new Error('認証に失敗しました')
       const userId = userData.user.id
 
+      // 1. 問題画像のアップロード＆DB保存（コンテキスト保持用）
       const pUrl = await uploadImageToCloudinary(problemFile)
       
       const { data: pInserted, error: pError } = await supabase
@@ -99,6 +101,9 @@ export default function LayoutShell({ children }: Props) {
       const pId = pInserted.id
       await supabase.from('posts').update({ root_id: pId }).eq('id', pId)
 
+      let createdAnswerId: string | null = null
+
+      // 2. 答案（解答）画像があればアップロード＆DB保存
       if (answerFile) {
         const aUrl = await uploadImageToCloudinary(answerFile)
         const { data: aInserted, error: aError } = await supabase
@@ -114,11 +119,12 @@ export default function LayoutShell({ children }: Props) {
           .select('id').single()
 
         if (aError || !aInserted) throw aError
-        const aId = aInserted.id
+        createdAnswerId = aInserted.id
 
+        // 3. リアクション（ピン留めコメント等）があれば保存
         if (reactionData) {
           const { error: rError } = await supabase.from('reactions').insert({
-            post_id: aId,
+            post_id: createdAnswerId,
             user_id: userId,
             type: reactionData.type,
             comment: reactionData.comment,
@@ -131,10 +137,16 @@ export default function LayoutShell({ children }: Props) {
 
       reset()
       router.refresh()
-      router.push(`/threads/${pId}`)
+      
+      // ★ 判定：答案画像が存在すればその答案IDでAIグラフ解析へ。問題画像のみ（スキップ）ならSNSスレッドへ。
+      if (createdAnswerId) {
+        router.push(`/analysis/${createdAnswerId}`)
+      } else {
+        router.push(`/threads/${pId}`)
+      }
       
     } catch (error: any) {
-      alert('投稿に失敗しました。\n' + (error.message || 'Unknown Error'))
+      alert('処理に失敗しました。\n' + (error.message || 'Unknown Error'))
     } finally {
       setUploading(false)
     }
@@ -150,7 +162,7 @@ export default function LayoutShell({ children }: Props) {
 
       <main style={styles.main}>{children}</main>
 
-      {/* 「SNS(search)」の時だけ表示される問題投稿ボタン */}
+      {/* 「SNS(search)」の時だけ表示されるオプション投稿ボタン（現状維持） */}
       {pathname === '/search' && (
         <button 
           style={styles.floatingPlus} 
@@ -163,27 +175,23 @@ export default function LayoutShell({ children }: Props) {
 
       {/* フッターナビゲーション */}
       <footer style={styles.footer}>
-        {/* 1. SNS（検索＋フィード統合画面） */}
         <button style={styles.icon} onClick={() => router.push('/search')}>
           <Search size={28} />
         </button>
 
-        {/* 2. 新設予定の空き枠（仮：思考グラフ / DAGビュー） */}
         <button style={styles.icon} onClick={() => router.push('/graph')}>
           <GitFork size={28} />
         </button>
 
-        {/* 3. 【主役】解析 / スキャン (旧：投稿ボタン) */}
+        {/* 【主役】解析 / スキャン */}
         <button style={styles.scanIconBtn} onClick={() => goToStep(1)}>
           <Scan size={30} color="#fff" />
         </button>
 
-        {/* 4. 分析・ダッシュボード */}
         <button style={styles.icon} onClick={() => router.push('/analysis')}>
           <BarChart3 size={28} />
         </button>
 
-        {/* 5. マイページ */}
         <button style={styles.icon} onClick={() => router.push('/me')}>
           <UserRound size={28} />
         </button>
@@ -221,7 +229,7 @@ export default function LayoutShell({ children }: Props) {
               <div style={styles.stepContainer}>
                 {!rawFile ? (
                   <>
-                    <h2 style={styles.stepTitle}>答案・問題を解析（スキャン）</h2>
+                    <h2 style={styles.stepTitle}>問題文を撮影</h2>
                     <button style={styles.mainActionBtn} onClick={() => cameraInputRef.current?.click()}>
                       <Camera size={24} /> カメラを起動
                     </button>
@@ -244,12 +252,12 @@ export default function LayoutShell({ children }: Props) {
               <div style={styles.stepContainer}>
                 {!rawFile ? (
                   <>
-                    <h2 style={styles.stepTitle}>考え方を撮影</h2>
+                    <h2 style={styles.stepTitle}>自分の解答（答案）を撮影</h2>
                     <button style={styles.mainActionBtn} onClick={() => cameraInputRef.current?.click()}>
                       <Camera size={24} /> カメラを起動
                     </button>
                     <button style={styles.skipBtn} onClick={() => handleFinalSubmit()}>
-                      スキップして解析を実行
+                      解答を添付せずに投稿
                     </button>
                   </>
                 ) : (
@@ -287,6 +295,7 @@ export default function LayoutShell({ children }: Props) {
         </div>
       )}
 
+      {/* オプション投稿用のファイルインプット＆モーダル（既存維持） */}
       <input
         ref={simplePostInputRef}
         type="file"
@@ -335,21 +344,18 @@ const styles: { [key: string]: CSSProperties } = {
   main: { paddingBottom: 16, marginTop: 0 },
   footer: { position: 'fixed', bottom: 0, left: 0, right: 0, height: 54, display: 'flex', justifyContent: 'space-around', alignItems: 'center', background: BASE_COLOR, zIndex: 1000 },
   icon: { background: 'none', border: 'none', color: '#eee', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
-  
-  // ★ 解析ボタン強調スタイル（中央を少し目立たせる）
-scanIconBtn: {
-  background: '#00aaff',
-  border: 'none',
-  width: 44,
-  height: 44,
-  borderRadius: '22px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center', // ← `justifyContent` に変更
-  cursor: 'pointer',
-  boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
-},
-
+  scanIconBtn: {
+    background: '#00aaff',
+    border: 'none',
+    width: 44,
+    height: 44,
+    borderRadius: '22px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
+  },
   floatingPlus: {
     position: 'fixed',
     right: 20,
@@ -372,7 +378,6 @@ scanIconBtn: {
     fontWeight: 'bold',
     letterSpacing: '0.05em'
   },
-
   fullOverlay: { position: 'fixed', inset: 0, background: BASE_COLOR, zIndex: 3000, display: 'flex', flexDirection: 'column', color: '#fff' },
   portalProgressContainer: { 
     position: 'fixed',
