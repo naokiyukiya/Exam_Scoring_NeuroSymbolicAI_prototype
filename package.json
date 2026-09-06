@@ -7,8 +7,6 @@
     "start": "next start"
   },
   "dependencies": {
-    "mathjs": "^14.0.0",
-    "@cortex-js/compute-engine": "...", 
     "next": "14.0.0",
     "react": "18.2.0",
     "react-dom": "18.2.0"
