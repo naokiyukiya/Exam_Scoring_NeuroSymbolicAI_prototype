@@ -13,12 +13,12 @@ import {
   UserRound,
   Search,
   BarChart3,
-  Scan,
-  GitFork,
+  Scan,        // ★ 解析（スキャン）用アイコン
+  GitFork,     // ★ 空き枠用（論理グラフ/DAGイメージ）
   X,
   ChevronLeft,
   Camera,
-  SquarePen,
+  SquarePen
 } from 'lucide-react'
 
 type Props = {
@@ -26,6 +26,7 @@ type Props = {
 }
 
 const BASE_COLOR = '#2C3E50'
+const SUB_COLOR = '#34495E'
 const BORDER_COLOR = '#3d566e'
 
 export default function LayoutShell({ children }: Props) {
@@ -36,7 +37,7 @@ export default function LayoutShell({ children }: Props) {
   const [mounted, setMounted] = useState(false)
 
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0)
-  const [direction, setDirection] = useState<'in' | 'out'>('in')
+  const [direction, setDirection] = useState<'in' | 'out'>('in') 
   const [rawFile, setRawFile] = useState<File | null>(null)
   const [problemFile, setProblemFile] = useState<File | null>(null)
   const [answerFile, setAnswerFile] = useState<File | null>(null)
@@ -46,16 +47,14 @@ export default function LayoutShell({ children }: Props) {
   const [simpleFile, setSimpleFile] = useState<File | null>(null)
   const [simpleUploading, setSimpleUploading] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  useEffect(() => { setMounted(true) }, [])
 
   const goToStep = (next: 0 | 1 | 2 | 3) => {
     setDirection('out')
     setTimeout(() => {
       setStep(next)
       setDirection('in')
-    }, 250)
+    }, 250) 
   }
 
   const reset = () => {
@@ -66,8 +65,7 @@ export default function LayoutShell({ children }: Props) {
     setUploading(false)
   }
 
-  // ログイン、利用規約画面ではシェル（ヘッダー・フッター）を表示しない
-  if (pathname === '/login' || pathname === '/terms') {
+  if (pathname === '/login' || pathname === '/terms' || pathname.startsWith('/threads')) {
     return <>{children}</>
   }
 
@@ -85,7 +83,7 @@ export default function LayoutShell({ children }: Props) {
       const userId = userData.user.id
 
       const pUrl = await uploadImageToCloudinary(problemFile)
-
+      
       const { data: pInserted, error: pError } = await supabase
         .from('posts')
         .insert({
@@ -95,8 +93,7 @@ export default function LayoutShell({ children }: Props) {
           anonymous: isAnonymous,
           label: '質問',
         })
-        .select('id')
-        .single()
+        .select('id').single()
 
       if (pError || !pInserted) throw pError
       const pId = pInserted.id
@@ -114,8 +111,7 @@ export default function LayoutShell({ children }: Props) {
             root_id: pId,
             anonymous: isAnonymous,
           })
-          .select('id')
-          .single()
+          .select('id').single()
 
         if (aError || !aInserted) throw aError
         const aId = aInserted.id
@@ -126,7 +122,7 @@ export default function LayoutShell({ children }: Props) {
             user_id: userId,
             type: reactionData.type,
             comment: reactionData.comment,
-            x_float: reactionData.x,
+            x_float: reactionData.x, 
             y_float: reactionData.y,
           })
           if (rError) throw rError
@@ -136,6 +132,7 @@ export default function LayoutShell({ children }: Props) {
       reset()
       router.refresh()
       router.push(`/threads/${pId}`)
+      
     } catch (error: any) {
       alert('投稿に失敗しました。\n' + (error.message || 'Unknown Error'))
     } finally {
@@ -143,7 +140,7 @@ export default function LayoutShell({ children }: Props) {
     }
   }
 
-  const isInitialStep = step === 1 && !rawFile
+  const isInitialStep = step === 1 && !rawFile;
 
   return (
     <div style={styles.wrapper}>
@@ -155,8 +152,8 @@ export default function LayoutShell({ children }: Props) {
 
       {/* 「SNS(search)」の時だけ表示される問題投稿ボタン */}
       {pathname === '/search' && (
-        <button
-          style={styles.floatingPlus}
+        <button 
+          style={styles.floatingPlus} 
           onClick={() => simplePostInputRef.current?.click()}
         >
           <SquarePen size={22} color="#fff" />
@@ -166,74 +163,66 @@ export default function LayoutShell({ children }: Props) {
 
       {/* フッターナビゲーション */}
       <footer style={styles.footer}>
+        {/* 1. SNS（検索＋フィード統合画面） */}
         <button style={styles.icon} onClick={() => router.push('/search')}>
           <Search size={28} />
         </button>
 
+        {/* 2. 新設予定の空き枠（仮：思考グラフ / DAGビュー） */}
         <button style={styles.icon} onClick={() => router.push('/graph')}>
           <GitFork size={28} />
         </button>
 
+        {/* 3. 【主役】解析 / スキャン (旧：投稿ボタン) */}
         <button style={styles.scanIconBtn} onClick={() => goToStep(1)}>
           <Scan size={30} color="#fff" />
         </button>
 
+        {/* 4. 分析・ダッシュボード */}
         <button style={styles.icon} onClick={() => router.push('/analysis')}>
           <BarChart3 size={28} />
         </button>
 
+        {/* 5. マイページ */}
         <button style={styles.icon} onClick={() => router.push('/me')}>
           <UserRound size={28} />
         </button>
       </footer>
 
-      {/* 解析（スキャン）オーバーレイ */}
       {step > 0 && (
         <div style={styles.fullOverlay}>
-          {mounted &&
-            createPortal(
-              <div style={styles.portalProgressContainer}>
-                <button
-                  onClick={() => {
-                    if (rawFile) setRawFile(null)
-                    else if (step > 1) goToStep((step - 1) as 0 | 1 | 2 | 3)
-                    else reset()
-                  }}
-                  style={styles.navBtn}
-                >
-                  {isInitialStep ? <X size={24} /> : <ChevronLeft size={28} />}
-                </button>
-                <div style={styles.progressBars}>
-                  {[1, 2, 3].map((s) => (
-                    <div key={s} style={styles.progressBarBase}>
-                      <div
-                        style={{
-                          ...styles.progressBarFill,
-                          width: step > s ? '100%' : step === s ? '10%' : '0%',
-                          opacity: step >= s ? 1 : 0.3,
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div style={{ width: 32 }} />
-              </div>,
-              document.body
-            )}
+          {mounted && createPortal(
+            <div style={styles.portalProgressContainer}>
+              <button onClick={() => {
+                  if (rawFile) setRawFile(null); 
+                  else if (step > 1) goToStep((step - 1) as any);
+                  else reset();
+              }} style={styles.navBtn}>
+                {isInitialStep ? <X size={24} /> : <ChevronLeft size={28} />}
+              </button>
+              <div style={styles.progressBars}>
+                {[1, 2, 3].map((s) => (
+                  <div key={s} style={styles.progressBarBase}>
+                    <div style={{
+                      ...styles.progressBarFill,
+                      width: step > s ? '100%' : step === s ? '10%' : '0%',
+                      opacity: step >= s ? 1 : 0.3
+                    }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ width: 32 }} /> 
+            </div>,
+            document.body
+          )}
 
-          <div
-            className={direction === 'in' ? 'slide-in' : 'slide-out'}
-            style={styles.stepContent}
-          >
+          <div className={direction === 'in' ? 'slide-in' : 'slide-out'} style={styles.stepContent}>
             {step === 1 && (
               <div style={styles.stepContainer}>
                 {!rawFile ? (
                   <>
                     <h2 style={styles.stepTitle}>答案・問題を解析（スキャン）</h2>
-                    <button
-                      style={styles.mainActionBtn}
-                      onClick={() => cameraInputRef.current?.click()}
-                    >
+                    <button style={styles.mainActionBtn} onClick={() => cameraInputRef.current?.click()}>
                       <Camera size={24} /> カメラを起動
                     </button>
                   </>
@@ -244,9 +233,7 @@ export default function LayoutShell({ children }: Props) {
                     onAnonymousChange={setIsAnonymous}
                     onCancel={() => setRawFile(null)}
                     onConfirm={(editedFile) => {
-                      setProblemFile(editedFile)
-                      setRawFile(null)
-                      goToStep(2)
+                      setProblemFile(editedFile); setRawFile(null); goToStep(2);
                     }}
                   />
                 )}
@@ -258,18 +245,11 @@ export default function LayoutShell({ children }: Props) {
                 {!rawFile ? (
                   <>
                     <h2 style={styles.stepTitle}>考え方を撮影</h2>
-                    <button
-                      style={styles.mainActionBtn}
-                      onClick={() => cameraInputRef.current?.click()}
-                    >
+                    <button style={styles.mainActionBtn} onClick={() => cameraInputRef.current?.click()}>
                       <Camera size={24} /> カメラを起動
                     </button>
-                    <button
-                      style={styles.skipBtn}
-                      onClick={() => handleFinalSubmit()}
-                      disabled={uploading}
-                    >
-                      {uploading ? '送信中...' : 'スキップして解析を実行'}
+                    <button style={styles.skipBtn} onClick={() => handleFinalSubmit()}>
+                      スキップして解析を実行
                     </button>
                   </>
                 ) : (
@@ -279,9 +259,7 @@ export default function LayoutShell({ children }: Props) {
                     onAnonymousChange={setIsAnonymous}
                     onCancel={() => setRawFile(null)}
                     onConfirm={(editedFile) => {
-                      setAnswerFile(editedFile)
-                      setRawFile(null)
-                      goToStep(3)
+                      setAnswerFile(editedFile); setRawFile(null); goToStep(3);
                     }}
                     showAnonymous={false}
                   />
@@ -296,28 +274,19 @@ export default function LayoutShell({ children }: Props) {
                 postId="temp"
                 username="me"
                 onClose={(reactionData) => {
-                  if (reactionData) handleFinalSubmit(reactionData)
-                  else goToStep(2)
+                  if (reactionData) handleFinalSubmit(reactionData);
+                  else goToStep(2);
                 }}
               />
             )}
           </div>
 
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) setRawFile(f)
-              e.target.value = ''
-            }}
+          <input ref={cameraInputRef} type="file" accept="image/*" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) setRawFile(f); }}
           />
         </div>
       )}
 
-      {/* 単純問題投稿用インプット */}
       <input
         ref={simplePostInputRef}
         type="file"
@@ -326,7 +295,6 @@ export default function LayoutShell({ children }: Props) {
         onChange={(e) => {
           const f = e.target.files?.[0]
           if (f) setSimpleFile(f)
-          e.target.value = ''
         }}
       />
 
@@ -362,55 +330,26 @@ export default function LayoutShell({ children }: Props) {
 
 const styles: { [key: string]: CSSProperties } = {
   wrapper: { minHeight: '100vh', paddingTop: 32, paddingBottom: 54, background: '#fff' },
-  header: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 32,
-    display: 'flex',
-    alignItems: 'center',
-    background: BASE_COLOR,
-    zIndex: 1000,
-    cursor: 'pointer',
-    paddingLeft: 16,
-  },
+  header: { position: 'fixed', top: 0, left: 0, right: 0, height: 32, display: 'flex', alignItems: 'center', background: BASE_COLOR, zIndex: 1000, cursor: 'pointer', paddingLeft: 16 },
   logo: { fontWeight: 'bold', fontSize: 18, color: '#fff' },
   main: { paddingBottom: 16, marginTop: 0 },
-  footer: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 54,
-    display: 'flex',
-    justify: 'space-around',
-    alignItems: 'center',
-    background: BASE_COLOR,
-    zIndex: 1000,
-  },
-  icon: {
-    background: 'none',
-    border: 'none',
-    color: '#eee',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-  },
-  scanIconBtn: {
-    background: '#00aaff',
-    border: 'none',
-    width: 44,
-    height: 44,
-    borderRadius: '22px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
-  },
+  footer: { position: 'fixed', bottom: 0, left: 0, right: 0, height: 54, display: 'flex', justifyContent: 'space-around', alignItems: 'center', background: BASE_COLOR, zIndex: 1000 },
+  icon: { background: 'none', border: 'none', color: '#eee', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
+  
+  // ★ 解析ボタン強調スタイル（中央を少し目立たせる）
+scanIconBtn: {
+  background: '#00aaff',
+  border: 'none',
+  width: 44,
+  height: 44,
+  borderRadius: '22px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center', // ← `justifyContent` に変更
+  cursor: 'pointer',
+  boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
+},
+
   floatingPlus: {
     position: 'fixed',
     right: 20,
@@ -425,81 +364,48 @@ const styles: { [key: string]: CSSProperties } = {
     alignItems: 'center',
     gap: 10,
     zIndex: 2000,
-    cursor: 'pointer',
+    cursor: 'pointer'
   },
-  floatingLabel: { color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: '0.05em' },
-  fullOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: BASE_COLOR,
-    zIndex: 3000,
-    display: 'flex',
-    flexDirection: 'column',
+  floatingLabel: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    letterSpacing: '0.05em'
   },
-  portalProgressContainer: {
+
+  fullOverlay: { position: 'fixed', inset: 0, background: BASE_COLOR, zIndex: 3000, display: 'flex', flexDirection: 'column', color: '#fff' },
+  portalProgressContainer: { 
     position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
-    padding: '12px 16px',
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    background: BASE_COLOR,
+    padding: '12px 16px', 
+    display: 'flex', 
+    gap: 12, 
+    alignItems: 'center', 
+    background: BASE_COLOR, 
     borderBottom: `1px solid ${BORDER_COLOR}`,
     zIndex: 99999,
-    color: '#fff',
+    color: '#fff'
   },
   progressBars: { flex: 1, display: 'flex', gap: 6 },
-  navBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#fff',
-    cursor: 'pointer',
-    padding: 4,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  navBtn: { background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   progressBarBase: { flex: 1, height: 4, background: '#333', borderRadius: 2, overflow: 'hidden' },
   progressBarFill: { height: '100%', background: '#00aaff', transition: 'width 0.4s ease' },
   stepContent: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingTop: 60 },
-  stepContainer: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0 32px',
-    textAlign: 'center',
-  },
+  stepContainer: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', textAlign: 'center' },
   stepTitle: { fontSize: 26, fontWeight: 'bold', marginBottom: 12 },
-  mainActionBtn: {
-    width: '100%',
-    background: '#00aaff',
-    color: '#fff',
-    border: 'none',
-    padding: '20px',
-    borderRadius: '18px',
-    fontSize: 18,
-    fontWeight: 'bold',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    cursor: 'pointer',
-  },
-  skipBtn: {
-    background: 'rgba(255,255,255,0.05)',
-    color: '#aaa',
-    border: '1px solid #444',
+  mainActionBtn: { width: '100%', background: '#00aaff', color: '#fff', border: 'none', padding: '20px', borderRadius: '18px', fontSize: 18, fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, cursor: 'pointer' },
+  skipBtn: { 
+    background: 'rgba(255,255,255,0.05)', 
+    color: '#aaa', 
+    border: '1px solid #444', 
     padding: '12px 24px',
     borderRadius: '12px',
-    fontSize: 14,
+    fontSize: 14, 
     fontWeight: 'bold',
-    cursor: 'pointer',
+    cursor: 'pointer', 
     marginTop: '24px',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s'
   },
 }
