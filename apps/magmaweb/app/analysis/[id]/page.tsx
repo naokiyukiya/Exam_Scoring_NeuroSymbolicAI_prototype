@@ -9,7 +9,7 @@ import { CircleArrowLeft, Layers, AlertTriangle } from 'lucide-react'
 
 // 研究用グラフデータの型宣言
 type GraphData = {
-  nodes: Array<{ id: string; label: string; type: 'proposition' | 'inference' | 'theorem' }>
+  nodes: Array<{ id: string; label: string; type: 'proposition' | 'inference' | 'theorem'; verification_status?: string }>
   edges: Array<{ from: string; to: string }>
 }
 
@@ -20,10 +20,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   // 厳密な構造化DAGデータをステートで持つ
   const [graphData, setGraphData] = useState<GraphData | null>(null)
  
-  // 💡 【追加】AIが生成したグラフ構築用プログラム（JSON文字列）をそのまま保持するステート
+  // 💡 AIが生成したグラフ構築用プログラム（JSON文字列）をそのまま保持するステート
   const [rawGraphData, setRawGraphData] = useState<string | null>(null)
 
   const [loading, setLoading] = useState(true)
+  const [isVerifying, setIsVerifying] = useState(false)
 
   // 既存の処理を壊さずにエラーを画面に露出させるためのデバッグ用ステート
   const [debugError, setDebugError] = useState<string | null>(null)
@@ -82,7 +83,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         if (json.graph) {
           setGraphData(json.graph)
          
-          // 💡 【追加】受け取ったJSONデータ（プログラム）を整形して文字列として保存
+          // 受け取ったJSONデータ（プログラム）を整形して文字列として保存
           const formattedJson = JSON.stringify({
             graph: json.graph,
             new_theorems: json.newTheorems || []
@@ -101,6 +102,37 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
 
     loadAnalysisData()
   }, [params.id])
+
+  // 💡 追加：論理検証ボタンが押されたときの処理（verification_statusのみを更新する）
+  const handleVerify = async () => {
+    if (!graphData) return
+    setIsVerifying(true)
+    try {
+      const res = await fetch('/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(graphData),
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json.error || '検証に失敗しました')
+      }
+
+      if (json.nodes) {
+        setGraphData(prev => prev ? { ...prev, nodes: json.nodes } : prev)
+        const formattedJson = JSON.stringify({
+          graph: { ...graphData, nodes: json.nodes },
+        }, null, 2)
+        setRawGraphData(formattedJson)
+      }
+    } catch (e: any) {
+      console.error('検証エラー:', e)
+      alert(e?.message || '検証中にエラーが発生しました')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
   if (loading) {
     return <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>論理構造の解析中…</div>
@@ -158,9 +190,19 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
 
         {/* 右側：解析された論理のDAG構造可視化エリア */}
         <div style={styles.analysisSection}>
-          <div style={styles.analysisHeader}>
-            <Layers size={20} color="#4D96FF" />
-            <span style={styles.analysisTitle}>解析された論理のDAG構造</span>
+          <div style={styles.analysisHeaderRow}>
+            <div style={styles.analysisHeader}>
+              <Layers size={20} color="#4D96FF" />
+              <span style={styles.analysisTitle}>解析された論理のDAG構造</span>
+            </div>
+            {/* 💡 追加：右上付近に配置した検証開始ボタン */}
+            <button 
+              onClick={handleVerify} 
+              disabled={isVerifying || !graphData}
+              style={styles.verifyButton}
+            >
+              {isVerifying ? '検証中...' : '論理を検証する'}
+            </button>
           </div>
           <div style={styles.analysisBody}>
             {graphData ? (
@@ -172,7 +214,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
             )}
           </div>
 
-          {/* 💡 【追加】グラフ構造の下に、AIが作成したプログラム（JSON文字列）を表示するエリア */}
+          {/* 💡 グラフ構造の下に、AIが作成したプログラム（JSON文字列）を表示するエリア */}
           {rawGraphData && (
             <div style={styles.codeContainer}>
               <h3 style={styles.codeTitle}>📝 グラフ構築プログラム (JSONデータ)</h3>
@@ -230,18 +272,33 @@ const styles = {
     padding: '20px',
     boxShadow: '0 4px 12px rgba(0,0,0,0.01)',
   },
+  analysisHeaderRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottom: '1px solid #eee',
+    paddingBottom: 10,
+    marginBottom: 14,
+  },
   analysisHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    borderBottom: '1px solid #eee',
-    paddingBottom: 10,
-    marginBottom: 14,
   },
   analysisTitle: {
     fontWeight: 'bold',
     fontSize: 16,
     color: '#333',
+  },
+  verifyButton: {
+    backgroundColor: '#2563eb',
+    color: '#fff',
+    border: 'none',
+    padding: '6px 14px',
+    borderRadius: '8px',
+    fontWeight: 'bold' as const,
+    fontSize: '13px',
+    cursor: 'pointer',
   },
   analysisBody: {
     width: '100%',
@@ -265,11 +322,11 @@ const styles = {
   debugPre: { backgroundColor: '#edf2f7', padding: '8px', borderRadius: '6px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace' },
   debugRawPre: { backgroundColor: '#1a202c', color: '#aeebd0', padding: '12px', borderRadius: '8px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.4 },
 
-  // 💡 【追加】プログラム（JSON文字列）を画面下部に表示するためのCSSスタイル
+  // 💡 プログラム（JSON文字列）を画面下部に表示するためのCSSスタイル
   codeContainer: {
     marginTop: '24px',
     padding: '16px',
-    backgroundColor: '#1e293b', // 見やすいように暗めの背景色に設定
+    backgroundColor: '#1e293b',
     borderRadius: '12px',
     border: '1px solid #334155',
   },
