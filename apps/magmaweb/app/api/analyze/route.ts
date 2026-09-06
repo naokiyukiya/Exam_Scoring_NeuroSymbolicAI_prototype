@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
 // ★ プロンプトのバージョン（プロンプト改修時にここをインクリメント）
-const PROMPT_VERSION = "1.0.0";
+const PROMPT_VERSION = "1.1.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -175,35 +175,55 @@ export async function GET(request: NextRequest) {
                    - 【絶対遵守】同じ定理が複数回使われた場合は、毎回新しい定理ノードを作成し、末尾に「(2回目の利用)」と記載してください。
                    - 【見落とし厳禁の自己チェック機構】: 抽出処理の最後に、画像内のすべての数式を必ず再確認（ダブルチェック）してください。「Σ（シグマ）の公式」「二次方程式の解の公式」「展開・因数分解の公式」などの重要な定義・定理の「抽出漏れ」が絶対に起きないように網羅してください。
                 4. 複数の式の合流（連立方程式など）の扱い:
-                   - 複数の命題（数式）を組みまして新しい命題を導いている場合、それらの複数の「命題ノード」から、1つの「推論ノード」に向かってエッジを繋げてください。
+                   - 複数の命題（数式）を組み合わせて新しい命題を導いている場合、それらの複数の「命題ノード」から、1つの「推論ノード」に向かってエッジを繋げてください。
                 5. グラフや表の除外:
                    - 関数グラフ、幾何的な図形、増減表などは解析の対象外とします。
                 6. 忠実性の原則:
                    - 誤った数式はそのまま「命題」ノードとして抽出してください。
-                7. 推論ノードの検証ステータス（【絶対遵守】）:
-                   - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status" というプロパティを追加し、値を必ず「検証前」にしてください。「検証済み」と出力することは固く禁じます。命題や定義・定理ノードには絶対に追加しないでください。
+                7. 推論ノードの検証ステータスと数式データの付与（【絶対遵守】）:
+                   - ノードの種類が「推論（inference）」である場合、必ず以下のプロパティをすべて含めてください：
+                     - "verification_status": 必ず「検証前」にしてください。「検証済み」と出力することは固く禁じます。
+                     - "theorem": 適用した定理の "before" と "after"（例: {"before": "P * (Q + R)", "after": "P * Q + P * R"}）
+                     - "input_expression": 変形する前の入力式（文字列）
+                     - "output_expression": 変形した後の出力式（文字列）
+                   - 命題や定義・定理ノードにはこれらを追加しないでください。
 
                 [出力フォーマット（厳守）]
                 - 以下のJSONスキーマに厳密に従って出力してください。
                 - 挨拶、説明、Markdownのコードブロックなどの余分なテキストは一切含めず、パース可能な生のJSON文字列のみを返してください。
-                  
+                
                 {
                   "graph": {
                     "nodes": [
-                      { "id": "p1", "label": "x = 1 - √5", "type": "proposition" },
-                      { "id": "p2", "label": "y = 2", "type": "proposition" },
-                      { "id": "i1", "label": "xとyの値を式に代入する", "type": "inference", "verification_status": "検証前" },
-                      { "id": "p3", "label": "x + y = 3 - √5", "type": "proposition" },
+                      { "id": "p1", "label": "x - 2 > 0", "type": "proposition" },
+                      { 
+                        "id": "i1", 
+                        "label": "分配法則（展開）を適用する", 
+                        "type": "inference", 
+                        "theorem": { "before": "P * (Q + R)", "after": "P * Q + P * R" },
+                        "input_expression": "3 * (x + 2)",
+                        "output_expression": "3 * x + 6",
+                        "verification_status": "検証前" 
+                      },
+                      { "id": "p2", "label": "3 * x + 6 > 0", "type": "proposition" },
                       { "id": "p4", "label": "S = Σ_{k=1}^{n} k", "type": "proposition" },
                       { "id": "t1", "label": "総和記号(Σ)の定義: 数列の和を簡易的に表す記号", "type": "theorem" },
-                      { "id": "i2", "label": "[推測] 自然数の和の公式を利用し、右辺の式を簡略化して展開する", "type": "inference", "applied_theorem": "自然数の和の公式", "verification_status": "検証前" },
+                      { 
+                        "id": "i2", 
+                        "label": "[推測] 自然数の和の公式を利用し、右辺の式を簡略化して展開する", 
+                        "type": "inference", 
+                        "theorem": { "before": "Σ_{k=1}^{n} k", "after": "n(n+1)/2" },
+                        "input_expression": "Σ_{k=1}^{n} k",
+                        "output_expression": "n(n+1)/2",
+                        "applied_theorem": "自然数の和の公式", 
+                        "verification_status": "検証前" 
+                      },
                       { "id": "t2", "label": "自然数の和の公式: Σ_{k=1}^{n} k = n(n+1)/2", "type": "theorem" },
                       { "id": "p5", "label": "S = n(n+1)/2", "type": "proposition" }
                     ],
                     "edges": [
                       { "from": "p1", "to": "i1" },
-                      { "from": "p2", "to": "i1" },
-                      { "from": "i1", "to": "p3" },
+                      { "from": "i1", "to": "p2" },
                       { "from": "p4", "to": "t1" }, 
                       { "from": "p4", "to": "i2" },
                       { "from": "i2", "to": "t2" },
@@ -211,8 +231,8 @@ export async function GET(request: NextRequest) {
                     ]
                   },
                   "construction_process": [
-                    "Step 1: 命題「x = 1 - √5」と「y = 2」を抽出しました。",
-                    "Step 2: それらを式に代入する推論を追加し、命題「x + y = 3 - √5」を導きました。"
+                    "Step 1: 命題「x - 2 > 0」を抽出しました。",
+                    "Step 2: 分配法則を適用する推論を追加し、命題「3 * x + 6 > 0」を導きました。"
                   ]
                 }
                 
