@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { simplify } from 'mathjs';
 
+// =========================================================================
+// 1. 型定義
+// =========================================================================
 type NodeType = 'proposition' | 'inference';
 
 interface GraphNode {
@@ -25,6 +28,9 @@ interface LogicGraph {
   edges: GraphEdge[];
 }
 
+// =========================================================================
+// 2. ヘルパー関数群（不等号分割・数式検証）
+// =========================================================================
 const RELATIONAL_OPERATORS = ['≦', '≧', '<=', '>=', '<', '>', '≠', '='];
 
 function splitEquation(expression: string): { lhs: string; rhs: string; operator: string | null } {
@@ -82,6 +88,9 @@ function verifyPropositionTransition(sourceText: string, targetText: string): { 
   return { isCorrect: check.isEquivalent, reason: check.isEquivalent ? undefined : `数式差分: ${check.diff}` };
 }
 
+// =========================================================================
+// 3. API POSTハンドラ（検証実行ロジック）
+// =========================================================================
 export async function POST(req: Request) {
   try {
     const graph: LogicGraph = await req.json();
@@ -92,15 +101,24 @@ export async function POST(req: Request) {
 
     for (const node of updatedNodes) {
       if (node.type === 'inference') {
+        // 推論ノードに入力されるエッジとノードの取得
         const sourceEdges = graph.edges.filter(e => (e.target || e.to) === node.id);
         const sourceNodes = sourceEdges.map(e => nodeMap.get(e.source || e.from as string)).filter(Boolean) as GraphNode[];
+        
+        // 前提となる入力ノードを「proposition（命題）」のみに絞り込む
+        const sourcePropositions = sourceNodes.filter(n => n.type === 'proposition');
 
+        // 推論ノードから出力されるエッジとノードの取得
         const targetEdges = graph.edges.filter(e => (e.source || e.from) === node.id);
         const targetNodes = targetEdges.map(e => nodeMap.get(e.target || e.to as string)).filter(Boolean) as GraphNode[];
 
-        if (sourceNodes.length === 1 && targetNodes.length === 1) {
-          const sourceProp = sourceNodes[0];
-          const targetProp = targetNodes[0];
+        // 接続先ノードから「theorem」を除外し、「proposition」のみをカウント対象にする
+        const targetPropositions = targetNodes.filter(n => n.type === 'proposition');
+
+        // 絞り込んだ命題ノード群の数が1対1であるかをチェック
+        if (sourcePropositions.length === 1 && targetPropositions.length === 1) {
+          const sourceProp = sourcePropositions[0];
+          const targetProp = targetPropositions[0];
 
           const sourceStr = sourceProp.label || sourceProp.text || '';
           const targetStr = targetProp.label || targetProp.text || '';
@@ -111,11 +129,11 @@ export async function POST(req: Request) {
           if (!result.isCorrect) {
             node.error_reason = result.reason || '代数的に等価ではありません';
           } else {
-            delete node.error_reason;
+            delete node.error_reason; // 問題なしの場合はエラー理由を消去
           }
         } else {
           node.verification_status = '問題あり';
-          node.error_reason = '前後の命題ノードが正しく1対1で接続されていません';
+          node.error_reason = `命題ノードの接続異常 (入力: ${sourcePropositions.length}個, 出力: ${targetPropositions.length}個)`;
         }
       }
     }
