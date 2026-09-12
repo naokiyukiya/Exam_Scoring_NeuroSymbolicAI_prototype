@@ -1,7 +1,3 @@
-// 必要なパッケージのインストールコマンド:
-// npm install mathjs
-// npm install -D @types/mathjs
-
 import { NextResponse } from 'next/server';
 import { simplify, parse } from 'mathjs';
 
@@ -149,32 +145,24 @@ export async function POST(req: Request) {
           // 【定理名がない推論ノードの救済】
           // node.applied_theorem の有無に関わらず、前後の命題ノードの数式(text)を抽出し、
           // 直接 simplify を使った代数等価性チェックにフォールバックする。
-          // これにより、ASTの厳密なパターンマッチングに依存しない柔軟な判定が実現されます。
           const isCorrect = verifyPropositionTransition(sourceProp.text, targetProp.text);
 
           // 【ステータス更新】
           node.verification_status = isCorrect ? '問題なし' : '問題あり';
         } else {
-          // 複数の前提や結論を持つ複雑な推論（本実装のスコープ外とするか、適宜拡張）の場合は
-          // 一旦「問題あり（解析不能）」としてマーク
+          // 複数の前提や結論を持つ複雑な推論の場合は一旦「問題あり」としてマーク
           node.verification_status = '問題あり';
         }
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        nodes: updatedNodes,
-        edges: graph.edges
-      }
-    });
+    // ★修正ポイント：フロントエンドが期待する形 { nodes: [...] } で直接返すように修正
+    return NextResponse.json({ nodes: updatedNodes });
 
   } catch (error) {
-    // API全体のクラッシュを防ぐトップレベルの例外処理
     console.error('[API Error] Failed to process verification logic:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal Server Error during verification' },
+      { error: 'Internal Server Error during verification' },
       { status: 500 }
     );
   }
