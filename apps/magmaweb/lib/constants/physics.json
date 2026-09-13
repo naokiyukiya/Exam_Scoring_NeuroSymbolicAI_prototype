@@ -1,0 +1,424 @@
+{
+  "version": "1.0.0_unified_physics_mechanics",
+  "domain": "physics_mechanics",
+  "description": "高校物理・力学の論理展開および自動証明用統合ノードライブラリ",
+  "theorems": [
+    {
+      "id": "def_position_vector",
+      "name": "位置ベクトルの定義",
+      "type": "definition",
+      "motion_type": "general",
+      "level": ["high"],
+      "premises": [
+        "原点 O に対する空間上の位置 P"
+      ],
+      "action": "位置ベクトル r_vec を定義する",
+      "after": [
+        "Equal",
+        "r_vec",
+        ["Vector", "x", "y", "z"]
+      ],
+      "symbols": { "r_vec": "位置ベクトル", "x,y,z": "直交座標成分" },
+      "description": "r = (x, y, z)"
+    },
+    {
+      "id": "def_velocity_from_position",
+      "name": "速度ベクトルの定義",
+      "type": "definition",
+      "motion_type": "general",
+      "level": ["high"],
+      "premises": [
+        "位置ベクトル r_vec が時間 t の関数である"
+      ],
+      "action": "速度ベクトル v_vec を時間の微分として定義する",
+      "after": [
+        "Equal",
+        "v_vec",
+        ["Derivative", "r_vec", "t"]
+      ],
+      "symbols": { "v_vec": "速度ベクトル", "r_vec": "位置ベクトル", "t": "時間" },
+      "description": "v = dr / dt"
+    },
+    {
+      "id": "def_acceleration_from_velocity",
+      "name": "加速度ベクトルの定義",
+      "type": "definition",
+      "motion_type": "general",
+      "level": ["high"],
+      "premises": [
+        "速度ベクトル v_vec が時間 t の関数である"
+      ],
+      "action": "加速度ベクトル a_vec を時間の微分として定義する",
+      "after": [
+        "Equal",
+        "a_vec",
+        ["Derivative", "v_vec", "t"]
+      ],
+      "symbols": { "a_vec": "加速度ベクトル", "v_vec": "速度ベクトル", "t": "時間" },
+      "description": "a = dv / dt"
+    },
+    {
+      "id": "def_relative_velocity_vector",
+      "name": "相対速度ベクトルの定義",
+      "type": "definition",
+      "motion_type": "general",
+      "level": ["high"],
+      "premises": [
+        "観測体 A の速度 v_A_vec と 対象体 B の速度 v_B_vec"
+      ],
+      "action": "A から見た B の相対速度 v_rel_vec を定義する",
+      "after": [
+        "Equal",
+        "v_rel_vec",
+        ["Subtract", "v_B_vec", "v_A_vec"]
+      ],
+      "symbols": { "v_rel_vec": "Aから見たBの相対速度", "v_B_vec": "Bの速度", "v_A_vec": "Aの速度" },
+      "description": "v_rel = v_B - v_A"
+    },
+    {
+      "id": "def_relative_acceleration_vector",
+      "name": "相対加速度ベクトルの定義",
+      "type": "definition",
+      "motion_type": "general",
+      "level": ["high"],
+      "premises": [
+        "観測体 A の加速度 a_A_vec と 対象体 B の加速度 a_B_vec"
+      ],
+      "action": "A から見た B の相対加速度 a_rel_vec を定義する",
+      "after": [
+        "Equal",
+        "a_rel_vec",
+        ["Subtract", "a_B_vec", "a_A_vec"]
+      ],
+      "symbols": { "a_rel_vec": "Aから見たBの相対加速度", "a_B_vec": "Bの加速度", "a_A_vec": "Aの加速度" },
+      "description": "a_rel = a_B - a_A"
+    },
+    {
+      "id": "theorem_uniform_accelerated_velocity",
+      "name": "等加速度直線運動の速度式",
+      "type": "theorem",
+      "motion_type": "uniform_accelerated_linear",
+      "level": ["high"],
+      "premises": [
+        "加速度 a が一定（定数）である",
+        "時刻 t=0 での初速度が v0"
+      ],
+      "action": "時刻 t での速度 v の公式を適用する",
+      "after": [
+        "Equal",
+        "v",
+        ["Add", "v0", ["Multiply", "a", "t"]]
+      ],
+      "symbols": { "v": "時刻tでの速度", "v0": "初速度", "a": "加速度", "t": "経過時間" },
+      "description": "v = v0 + a*t"
+    },
+    {
+      "id": "theorem_uniform_accelerated_position",
+      "name": "等加速度直線運動の変位式",
+      "type": "theorem",
+      "motion_type": "uniform_accelerated_linear",
+      "level": ["high"],
+      "premises": [
+        "加速度 a が一定（定数）である",
+        "時刻 t=0 での位置が x0",
+        "初速度が v0"
+      ],
+      "action": "時刻 t での位置 x の公式を適用する",
+      "after": [
+        "Equal",
+        "x",
+        ["Add", "x0", ["Multiply", "v0", "t"], ["Multiply", ["Divide", 1, 2], "a", ["Power", "t", 2]]]
+      ],
+      "symbols": { "x": "位置", "x0": "初期位置", "v0": "初速度", "a": "加速度", "t": "時間" },
+      "description": "x = x0 + v0*t + 1/2 a*t^2"
+    },
+    {
+      "id": "theorem_uniform_accelerated_nosymbol_t",
+      "name": "等加速度直線運動の t 消去式",
+      "type": "theorem",
+      "motion_type": "uniform_accelerated_linear",
+      "level": ["high"],
+      "premises": [
+        "加速度 a が一定である"
+      ],
+      "action": "速度 v, 初速度 v0, 加速度 a, 変位 (x - x0) の関係式を適用する",
+      "after": [
+        "Equal",
+        ["Subtract", ["Power", "v", 2], ["Power", "v0", 2]],
+        ["Multiply", 2, "a", ["Subtract", "x", "x0"]]
+      ],
+      "symbols": { "v": "末速度", "v0": "初速度", "a": "加速度", "x": "末位置", "x0": "初位置" },
+      "description": "v^2 - v0^2 = 2 a (x - x0)"
+    },
+    {
+      "id": "def_circular_angular_velocity",
+      "name": "角速度の定義",
+      "type": "definition",
+      "motion_type": "circular",
+      "level": ["high"],
+      "premises": [
+        "回転角 theta が時間の関数である"
+      ],
+      "action": "角速度 omega を定義する",
+      "after": [
+        "Equal",
+        "omega",
+        ["Derivative", "theta", "t"]
+      ],
+      "symbols": { "omega": "角速度", "theta": "回転角", "t": "時間" },
+      "description": "ω = dθ / dt"
+    },
+    {
+      "id": "def_circular_speed_relation",
+      "name": "円運動の速度と角速度の関係",
+      "type": "definition",
+      "motion_type": "circular",
+      "level": ["high"],
+      "premises": [
+        "半径 r の円軌道上を角速度 omega で運動している"
+      ],
+      "action": "接線方向の速度の大きさ v を導出する",
+      "after": [
+        "Equal",
+        "v",
+        ["Multiply", "r", "omega"]
+      ],
+      "symbols": { "v": "接線速度の大きさ", "r": "回転半径", "omega": "角速度" },
+      "description": "v = r * ω"
+    },
+    {
+      "id": "theorem_circular_normal_acceleration",
+      "name": "円運動の向心加速度の公式",
+      "type": "theorem",
+      "motion_type": "circular",
+      "level": ["high"],
+      "premises": [
+        "半径 r の円運動（速度 v, 角速度 omega）"
+      ],
+      "action": "中心方向（向心方向）の加速度 a_n の公式を適用する",
+      "after": [
+        "And",
+        ["Equal", "a_n", ["Divide", ["Power", "v", 2], "r"]],
+        ["Equal", "a_n", ["Multiply", "r", ["Power", "omega", 2]]]
+      ],
+      "symbols": { "a_n": "向心加速度", "v": "接線速度", "r": "半径", "omega": "角速度" },
+      "description": "a_n = v^2 / r = r * ω^2"
+    },
+    {
+      "id": "constraint_inelastic_string_length",
+      "name": "たるまない不可伸長な糸による位置拘束",
+      "type": "constraint",
+      "motion_type": "constrained_motion",
+      "level": ["high"],
+      "premises": [
+        "長さ L の伸びない糸で2物体 A, B が接続され、かつ糸がピンと張っている"
+      ],
+      "action": "物体 A, B の座標関係から幾何的束縛条件を立てる",
+      "after": [
+        "Equal",
+        ["Add", "x_A", "x_B"],
+        "L"
+      ],
+      "symbols": { "x_A, x_B": "各物体の位置座標", "L": "糸の全幅・全長（定数）" },
+      "description": "x_A + x_B = L"
+    },
+    {
+      "id": "constraint_inelastic_string_acceleration",
+      "name": "たるまない糸による加速度拘束（微分適用）",
+      "type": "constraint",
+      "motion_type": "constrained_motion",
+      "level": ["high"],
+      "premises": [
+        "位置拘束 x_A + x_B = L が成立している"
+      ],
+      "action": "両辺を時間で2階微分し、加速度の大きさが等しいことを導く",
+      "after": [
+        "Equal",
+        ["Abs", "a_A"],
+        ["Abs", "a_B"]
+      ],
+      "symbols": { "a_A": "Aの加速度", "a_B": "Bの加速度" },
+      "description": "|a_A| = |a_B|"
+    },
+    {
+      "id": "constraint_detach_from_surface",
+      "name": "接触面からの離脱条件",
+      "type": "constraint",
+      "motion_type": "constrained_motion",
+      "level": ["high"],
+      "premises": [
+        "物体が面から離れる瞬間の定性状態"
+      ],
+      "action": "垂直抗力 N = 0 の方程式を束縛条件として適用する",
+      "after": [
+        "Equal",
+        "N",
+        0
+      ],
+      "symbols": { "N": "垂直抗力" },
+      "description": "N = 0 （離脱限界条件）"
+    },
+    {
+      "id": "constraint_string_slack_limit",
+      "name": "糸のたるみ発生限界条件",
+      "type": "constraint",
+      "motion_type": "constrained_motion",
+      "level": ["high"],
+      "premises": [
+        "糸がたるむ直前の定性状態"
+      ],
+      "action": "張力 T = 0 の方程式を束縛条件として適用する",
+      "after": [
+        "Equal",
+        "T",
+        0
+      ],
+      "symbols": { "T": "糸の張力" },
+      "description": "T = 0 （張力喪失条件）"
+    },
+    {
+      "id": "constraint_no_slip_rolling",
+      "name": "すべりのない転がり条件",
+      "type": "constraint",
+      "motion_type": "rolling_without_slipping",
+      "level": ["high"],
+      "premises": [
+        "半径 R の円形物体が面上をすべらずに転がっている"
+      ],
+      "action": "重心の速度 V と角速度 omega の拘束式を適用する",
+      "after": [
+        "Equal",
+        "V",
+        ["Multiply", "R", "omega"]
+      ],
+      "symbols": { "V": "重心速度", "R": "半径", "omega": "回転角速度" },
+      "description": "V = R * ω"
+    },
+    {
+      "id": "def_force_gravitational_near_earth",
+      "name": "重力の定義（地表付近）",
+      "type": "definition",
+      "motion_type": "general",
+      "level": ["high"],
+      "premises": [
+        "質量 m の物体が地表付近にある（重力加速度 g）"
+      ],
+      "action": "重力ベクトル F_g_vec を定義する",
+      "after": [
+        "Equal",
+        "F_g_vec",
+        ["Multiply", "m", "g_vec"]
+      ],
+      "symbols": { "F_g_vec": "重力ベクトル", "m": "質量", "g_vec": "重力加速度ベクトル" },
+      "description": "F_g = m * g"
+    },
+    {
+      "id": "def_force_hooke_law",
+      "name": "フックの法則（ばねの弾性力）",
+      "type": "definition",
+      "motion_type": "simple_harmonic",
+      "level": ["high"],
+      "premises": [
+        "ばね定数 k のばねが自然長から変位ベクトル x_vec だけ伸びている/縮んでいる"
+      ],
+      "action": "復元力ベクトル F_k_vec を定義する",
+      "after": [
+        "Equal",
+        "F_k_vec",
+        ["Multiply", -1, "k", "x_vec"]
+      ],
+      "symbols": { "F_k_vec": "弾性力ベクトル", "k": "ばね定数", "x_vec": "自然長からの変位ベクトル" },
+      "description": "F_k = -k * x"
+    },
+    {
+      "id": "def_force_static_friction_max",
+      "name": "最大静止摩擦力の定義",
+      "type": "definition",
+      "motion_type": "constrained_motion",
+      "level": ["high"],
+      "premises": [
+        "静止摩擦係数 mu、垂直抗力 N の面上で物体がすべり始める限界状態"
+      ],
+      "action": "最大静止摩擦力 f_max を定義する",
+      "after": [
+        "Equal",
+        "f_max",
+        ["Multiply", "mu", "N"]
+      ],
+      "symbols": { "f_max": "最大静止摩擦力", "mu": "静止摩擦係数", "N": "垂直抗力" },
+      "description": "f_max = mu * N"
+    },
+    {
+      "id": "def_force_kinetic_friction",
+      "name": "動摩擦力の定義",
+      "type": "definition",
+      "motion_type": "general",
+      "level": ["high"],
+      "premises": [
+        "動摩擦係数 mu_prime、垂直抗力 N の面上を物体がすべっている"
+      ],
+      "action": "動摩擦力の大きさ f_k を定義する",
+      "after": [
+        "Equal",
+        "f_k",
+        ["Multiply", "mu_prime", "N"]
+      ],
+      "symbols": { "f_k": "動摩擦力", "mu_prime": "動摩擦係数", "N": "垂直抗力" },
+      "description": "f_k = mu' * N"
+    },
+    {
+      "id": "def_force_inertial",
+      "name": "慣性力の定義（非慣性系）",
+      "type": "definition",
+      "motion_type": "non_inertial_frame",
+      "level": ["high"],
+      "premises": [
+        "加速度 a_frame_vec で運動する非慣性系から質量 m の物体を観察している"
+      ],
+      "action": "慣性力ベクトル F_inertial_vec を定義する",
+      "after": [
+        "Equal",
+        "F_inertial_vec",
+        ["Multiply", -1, "m", "a_frame_vec"]
+      ],
+      "symbols": { "F_inertial_vec": "慣性力ベクトル", "m": "質量", "a_frame_vec": "観測系の加速度ベクトル" },
+      "description": "F_inertial = -m * a_frame"
+    },
+    {
+      "id": "def_force_centrifugal",
+      "name": "遠心力の定義（回転座標系）",
+      "type": "definition",
+      "motion_type": "uniform_circular",
+      "level": ["high"],
+      "premises": [
+        "角速度 omega で回転する座標系から、回転軸からの距離 r にある質量 m の物体を観察している"
+      ],
+      "action": "回転の外向きにはたらく遠心力 F_centrifugal を定義する",
+      "after": [
+        "Equal",
+        "F_centrifugal",
+        ["Multiply", "m", "r", ["Power", "omega", 2]]
+      ],
+      "symbols": { "F_centrifugal": "遠心力の大きさ", "m": "質量", "r": "回転軸からの距離", "omega": "回転角速度" },
+      "description": "F_centrifugal = m * r * ω^2"
+    },
+    {
+      "id": "theorem_equation_of_motion_vector",
+      "name": "運動方程式（ベクトル表記）",
+      "type": "theorem",
+      "motion_type": "general",
+      "level": ["high"],
+      "premises": [
+        "慣性系から観察し、質量 m の物体にはたらく合力ベクトル F_net_vec が特定されている"
+      ],
+      "action": "運動方程式を適用する",
+      "after": [
+        "Equal",
+        ["Multiply", "m", "a_vec"],
+        "F_net_vec"
+      ],
+      "symbols": { "m": "質量", "a_vec": "加速度ベクトル", "F_net_vec": "合力ベクトル" },
+      "description": "m * a = F_net"
+    }
+  ]
+}
