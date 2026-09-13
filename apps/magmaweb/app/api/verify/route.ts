@@ -187,36 +187,38 @@ function extractCriticalPoints(exprs: string[]): number[] {
   return Array.from(new Set(points));
 }
 
-function verifyByValueTesting(sourceExpr: string, targetExpr: string, allSourceStrs: string[], isCombined: boolean = false): { isEquivalent: boolean, reason?: string } {
+function verifyByValueTesting(
+  sourceExpr: string, 
+  targetExpr: string, 
+  allSourceStrs: string[], 
+  domainExpr?: string
+): { isEquivalent: boolean, reason?: string } {
   try {
-    const s = isCombined ? sourceExpr : formatForHeuristic(sourceExpr);
+    const s = formatForHeuristic(sourceExpr);
     const t = formatForHeuristic(targetExpr);
+    const domain = domainExpr ? formatForHeuristic(domainExpr) : null;
     
     const rawPoints = extractCriticalPoints(allSourceStrs.concat([targetExpr]));
 
     for (const x of rawPoints) {
       const scope = { x, y: x, a: x, b: x, n: x };
       try {
-        // 【重要】場合分けの前提条件（例: x > 2 や x < 2）を評価し、
-        // 前提が偽になる領域のテストポイントは検証対象外（スキップ）にする
-        if (isCombined) {
-          // 例: " (x > 2) and (6/(x-2) <= 3x+1) " のような構造から前提条件部分を抽出して評価
-          // ここでは簡易的に、sourceExpr全体がエラーなく評価でき、かつ前提部分が真であるかを確認
+        // 【ドメインフィルタリング】
+        // 場合分けの前提条件（例: x > 2）がある場合、その範囲外の数値はテストから除外する
+        if (domain) {
+          const domainVal = evaluate(domain, scope);
+          if (!domainVal) {
+            continue; // 前提を満たさない領域（範囲外）はテストをスキップ
+          }
         }
 
         const res1 = evaluate(s, scope);
-        
-        // 分母ゼロなどの特異点はスキップ
         if (res1 === undefined || res1 === null) continue;
 
         const res2 = evaluate(t, scope);
         
         if (Boolean(res1) !== Boolean(res2)) {
-          // 特異点そのもの（x=2など）やドメイン外の誤差を除外するため、
-          // 明らかに有効範囲内での不一致のみをエラーとする
-          if (Math.abs(x - 2) > 0.001) {
-            return { isEquivalent: false, reason: `境界・特異点近傍 (x=${x.toFixed(5)}) で真偽値が不一致` };
-          }
+          return { isEquivalent: false, reason: `境界・特異点近傍 (x=${x.toFixed(5)}) で真偽値が不一致` };
         }
       } catch (evalErr) {
         continue;
@@ -270,9 +272,24 @@ export async function POST(req: Request) {
                 finalReason = valResult.reason || algResult.reason || '';
               }
             } else {
-              const combinedSource = sourceStrs.map(s => `(${formatForHeuristic(s)})`).join(' and ');
-              const valResult = verifyByValueTesting(combinedSource, targetStr, sourceStrs, true);
+              // 【複数入力の場合のドメイン自動分離】
+              // 例: p3 (x > 2) と p4 (不等式) の場合、範囲指定の命題を「ドメイン（前提条件）」として抽出し、
+              // 残りの式を変形前（source）としてテストする
+              let domainStr = '';
+              let realSourceStrs = sourceStrs;
+
+              // 単変数の不等式（例: x > 2, x < 2 など）をドメイン候補とする
+              const rangeCondRegex = /^[a-zA-Z]\s*[<>]=?|-?\d+\s*[<>]=?\s*[a-zA-Z]/;
+              const foundDomainIdx = sourceStrs.findIndex(s => rangeCondRegex.test(s));
+
+              if (foundDomainIdx !== -1) {
+                domainStr = sourceStrs[foundDomainIdx];
+                realSourceStrs = sourceStrs.filter((_, idx) => idx !== foundDomainIdx);
+              }
+
+              const sourceToTest = realSourceStrs.length === 1 ? realSourceStrs[0] : sourceStrs.map(s => `(${formatForHeuristic(s)})`).join(' and ');
               
+              const valResult = verifyByValueTesting(sourceToTest, targetStr, sourceStrs, domainStr);
               isCorrect = valResult.isEquivalent;
               finalReason = valResult.reason || '複合条件の論理評価で不一致となりました';
             }
