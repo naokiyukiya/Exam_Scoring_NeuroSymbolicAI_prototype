@@ -5,7 +5,7 @@ import theorems from '../../../lib/constants/theorems.json';
 
 // ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.25.0";
+const PROMPT_VERSION = "1.26.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -144,16 +144,19 @@ export async function GET(request: NextRequest) {
 1. グラフの基本構造と完走の義務:
    - メインのフローは必ず「命題」→「推論」→「命題」と交互に配置してください。
    - 途中で抽出を打ち切ることは絶対に許されません。
-2. 定理ノードの完全必須化:
+2. 定理の選択と再利用（超厳守事項）:
    - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ」の向きで接続してください。
+   - 【重要】定理の \`label\` を決める際は、必ず末尾の [利用可能な定理ライブラリ] の一覧を熟読し、その中から最も意味が近いものを一つ選び、**一言一句違わず全く同じ名前**を使用してください。
+   - ライブラリに「移項のルール」などがあるのに、「等式の移項」のような似た名前を勝手に新設することは**固く禁じます**。
+   - ライブラリを隅々まで探し、それでもどうしても該当する定理が存在しない場合のみ、最終手段として新しい名前をつけて自作してください。
 3. 推論ノードのラベルの調整:
    - 細かすぎる長文解説にせず、**「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」**のように、何をどう変形したのかが式レベルで一目で分かる程度に簡潔に書いてください。
 4. 複数の命題の組み合わせ:
    - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジを向けてください。
 5. 推論ノードの検証ステータス:
    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
-6. 【新規定理の詳細定義（超重要）】:
-   - 定理ライブラリに存在しない独自の定理（新規定理）を生成した場合は、必ず "new_theorems_details" にその詳細な構造（AST定義）を出力してください。
+6. 【新規定理の詳細定義】:
+   - ライブラリに存在せず、やむを得ず独自の定理を生成した場合は、必ず "new_theorems_details" にその詳細な構造（AST定義）を出力してください。
    - スキーマエラーを防ぐため、"before", "after", "symbols" は**必ずJSON文字列表現（Stringified JSON）**として出力してください。
 
 [出力形式 (Format)]
@@ -287,7 +290,6 @@ ${theoremListString}
           allKnownTheorems.add(t.name); // 重複防止
         } catch (e) {
           console.warn(`[Warning] 新規定理 ${t.name} のASTパースに失敗しました`, e);
-          // パースに失敗した場合は文字列のまま返す
           newlyDiscoveredTheorems.push(t);
         }
       });
@@ -303,11 +305,9 @@ ${theoremListString}
         if (node.type === 'theorem') {
           const cleanName = (node.label || '').replace(/^\[自動生成\]\s*/, '').trim();
           
-          // allKnownTheorems は最初に既存ライブラリを読み込み、直前でnew_theorems_detailsの要素を追加済み
           if (cleanName && !Array.from(allKnownTheorems).includes(cleanName) && !newlyDiscoveredTheorems.some(t => t.name === cleanName)) {
             node.label = `[新規定理] ${cleanName}`; 
             
-            // new_theorems_details に出力し忘れていた場合の保険として名前だけ登録
             newlyDiscoveredTheorems.push({
               id: `rule_auto_${Date.now()}_${autoTheoremCount}`,
               name: cleanName,
@@ -319,7 +319,6 @@ ${theoremListString}
             });
             allKnownTheorems.add(cleanName); 
           } else if (newlyDiscoveredTheorems.some(t => t.name === cleanName)) {
-             // 詳細がしっかり出力されていた場合も [新規定理] ラベルをつける
              node.label = `[新規定理] ${cleanName}`; 
           }
         }
@@ -380,8 +379,7 @@ ${theoremListString}
       imageUrl: answer.image_url, 
       graph: parsedData.graph, 
       constructionProcess: parsedData.construction_process || [],
-      // ★ 開発者がコピペしやすい形式にパースされたJSON配列を返す
-      newTheoremsDetails: newlyDiscoveredTheorems, 
+      newTheoremsDetails: newlyDiscoveredTheorems,
       metadata: { promptVersion: PROMPT_VERSION, theoremVersion: theoremVersion, cached: false },
       dbSaved: !dbSaveError,
       dbError: dbSaveError ? (dbSaveError.message || String(dbSaveError)) : null
