@@ -3,8 +3,8 @@ import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
-// ★ プロンプトのバージョンをインクリメント
-const PROMPT_VERSION = "1.5.0";
+// ★ プロンプトのバージョン
+const PROMPT_VERSION = "1.8.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -13,8 +13,6 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
  */
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
-
-  // 1. 末尾がキーや値の途中で不完全に切れている場合、最後の完全な構造（} または ] または "）まで巻き戻す
   const lastValidIndex = Math.max(
     cleaned.lastIndexOf('}'),
     cleaned.lastIndexOf(']'),
@@ -23,12 +21,9 @@ function repairTruncatedJson(jsonStr: string): string {
   if (lastValidIndex !== -1 && lastValidIndex < cleaned.length - 1) {
     cleaned = cleaned.substring(0, lastValidIndex + 1);
   }
-
-  // 2. 末尾の不完全なプロパティ（例: , "theorem": { "before ）やカンマを削除
   cleaned = cleaned.replace(/,\s*"[^"]*"\s*:\s*"?[^"]*$/, '');
   cleaned = cleaned.replace(/,\s*$/, '');
 
-  // 3. 開いたままのカッコ（{, [）を自動で閉じる
   let inString = false;
   let escape = false;
   const stack: string[] = [];
@@ -111,7 +106,6 @@ export async function GET(request: NextRequest) {
   }
 
   let theoremListString = "";
-  
   try {
     if (data?.theorems?.rule_groups) {
       theoremListString = data.theorems.rule_groups
@@ -148,53 +142,35 @@ export async function GET(request: NextRequest) {
                 あなたは数学教育の専門家であり、論理構造解析に特化したAIアシスタントです。
 
                 [目的]
-                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。
+                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。指定されたJSONフォーマットのみで出力し、併せてグラフを構築したステップごとの思考プロセスも出力してください。
 
-                [出力の制約事項（【絶対遵守】途切れ防止とコンパクト化）]
-                1. トークン上限による途切れを防ぐため、ステップ数やノード数は**必要最小限（コンパクト）**に絞り、冗長な解説や長すぎる説明文を避けてください。
-                2. メインの論理フローは必ず「命題」→「推論」→「命題」→「推論」と交互に配置し、**グラフの最後のノードは必ず「命題（proposition）」で終了してください。**
-                3. ハルシネーション（勝手な捏造）の絶対禁止:
-                   - 答案画像にインクとして実際に書かれている数式・文字のみを正確に抽出してください。書かれていない式を勝手に補完してはいけません。
-                4. 定理（theorem）ノードの抽出と接続:
-                   - 適用された定理がある場合、対応する定理ノード（type: "theorem"）を生成し、対応する推論ノードから 'edges' で確実に接続してください。定理ノードを画面左側に孤立させないこと。
-                5. 推論ノードの検証データ付与:
+                [抽出ルール]
+                1. グラフの基本構造（【絶対遵守】厳密な交互配置）:
+                   - メインの論理フローは、必ず「命題」→「推論」→「命題」→「推論」と厳密に交互に繋がるように配置してください。
+                   - 【重要】命題ノード同士、または推論ノード同士が直接繋がることは絶対に禁止します。答案上で数式が連続して書かれている場合でも、必ずその間に「[推測] 式を整理する」「[推測] 次の条件を考慮する」などの推論ノードを補完して挟んでください。
+                   - 【重要】グラフの最後のノードは必ず「命題（proposition）」で終了してください。推論ノードや定理ノードで終わらせることは絶対に禁止します。
+                2. 命題（proposition）ノード:
+                   - 答案に書かれている数式、条件、結論のみを正確に抽出してください。
+                   - ルート、大なりイコールなどはLaTeXコマンドを使わず、「√」「≧」「≦」「≠」「±」などの環境依存しない文字記号を直接使用してください。
+                3. 推論（inference）ノードと定義・定理（theorem）ノードの接続ルール（基本と特例）:
+                   - 【基本原則】定義・定理ノード（type: "theorem"）は、原則としてそれを適用した「推論ノード」から枝分かれさせて接続してください。
+                   - 【特例ルール（命題からの直接接続）】もし推論ノードの内容（例：「右辺の式を簡略化する」等）が公式変換に直接関係ない場合でも、命題の数式内に「Σ（シグマ）」などの重要な定義・定理が含まれており、解説として必要な場合は、特例として【命題ノードから直接、定義・定理ノードへエッジを繋ぐ】ことを強く推奨します。推論に紐づけられないからといって、重要な定義・定理の抽出を絶対に省略しないでください。
+                   - 【絶対遵守】同じ定理が複数回使われた場合は、毎回新しい定理ノードを作成し、末尾に「(2回目の利用)」と記載してください。
+                   - 【見落とし厳禁の自己チェック機構】: 抽出処理の最後に、画像内のすべての数式を必ず再確認（ダブルチェック）してください。「Σ（シグマ）の公式」「二次方程式の解の公式」「展開・因数分解の公式」などの重要な定義・定理の「抽出漏れ」が絶対に起きないように網羅してください。
+                4. 複数の式の合流（連立方程式など）の扱い:
+                   - 複数の命題（数式）を組み合わせて新しい命題を導いている場合、それらの複数の「命題ノード」から、1つの「推論ノード」に向かってエッジを繋げてください。
+                5. グラフや表の除外:
+                   - 関数グラフ、幾何的な図形、増減表などは解析の対象外とします。
+                6. 忠実性の原則:
+                   - 誤った数式はそのまま「命題」ノードとして抽出してください。
+                7. 推論ノードの検証ステータスと数式データの付与（【絶対遵守】）:
                    - ノードの種類が「推論（inference）」である場合、必ず以下のプロパティをすべて含めてください：
-                     - "verification_status": "検証前"
+                     - "verification_status": 必ず「検証前」にしてください。「検証済み」と出力することは固く禁じます。
                      - "theorem": 適用した定理の "before" と "after"
-                     - "input_expression": 変形前の入力式（文字列）
-                     - "output_expression": 変形後の出力式（文字列）
+                     - "input_expression": 変形する前の入力式（文字列）
+                     - "output_expression": 変形した後の出力式（文字列）
                    - 命題や定義・定理ノードにはこれらを追加しないでください。
 
-                [出力フォーマット（厳守）]
-                - 以下のJSONスキーマに従って出力してください。Markdownのコードブロックなどの余分なテキストを含めず、パース可能な生のJSON文字列のみを返してください。
-                
-                {
-                  "graph": {
-                    "nodes": [
-                      { "id": "p1", "label": "x - 2 > 0", "type": "proposition" },
-                      { 
-                        "id": "i1", 
-                        "label": "分配法則（展開）を適用する", 
-                        "type": "inference", 
-                        "theorem": { "before": "P * (Q + R)", "after": "P * Q + P * R" },
-                        "input_expression": "3 * (x + 2)",
-                        "output_expression": "3 * x + 6",
-                        "verification_status": "検証前" 
-                      },
-                      { "id": "p2", "label": "3 * x + 6 > 0", "type": "proposition" },
-                      { "id": "t1", "label": "分配法則（展開）: P * (Q + R) = P * Q + P * R", "type": "theorem" }
-                    ],
-                    "edges": [
-                      { "from": "p1", "to": "i1" },
-                      { "from": "i1", "to": "p2" },
-                      { "from": "i1", "to": "t1" }
-                    ]
-                  },
-                  "construction_process": [
-                    "Step 1: 命題「x - 2 > 0」を抽出しました。"
-                  ]
-                }
-                
                 [利用可能な定理ライブラリ]
                 ${theoremListString}
               `
@@ -204,13 +180,63 @@ export async function GET(request: NextRequest) {
       ],
       config: {
         responseMimeType: 'application/json',
+        // 💡 ユーザーの長文ルールを活かしつつ、出力を途切れさせないためのスキーマ強制
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            graph: {
+              type: 'OBJECT',
+              properties: {
+                nodes: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      id: { type: 'STRING' },
+                      type: { type: 'STRING' },
+                      label: { type: 'STRING' },
+                      verification_status: { type: 'STRING' },
+                      applied_theorem: { type: 'STRING' },
+                      input_expression: { type: 'STRING' },
+                      output_expression: { type: 'STRING' },
+                      theorem: {
+                        type: 'OBJECT',
+                        properties: {
+                          before: { type: 'STRING' },
+                          after: { type: 'STRING' }
+                        }
+                      }
+                    },
+                    required: ['id', 'type', 'label']
+                  }
+                },
+                edges: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      from: { type: 'STRING' },
+                      to: { type: 'STRING' }
+                    },
+                    required: ['from', 'to']
+                  }
+                }
+              },
+              required: ['nodes', 'edges']
+            },
+            construction_process: {
+              type: 'ARRAY',
+              items: { type: 'STRING' }
+            }
+          },
+          required: ['graph']
+        },
         temperature: 0.0,
         maxOutputTokens: 8192
       }
     })
 
     const rawText = response.text || ''
-
     let parsedData: any = null
 
     let cleanText = rawText.trim()
