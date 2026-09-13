@@ -5,7 +5,7 @@ import theorems from '../../../lib/constants/theorems.json';
 
 // ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.22.0";
+const PROMPT_VERSION = "1.25.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -58,9 +58,8 @@ function repairTruncatedJson(jsonStr: string): string {
       inString = !inString; continue;
     }
     if (!inString) {
-      if (char === '{' || char === '[') {
-        stack.push(char);
-      } else if (char === '}') {
+      if (char === '{' || char === '[') stack.push(char);
+      else if (char === '}') {
         if (stack.length > 0 && stack[stack.length - 1] === '{') stack.pop();
       } else if (char === ']') {
         if (stack.length > 0 && stack[stack.length - 1] === '[') stack.pop();
@@ -108,12 +107,15 @@ export async function GET(request: NextRequest) {
   }
 
   let theoremListString = "";
+  const allKnownTheorems = new Set<string>();
+
   try {
     if (data?.theorems?.rule_groups) {
-      theoremListString = data.theorems.rule_groups.flatMap((g: any) => g.rules || []).map((r: any) => `- ${r.name}`).join('\n');
+      data.theorems.rule_groups.flatMap((g: any) => g.rules || []).forEach((r: any) => allKnownTheorems.add(r.name));
     } else if (Array.isArray(data)) {
-      theoremListString = data.map((r: any) => `- ${r.name}`).join('\n');
+      data.forEach((r: any) => allKnownTheorems.add(r.name));
     }
+    theoremListString = Array.from(allKnownTheorems).map(name => `- ${name}`).join('\n');
   } catch (err) {
     console.error("定理データの展開に失敗しました", err);
   }
@@ -137,47 +139,39 @@ export async function GET(request: NextRequest) {
 
 [目的 (Purpose)]
 入力された数学の答案画像を解析し、生徒の思考プロセスを「命題」「推論」「定理」からなる有向グラフとして抽出します。
-【超重要】問題に場合分けがある場合、全ての結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。
 
 [制約事項 (Rules)]
 1. グラフの基本構造と完走の義務:
    - メインのフローは必ず「命題」→「推論」→「命題」と交互に配置してください。
-   - 途中で抽出を打ち切ることは絶対に許されません。答案に書かれているすべての式を命題として抽出し、必ず最後まで対応するエッジを繋ぎ切ってください。
-2. 定理ノードの完全必須化とエッジの向き:
-   - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
-   - ライブラリに適切な定理がない場合は、AI自身で「移項のルール」等の名前をつけて定理ノードを自作してください。
-3. 【推論ノードのラベルの調整（超重要）】:
-   - 推論ノードの \`label\` は、細かすぎる長文解説にせず、どのような計算・式変形を行ったのかを**簡潔**に記述してください。
-   - ただし、「移項する」や「展開する」といった単語だけでは定理ノード名と重複してしまうため、**「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」「2つの条件の共通範囲を求める」**のように、何をどう変形したのかが式レベルで一目で分かる程度に、少しだけ丁寧に書いてください。
+   - 途中で抽出を打ち切ることは絶対に許されません。
+2. 定理ノードの完全必須化:
+   - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ」の向きで接続してください。
+3. 推論ノードのラベルの調整:
+   - 細かすぎる長文解説にせず、**「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」**のように、何をどう変形したのかが式レベルで一目で分かる程度に簡潔に書いてください。
 4. 複数の命題の組み合わせ:
-   - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジ（from）を向けてください。
+   - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジを向けてください。
 5. 推論ノードの検証ステータス:
    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
-6. 出力キーの制限:
-   - 指定されたJSONスキーマ以外のキー（例: new_theorems）は絶対に出力しないでください。
+6. 【新規定理の詳細定義（超重要）】:
+   - 定理ライブラリに存在しない独自の定理（新規定理）を生成した場合は、必ず "new_theorems_details" にその詳細な構造（AST定義）を出力してください。
+   - スキーマエラーを防ぐため、"before", "after", "symbols" は**必ずJSON文字列表現（Stringified JSON）**として出力してください。
 
 [出力形式 (Format)]
-- 以下のJSONフォーマットに厳密に従ってください。
-
 {
   "graph": {
-    "nodes": [
-      { "id": "p1", "label": "x > 2", "type": "proposition" },
-      { "id": "p2", "label": "x <= 5", "type": "proposition" },
-      { "id": "t1", "label": "複数の条件を組み合わせる", "type": "theorem" },
-      { "id": "i1", "label": "2つの条件の共通範囲を求める", "type": "inference", "verification_status": "検証前" },
-      { "id": "p3", "label": "2 < x <= 5", "type": "proposition" }
-    ],
-    "edges": [
-      { "from": "p1", "to": "i1" },
-      { "from": "p2", "to": "i1" },
-      { "from": "t1", "to": "i1" },
-      { "from": "i1", "to": "p3" }
-    ]
+    "nodes": [ ... ],
+    "edges": [ ... ]
   },
-  "construction_process": [
-    "Step 1: 命題「x > 2」と「x <= 5」を抽出しました。",
-    "Step 2: 複数の条件を組み合わせる推論と定理を接続し、命題「2 < x <= 5」を導きました。"
+  "construction_process": [ ... ],
+  "new_theorems_details": [
+    {
+      "id": "rule_auto_generated_1",
+      "name": "合成関数の微分",
+      "level": ["high"],
+      "before": "[\"Derivative\", [\"f\", [\"g\", \"x\"]], \"x\"]",
+      "after": "[\"Multiply\", [\"Evaluate\", [\"Derivative\", [\"f\", \"u\"], \"u\"], [\"Equal\", \"u\", [\"g\", \"x\"]]], [\"Derivative\", [\"g\", \"x\"], \"x\"]]",
+      "symbols": "{\"f\": \"外の関数\", \"g\": \"中の関数\", \"x\": \"変数\", \"u\": \"置換変数\"}"
+    }
   ]
 }
 
@@ -226,12 +220,28 @@ ${theoremListString}
             construction_process: {
               type: 'ARRAY',
               items: { type: 'STRING' }
+            },
+            new_theorems_details: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  id: { type: 'STRING' },
+                  name: { type: 'STRING' },
+                  level: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' }
+                  },
+                  before: { type: 'STRING' },
+                  after: { type: 'STRING' },
+                  symbols: { type: 'STRING' }
+                }
+              }
             }
           },
           required: ['graph']
         },
         temperature: 0.0,
-        // ★ タイムアウトを回避しつつ、以前(8192)の倍のトークン数を許可
         maxOutputTokens: 16384
       }
     });
@@ -259,12 +269,62 @@ ${theoremListString}
       }
     }
 
+    const newlyDiscoveredTheorems: any[] = []; // 手動追加用の新規定理リスト（詳細付き）
+
+    // 1. AIが作成した新規定理の詳細（new_theorems_details）をオブジェクトにパースしてリスト化
+    if (parsedData && Array.isArray(parsedData.new_theorems_details)) {
+      parsedData.new_theorems_details.forEach((t: any) => {
+        if (!t.name || allKnownTheorems.has(t.name)) return; // 既存のものは除外
+        try {
+          newlyDiscoveredTheorems.push({
+            id: t.id || `rule_auto_${Date.now()}`,
+            name: t.name,
+            level: t.level || ["high"],
+            before: t.before ? JSON.parse(t.before) : [],
+            after: t.after ? JSON.parse(t.after) : [],
+            symbols: t.symbols ? JSON.parse(t.symbols) : {}
+          });
+          allKnownTheorems.add(t.name); // 重複防止
+        } catch (e) {
+          console.warn(`[Warning] 新規定理 ${t.name} のASTパースに失敗しました`, e);
+          // パースに失敗した場合は文字列のまま返す
+          newlyDiscoveredTheorems.push(t);
+        }
+      });
+    }
+
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
       let nodes = parsedData.graph.nodes;
       const edges = parsedData.graph.edges;
       let autoTheoremCount = 1;
 
       nodes.forEach((node: any) => {
+        // AIが生成した定理ノードをチェックし、知らないものなら [新規定理] を付与する
+        if (node.type === 'theorem') {
+          const cleanName = (node.label || '').replace(/^\[自動生成\]\s*/, '').trim();
+          
+          // allKnownTheorems は最初に既存ライブラリを読み込み、直前でnew_theorems_detailsの要素を追加済み
+          if (cleanName && !Array.from(allKnownTheorems).includes(cleanName) && !newlyDiscoveredTheorems.some(t => t.name === cleanName)) {
+            node.label = `[新規定理] ${cleanName}`; 
+            
+            // new_theorems_details に出力し忘れていた場合の保険として名前だけ登録
+            newlyDiscoveredTheorems.push({
+              id: `rule_auto_${Date.now()}_${autoTheoremCount}`,
+              name: cleanName,
+              level: ["high"],
+              before: [],
+              after: [],
+              symbols: {},
+              note: "AIが詳細構造の出力をスキップしました"
+            });
+            allKnownTheorems.add(cleanName); 
+          } else if (newlyDiscoveredTheorems.some(t => t.name === cleanName)) {
+             // 詳細がしっかり出力されていた場合も [新規定理] ラベルをつける
+             node.label = `[新規定理] ${cleanName}`; 
+          }
+        }
+        
+        // 推論ノードに定理が繋がっていない場合の強制補完処理
         if (node.type === 'inference') {
           const hasTheorem = edges.some((e: any) => {
             if (e.to === node.id) {
@@ -276,10 +336,11 @@ ${theoremListString}
 
           if (!hasTheorem) {
             const newTheoremId = `t_auto_${autoTheoremCount++}`;
+            const generatedLabel = `[自動生成] ${node.label || '基本変形'}`;
             nodes.push({
               id: newTheoremId,
               type: 'theorem',
-              label: `[自動生成] ${node.label || '基本変形'}`
+              label: generatedLabel
             });
             edges.push({
               from: newTheoremId,
@@ -319,6 +380,8 @@ ${theoremListString}
       imageUrl: answer.image_url, 
       graph: parsedData.graph, 
       constructionProcess: parsedData.construction_process || [],
+      // ★ 開発者がコピペしやすい形式にパースされたJSON配列を返す
+      newTheoremsDetails: newlyDiscoveredTheorems, 
       metadata: { promptVersion: PROMPT_VERSION, theoremVersion: theoremVersion, cached: false },
       dbSaved: !dbSaveError,
       dbError: dbSaveError ? (dbSaveError.message || String(dbSaveError)) : null
