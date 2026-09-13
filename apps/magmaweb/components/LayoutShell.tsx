@@ -179,7 +179,7 @@ export default function LayoutShell({ children }: Props) {
           <Search size={28} />
         </button>
 
-        <button style={styles.icon} onClick={() => router.push('/graph')}>
+        <button style={styles.icon} onClick={() => router.push('/rules/page.tsx')}>
           <GitFork size={28} />
         </button>
 
