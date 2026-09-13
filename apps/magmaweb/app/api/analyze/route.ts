@@ -3,9 +3,9 @@ import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
-// ★ Next.js のAPIタイムアウト制限を60秒に延長
+// ★ タイムアウトを60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.15.0";
+const PROMPT_VERSION = "1.17.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -115,24 +115,26 @@ export async function GET(request: NextRequest) {
 
 [目的 (Purpose)]
 入力された数学の答案画像を解析し、生徒の思考プロセスを「命題」「推論」「定理」からなる有向グラフとして抽出します。
-【超重要】問題に場合分け（(i), (ii)など）がある場合、全ての場合分けの最後の結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。途中でサボることは固く禁じます。
+【超重要】問題に場合分けがある場合、全ての結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。
 
 [制約事項 (Rules)]
 1. グラフの基本構造と完走の義務:
    - メインのフローは必ず「命題」→「推論」→「命題」と交互に配置してください。
-   - 途中で抽出を打ち切ることは絶対に許されません。答案の最後まで必ずエッジを繋ぎ切ってください。
-2. 定理ノードの完全必須化とエッジの向き（超重要）:
+   - 途中で抽出を打ち切ることは絶対に許されません。答案に書かれているすべての式を命題として抽出し、必ず最後まで対応するエッジを繋ぎ切ってください。
+2. 定理ノードの完全必須化とエッジの向き:
    - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
    - ライブラリに適切な定理がない場合は、AI自身で「移項のルール」等の名前をつけて定理ノードを自作してください。
 3. 複数の命題の組み合わせ:
    - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジ（from）を向けてください。
-4. 推論ノードの検証ステータス:
+4. 【孤立ノードの絶対禁止と全結合の義務】（超重要）:
+   - "nodes" 配列に作成したすべての命題ノード・推論ノードは、必ず前後の文脈に合わせて "edges" で接続してください。ノードだけ作ってエッジの記述をサボることは固く禁じます。抽出したすべての命題が繋がるように論理を補完してください。
+5. 推論ノードの検証ステータス:
    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
-5. 出力キーの制限（【絶対遵守】）:
+6. 出力キーの制限:
    - 指定されたJSONスキーマ以外のキー（例: new_theorems）は絶対に出力しないでください。
 
 [出力形式 (Format)]
-- 以下のJSONフォーマットに厳密に従ってください。JSON以外の説明文やマークダウン記法は一切含めないでください。
+- 以下のJSONフォーマットに厳密に従ってください。
 
 {
   "graph": {
@@ -233,17 +235,16 @@ ${theoremListString}
       }
     }
 
-    // =================================================================================
-    // ★ セーフティネット：推論ノードに定理が繋がっていなかったら自動で作成して繋ぐ
-    // =================================================================================
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
-      const nodes = parsedData.graph.nodes;
+      let nodes = parsedData.graph.nodes;
       const edges = parsedData.graph.edges;
       let autoTheoremCount = 1;
 
+      // =================================================================================
+      // ★ セーフティネット：推論ノードに定理が繋がっていなかったら自動で作成して繋ぐ
+      // =================================================================================
       nodes.forEach((node: any) => {
         if (node.type === 'inference') {
-          // 推論ノードに向かって（to）エッジが伸びている定理ノード（from）があるかチェック
           const hasTheorem = edges.some((e: any) => {
             if (e.to === node.id) {
               const fromNode = nodes.find((n: any) => n.id === e.from);
@@ -252,7 +253,6 @@ ${theoremListString}
             return false;
           });
 
-          // 定理ノードがない場合、自動生成して from: 定理, to: 推論 で接続する
           if (!hasTheorem) {
             const newTheoremId = `t_auto_${autoTheoremCount++}`;
             nodes.push({
@@ -267,6 +267,8 @@ ${theoremListString}
           }
         }
       });
+      
+      // ※ 孤立ノードを自動削除するロジック（ゴミ掃除機能）は撤廃しました。
     }
 
     let dbSaveError: any = null
