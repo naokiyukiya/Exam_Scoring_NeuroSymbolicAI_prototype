@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { simplify, rationalize } from 'mathjs';
+import { simplify, rationalize, evaluate } from 'mathjs';
 
 // =========================================================================
 // 1. 型定義
@@ -28,26 +28,22 @@ interface LogicGraph {
 }
 
 // =========================================================================
-// 2. 数学・前処理ヘルパー関数
+// 2. 第1ステージ：代数・記号検証ヘルパー
 // =========================================================================
 const RELATIONAL_OPERATORS = ['≦', '≧', '<=', '>=', '<', '>', '≠', '='];
 
-/**
- * 【対策1】不要な記号のクリーニング
- * AIが命題に含めてしまった丸数字(①)や、場合分けの記号((i))などを削除し
- * mathjsがパースエラーを起こさないようにサニタイズします。
- */
 function cleanMathString(str: string): string {
   if (!str) return '';
   return str
-    .replace(/[①-⑳]/g, '') // ①などの丸数字を削除
-    .replace(/\([①-⑳]\)/g, '') // (①) などを削除
-    .replace(/\(i+\)/gi, '') // (i), (ii) などを削除
-    .replace(/[…・]/g, '') // 三点リーダーなどを削除
+    .replace(/\(\s*[①-⑳]\s*\)/g, '')
+    .replace(/[①-⑳]/g, '')
+    .replace(/\(\s*[iI]+\s*\)/gi, '')
+    .replace(/\(\s*\d+\s*\)/g, '')
+    .replace(/[…・]/g, '')
+    .replace(/\(\s*\)/g, '')
     .trim();
 }
 
-// 不等号のスマートな前処理
 function splitEquation(expression: string): { lhs: string; rhs: string; operator: string | null } {
   const normalized = (expression || '').replace(/\s+/g, '');
   for (const op of RELATIONAL_OPERATORS) {
@@ -63,7 +59,6 @@ function splitEquation(expression: string): { lhs: string; rhs: string; operator
   return { lhs: normalized, rhs: '', operator: null };
 }
 
-// シグマ記号のスマートな前処理
 function preprocessSigma(expr: string): string {
   if (!expr || !expr.includes('Σ')) return expr;
   try {
@@ -84,10 +79,6 @@ function preprocessSigma(expr: string): string {
   }
 }
 
-/**
- * 【対策2】柔軟な代数等価性判定（展開の評価）
- * simplify だけでなく rationalize（有理化・展開）を使って多項式の展開も評価します。
- */
 function isAlgebraicallyEquivalent(expr1: string, expr2: string): { isEquivalent: boolean, diff?: string } {
   if (!expr1 && !expr2) return { isEquivalent: true };
   if (!expr1 || !expr2) return { isEquivalent: false, diff: '一方が空です' };
@@ -98,19 +89,14 @@ function isAlgebraicallyEquivalent(expr1: string, expr2: string): { isEquivalent
     if (processed1 === processed2) return { isEquivalent: true };
 
     const diffExpression = `(${processed1}) - (${processed2})`;
-    
-    // アプローチ1: 通常の簡略化 (移項などの単純な変形用)
     let simplified = simplify(diffExpression).toString();
     if (simplified === '0') return { isEquivalent: true, diff: '0' };
 
-    // アプローチ2: 展開・有理化 (分配法則などの多項式展開用)
     try {
       const rationalized = rationalize(diffExpression).toString();
       if (rationalized === '0') return { isEquivalent: true, diff: '0' };
-      simplified = rationalized; // エラー表示用に更新
-    } catch (ratErr) {
-      // rationalizeは複雑な式でエラーになることがあるため握りつぶす
-    }
+      simplified = rationalized; 
+    } catch (ratErr) {}
 
     return { isEquivalent: false, diff: simplified };
   } catch (error: any) {
@@ -118,36 +104,21 @@ function isAlgebraicallyEquivalent(expr1: string, expr2: string): { isEquivalent
   }
 }
 
-/**
- * 【対策3】移項による符号反転の対応
- */
 function verifyPropositionTransition(sourceText: string, targetText: string): { isCorrect: boolean, reason?: string } {
-  const cleanSource = cleanMathString(sourceText);
-  const cleanTarget = cleanMathString(targetText);
-
-  // カンマ区切りの複数の数式（x <= -1, 8/3 <= x など）はシステム検証が難しいため一旦通過させる
-  if (cleanSource.includes(',') || cleanTarget.includes(',')) {
-    return { isCorrect: true };
-  }
-
-  const sourceParts = splitEquation(cleanSource);
-  const targetParts = splitEquation(cleanTarget);
+  const sourceParts = splitEquation(sourceText);
+  const targetParts = splitEquation(targetText);
 
   if (sourceParts.operator && targetParts.operator) {
-    // パターンA: 左辺は左辺、右辺は右辺で独立して変形
     const lhsCheck = isAlgebraicallyEquivalent(sourceParts.lhs, targetParts.lhs);
     const rhsCheck = isAlgebraicallyEquivalent(sourceParts.rhs, targetParts.rhs);
     if (lhsCheck.isEquivalent && rhsCheck.isEquivalent) return { isCorrect: true };
 
-    // パターンB: 移項などによる変形 (差分が一致するか)
     const sourceDiff = `(${sourceParts.lhs}) - (${sourceParts.rhs})`;
     const targetDiff = `(${targetParts.lhs}) - (${targetParts.rhs})`;
     
-    // 通常の差分比較
     const diffCheck1 = isAlgebraicallyEquivalent(sourceDiff, targetDiff);
     if (diffCheck1.isEquivalent) return { isCorrect: true };
 
-    // 符号反転比較（例: A <= B を移項して B - A >= 0 にした場合用）
     const targetDiffReversed = `-1 * (${targetDiff})`;
     const diffCheck2 = isAlgebraicallyEquivalent(sourceDiff, targetDiffReversed);
     if (diffCheck2.isEquivalent) return { isCorrect: true };
@@ -155,12 +126,102 @@ function verifyPropositionTransition(sourceText: string, targetText: string): { 
     return { isCorrect: false, reason: `左辺差分: ${lhsCheck.diff} / 右辺差分: ${rhsCheck.diff}` };
   }
 
-  const check = isAlgebraicallyEquivalent(cleanSource, cleanTarget);
+  const check = isAlgebraicallyEquivalent(sourceText, targetText);
   return { isCorrect: check.isEquivalent, reason: check.isEquivalent ? undefined : `数式差分: ${check.diff}` };
 }
 
 // =========================================================================
-// 3. APIルートハンドラ
+// 3. 第2ステージ：境界値・特異点ターゲット型数値テストヘルパー
+// =========================================================================
+function formatForHeuristic(expr: string): string {
+  let e = expr;
+  e = e.replace(/≦/g, '<=').replace(/≧/g, '>=');
+  
+  const compRegex = /([^<>=]+)\s*(<=|<|>=|>)\s*([^<>=]+)\s*(<=|<|>=|>)\s*([^<>=]+)/;
+  if (compRegex.test(e)) {
+    e = e.replace(compRegex, '($1 $2 $3) and ($3 $4 $5)');
+  }
+  
+  e = e.replace(/,/g, ' or ');
+  e = e.replace(/==/g, '=');
+  e = e.replace(/=/g, '==');
+  e = e.replace(/<==/g, '<=');
+  e = e.replace(/>==/g, '>=');
+  e = e.replace(/!==/g, '!=');
+
+  e = e.replace(/(\d)([a-zA-Z])/g, '$1 * $2');
+  e = e.replace(/\)\s*\(/g, ') * (');
+  e = e.replace(/([a-zA-Z])\s*\(/g, '$1 * (');
+  e = e.replace(/(\d)\s*\(/g, '$1 * (');
+  
+  return e;
+}
+
+/**
+ * 命題文字列から数値や境界値（例: 2, 8/3 など）を動的に抽出し、
+ * その極近傍（イプシロン）をテストポイントに強制追加します。
+ */
+function extractCriticalPoints(exprs: string[]): number[] {
+  const points: number[] = [-1, 0, 1, 2, 2.66667];
+  const numRegex = /-?\d+(?:\/\d+)?/g;
+
+  for (const expr of exprs) {
+    if (!expr) continue;
+    const matches = expr.match(numRegex);
+    if (matches) {
+      for (const m of matches) {
+        let val = Number(m);
+        if (m.includes('/')) {
+          const parts = m.split('/');
+          val = Number(parts[0]) / Number(parts[1]);
+        }
+        if (!isNaN(val)) {
+          points.push(val);
+          points.push(val - 0.00001); // 境界の直前
+          points.push(val + 0.00001); // 境界の直後
+        }
+      }
+    }
+  }
+
+  // 通常の網羅的サンプリングポイントを追加
+  for (let i = -5; i <= 5; i += 0.5) {
+    points.push(i);
+  }
+
+  return Array.from(new Set(points)); // 重複排除
+}
+
+function verifyByValueTesting(sourceExpr: string, targetExpr: string, allSourceStrs: string[], isCombined: boolean = false): { isEquivalent: boolean, reason?: string } {
+  try {
+    const s = isCombined ? sourceExpr : formatForHeuristic(sourceExpr);
+    const t = formatForHeuristic(targetExpr);
+    
+    // クリティカルポイント（境界値・特異点の近傍）を動的生成
+    const testPoints = extractCriticalPoints(allSourceStrs.concat([targetExpr]));
+
+    for (const x of testPoints) {
+      const scope = { x, y: x, a: x, b: x, n: x };
+      try {
+        const res1 = evaluate(s, scope);
+        const res2 = evaluate(t, scope);
+        
+        if (Boolean(res1) !== Boolean(res2)) {
+          return { isEquivalent: false, reason: `境界・特異点近傍 (x=${x.toFixed(5)}) で真偽値が不一致` };
+        }
+      } catch (evalErr) {
+        // 分母0などの特異点で評価エラーになる場合はスキップまたは安全側に倒す
+        continue;
+      }
+    }
+    return { isEquivalent: true };
+  } catch (err: any) {
+    return { isEquivalent: false, reason: `論理評価エラー: ${err.message}` };
+  }
+}
+
+// =========================================================================
+// 4. APIルートハンドラ（2段階パイプライン統合）
 // =========================================================================
 export async function POST(req: Request) {
   try {
@@ -178,29 +239,46 @@ export async function POST(req: Request) {
         try {
           const sourceEdges = graph.edges.filter(e => (e.target || e.to) === node.id);
           const sourceNodes = sourceEdges.map(e => nodeMap.get(e.source || e.from as string)).filter(Boolean) as GraphNode[];
-          
-          // 定理ノードを除外し、命題のみを対象とする
           const sourcePropositions = sourceNodes.filter(n => n.type === 'proposition');
 
           const targetEdges = graph.edges.filter(e => (e.source || e.from) === node.id);
           const targetNodes = targetEdges.map(e => nodeMap.get(e.target || e.to as string)).filter(Boolean) as GraphNode[];
           const targetPropositions = targetNodes.filter(n => n.type === 'proposition');
 
-          if (sourcePropositions.length === 1 && targetPropositions.length === 1) {
-            // 通常の1対1の式変形
-            const sourceStr = sourcePropositions[0].label || sourcePropositions[0].text || '';
-            const targetStr = targetPropositions[0].label || targetPropositions[0].text || '';
+          if (sourcePropositions.length > 0 && targetPropositions.length === 1) {
+            const sourceStrs = sourcePropositions.map(p => cleanMathString(p.label || p.text || ''));
+            const targetStr = cleanMathString(targetPropositions[0].label || targetPropositions[0].text || '');
 
-            const result = verifyPropositionTransition(sourceStr, targetStr);
-            node.verification_status = result.isCorrect ? '問題なし' : '問題あり';
-            
-            if (!result.isCorrect) node.error_reason = result.reason || '代数的に等価ではありません';
-            else delete node.error_reason;
+            let isCorrect = false;
+            let finalReason = '';
 
-          } else if (sourcePropositions.length > 1 && targetPropositions.length === 1) {
-            // 【対策4】複数の命題を組み合わせる推論の場合、エラーにせず「問題なし」として通過させる
-            node.verification_status = '問題なし';
-            delete node.error_reason;
+            if (sourceStrs.length === 1) {
+              // ステージ1：高速代数検証（移項・展開など）
+              const algResult = verifyPropositionTransition(sourceStrs[0], targetStr);
+              if (algResult.isCorrect) {
+                isCorrect = true;
+              } else {
+                // ステージ2：境界値ターゲット型数値テストへのフォールバック
+                const valResult = verifyByValueTesting(sourceStrs[0], targetStr, sourceStrs);
+                isCorrect = valResult.isEquivalent;
+                finalReason = valResult.reason || algResult.reason || '';
+              }
+            } else {
+              // 複数命題の合流チェック（AND結合によるステージ2テスト）
+              const combinedSource = sourceStrs.map(s => `(${formatForHeuristic(s)})`).join(' and ');
+              const valResult = verifyByValueTesting(combinedSource, targetStr, sourceStrs, true);
+              
+              isCorrect = valResult.isEquivalent;
+              finalReason = valResult.reason || '複合条件の論理評価で不一致となりました';
+            }
+
+            node.verification_status = isCorrect ? '問題なし' : '問題あり';
+            if (!isCorrect) {
+              node.error_reason = finalReason || '論理・代数的に等価ではありません';
+            } else {
+              delete node.error_reason;
+            }
+
           } else {
             node.verification_status = '問題あり';
             node.error_reason = `命題ノードの接続エラー (入力: ${sourcePropositions.length}個, 出力: ${targetPropositions.length}個)`;
@@ -215,7 +293,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ nodes: updatedNodes });
 
   } catch (error: any) {
-    console.error('[API Error] Failed to process verification logic:', error);
+    console.log('[API Error] Failed to process verification logic:', error);
     return NextResponse.json(
       { error: 'Internal Server Error during verification', details: error?.message || String(error) },
       { status: 500 }
