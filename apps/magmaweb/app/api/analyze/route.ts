@@ -3,17 +3,14 @@ import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
-// ★ Next.js (Vercel等) のAPIタイムアウト制限をデフォルトから60秒に延長する
+// ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
 
 // ★ プロンプトのバージョン
-const PROMPT_VERSION = "1.11.0";
+const PROMPT_VERSION = "1.12.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
-/**
- * 途中で切れたJSON文字列を安全に修復する強化版ヘルパー関数
- */
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
   const lastValidIndex = Math.max(
@@ -148,21 +145,18 @@ export async function GET(request: NextRequest) {
                 入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルール）」からなる有向グラフとして最後まで省略せずに抽出します。
 
                 [抽出ルール（厳守）]
-                1. グラフの基本構造（絶対遵守）:
+                1. グラフの基本構造と完走の義務:
                    - メインのフローは、必ず「命題」→「推論」→「命題」→「推論」と交互に配置してください。
-                   - 【重要】ステップ数が多くても途中で省略・中断することは絶対に禁止します。グラフの最後は必ず「命題（proposition）」ノードで完結させてください。
+                   - 【超重要】途中でサボったり省略したりすることは絶対に許されません。答案の最後の結論まで、すべてのステップを抽出し、必ずすべての 'edges'（エッジ）を繋ぎ切ってください。
                 2. 命題（proposition）ノード:
-                   - 答案に書かれている数式や条件のみを正確に抽出してください。推測で式を追加しないでください。
-                3. 推論（inference）ノードと定理（theorem）ノードの分離:
-                   - 【重要】推論ノードの中に "theorem" や "input_expression" 等の複雑なデータを詰め込むことは禁止します。推論ノードはシンプルに保ち、使用された定理は必ず独立した「定理ノード（type: "theorem"）」として枝分かれさせて作成・接続してください。
-                   - 命題の数式内に「Σ（シグマ）」などの重要な定義・定理が含まれる場合、解説として命題ノードから直接定理ノードへ繋ぐことも推奨します。
+                   - 答案に書かれている数式や条件のみを正確に抽出してください。
+                3. 推論（inference）と定理（theorem）の分離（超重要）:
+                   - 推論ノードはシンプルに保ち、使用された公式や定理は必ず独立した「定理ノード（type: "theorem"）」として枝分かれさせて作成し、推論ノードからエッジを繋いでください。
                 4. 推論ノードの検証ステータス:
                    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" というプロパティを追加してください。
-                5. 出力キーの制限:
-                   - "graph" と "construction_process" の2つのキーのみを出力してください。勝手に "new_theorems" などのキーを追加することは厳禁です。
 
                 [出力フォーマット（厳守）]
-                - 以下のJSONフォーマットに厳密に従ってください。Markdownの余分なテキストは一切含めず、純粋なJSONのみを返してください。
+                - 以下のJSONフォーマットに厳密に従ってください。指定されていないキー（new_theoremsなど）の出力は禁止です。
                 
                 {
                   "graph": {
@@ -193,6 +187,47 @@ export async function GET(request: NextRequest) {
       ],
       config: {
         responseMimeType: 'application/json',
+        // 💡 AIがサボるのを防ぎ、定理を独立させるシンプル構造を強制するスキーマ
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            graph: {
+              type: 'OBJECT',
+              properties: {
+                nodes: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      id: { type: 'STRING' },
+                      type: { type: 'STRING' },
+                      label: { type: 'STRING' },
+                      verification_status: { type: 'STRING' }
+                    },
+                    required: ['id', 'type', 'label']
+                  }
+                },
+                edges: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      from: { type: 'STRING' },
+                      to: { type: 'STRING' }
+                    },
+                    required: ['from', 'to']
+                  }
+                }
+              },
+              required: ['nodes', 'edges']
+            },
+            construction_process: {
+              type: 'ARRAY',
+              items: { type: 'STRING' }
+            }
+          },
+          required: ['graph']
+        },
         temperature: 0.0,
         maxOutputTokens: 8192
       }
