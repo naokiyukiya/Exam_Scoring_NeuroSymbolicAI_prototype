@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     const base64Image = Buffer.from(arrayBuffer).toString('base64')
 
     const response = await generateWithRetry({
-      model: 'gemini-2.5-flash', // ★ 429エラー対策として一旦 1.5-flash を指定（必要に応じて2.5に戻してください）
+      model: 'gemini-2.5-flash', 
       contents: [
         {
           role: 'user',
