@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
 // ★ プロンプトのバージョン
-const PROMPT_VERSION = "1.8.0";
+const PROMPT_VERSION = "1.9.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
                    - 複数の命題（数式）を組み合わせて新しい命題を導いている場合、それらの複数の「命題ノード」から、1つの「推論ノード」に向かってエッジを繋げてください。
                 5. グラフや表の除外:
                    - 関数グラフ、幾何的な図形、増減表などは解析の対象外とします。
-                6. 忠実性の原則:
+                6. 忠刺性の原則:
                    - 誤った数式はそのまま「命題」ノードとして抽出してください。
                 7. 推論ノードの検証ステータスと数式データの付与（【絶対遵守】）:
                    - ノードの種類が「推論（inference）」である場合、必ず以下のプロパティをすべて含めてください：
@@ -170,6 +170,38 @@ export async function GET(request: NextRequest) {
                      - "input_expression": 変形する前の入力式（文字列）
                      - "output_expression": 変形した後の出力式（文字列）
                    - 命題や定義・定理ノードにはこれらを追加しないでください。
+
+                [出力フォーマット（厳守）]
+                - 以下のJSONスキーマに厳密に従って出力してください。
+                - 挨拶、説明、Markdownのコードブロックなどの余分なテキストは一切含めず、パース可能な生のJSON文字列のみを返してください。
+                
+                {
+                  "graph": {
+                    "nodes": [
+                      { "id": "p1", "label": "x - 2 > 0", "type": "proposition" },
+                      { 
+                        "id": "i1", 
+                        "label": "分配法則（展開）を適用する", 
+                        "type": "inference", 
+                        "theorem": { "before": "P * (Q + R)", "after": "P * Q + P * R" },
+                        "input_expression": "3 * (x + 2)",
+                        "output_expression": "3 * x + 6",
+                        "verification_status": "検証前" 
+                      },
+                      { "id": "p2", "label": "3 * x + 6 > 0", "type": "proposition" },
+                      { "id": "t1", "label": "分配法則（展開）: P * (Q + R) = P * Q + P * R", "type": "theorem" }
+                    ],
+                    "edges": [
+                      { "from": "p1", "to": "i1" },
+                      { "from": "i1", "to": "p2" },
+                      { "from": "i1", "to": "t1" }
+                    ]
+                  },
+                  "construction_process": [
+                    "Step 1: 命題「x - 2 > 0」を抽出しました。",
+                    "Step 2: 分配法則を適用する推論を追加し、命題「3 * x + 6 > 0」を導きました。"
+                  ]
+                }
 
                 [利用可能な定理ライブラリ]
                 ${theoremListString}
@@ -180,57 +212,7 @@ export async function GET(request: NextRequest) {
       ],
       config: {
         responseMimeType: 'application/json',
-        // 💡 ユーザーの長文ルールを活かしつつ、出力を途切れさせないためのスキーマ強制
-        responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            graph: {
-              type: 'OBJECT',
-              properties: {
-                nodes: {
-                  type: 'ARRAY',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      id: { type: 'STRING' },
-                      type: { type: 'STRING' },
-                      label: { type: 'STRING' },
-                      verification_status: { type: 'STRING' },
-                      applied_theorem: { type: 'STRING' },
-                      input_expression: { type: 'STRING' },
-                      output_expression: { type: 'STRING' },
-                      theorem: {
-                        type: 'OBJECT',
-                        properties: {
-                          before: { type: 'STRING' },
-                          after: { type: 'STRING' }
-                        }
-                      }
-                    },
-                    required: ['id', 'type', 'label']
-                  }
-                },
-                edges: {
-                  type: 'ARRAY',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      from: { type: 'STRING' },
-                      to: { type: 'STRING' }
-                    },
-                    required: ['from', 'to']
-                  }
-                }
-              },
-              required: ['nodes', 'edges']
-            },
-            construction_process: {
-              type: 'ARRAY',
-              items: { type: 'STRING' }
-            }
-          },
-          required: ['graph']
-        },
+        // responseSchema を削除し、AIが自由に正しいノード構造（命題・推論・定理）を出し分けられるように戻しました。
         temperature: 0.0,
         maxOutputTokens: 8192
       }
