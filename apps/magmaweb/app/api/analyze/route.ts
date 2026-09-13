@@ -3,42 +3,35 @@ import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
-// ★ プロンプトのバージョン（プロンプト改修時にここをインクリメント）
-const PROMPT_VERSION = "1.3.0";
+// ★ プロンプトのバージョンをインクリメント
+const PROMPT_VERSION = "1.5.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
 /**
- * 途中で切れたJSON文字列のカッコを自動補完するヘルパー関数
+ * 途中で切れたJSON文字列を安全に修復する強化版ヘルパー関数
  */
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
-  
+
+  // 1. 末尾がキーや値の途中で不完全に切れている場合、最後の完全な構造（} または ] または "）まで巻き戻す
+  const lastValidIndex = Math.max(
+    cleaned.lastIndexOf('}'),
+    cleaned.lastIndexOf(']'),
+    cleaned.lastIndexOf('"')
+  );
+  if (lastValidIndex !== -1 && lastValidIndex < cleaned.length - 1) {
+    cleaned = cleaned.substring(0, lastValidIndex + 1);
+  }
+
+  // 2. 末尾の不完全なプロパティ（例: , "theorem": { "before ）やカンマを削除
+  cleaned = cleaned.replace(/,\s*"[^"]*"\s*:\s*"?[^"]*$/, '');
+  cleaned = cleaned.replace(/,\s*$/, '');
+
+  // 3. 開いたままのカッコ（{, [）を自動で閉じる
   let inString = false;
   let escape = false;
-  for (let i = 0; i < cleaned.length; i++) {
-    const char = cleaned[i];
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (char === '\\') {
-      escape = true; 
-      continue;
-    }
-    if (char === '"') {
-      inString = !inString;
-    }
-  }
-  if (inString) {
-    cleaned += '"';
-  }
-
-  cleaned = cleaned.replace(/[,:\s]+$/, '');
-
   const stack: string[] = [];
-  inString = false;
-  escape = false;
 
   for (let i = 0; i < cleaned.length; i++) {
     const char = cleaned[i];
@@ -134,7 +127,7 @@ export async function GET(request: NextRequest) {
       theoremListString = data.map((r: any) => `- ${r.name}`).join('\n');
     }
   } catch (err) {
-    console.error("定理データの展開に失敗しましたが、空のまま続行します", err);
+    console.error("定理データの展開に失敗しました", err);
   }
 
   try {
@@ -155,29 +148,25 @@ export async function GET(request: NextRequest) {
                 あなたは数学教育の専門家であり、論理構造解析に特化したAIアシスタントです。
 
                 [目的]
-                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。指定されたJSONフォーマットのみで出力し、併せてグラフを構築したステップごとの思考プロセスも出力してください。
+                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルールや適用した定理）」からなる有向グラフとして最小ステップで抽出します。
 
-                [抽出ルール]
-                1. グラフの基本構造（【絶対遵守】厳密な交互配置と終端）:
-                   - メインの論理フローは、必ず「命題」→「推論」→「命題」→「推論」と交互に配置し、グラフの最後のノードは必ず「命題（proposition）」で終了してください。推論ノードや定理ノードでグラフを終わらせることは絶対に禁止します。
-                   - 命題ノード同士、または推論ノード同士が直接繋がることは絶対に禁止します。
-                2. 命題（proposition）ノード:
-                   - 答案に書かれている数式、条件、結論のみを正確に抽出してください。勝手な推測や書かれていない内容を補足してはいけません。
-                   - ルート、大なりイコールなどはLaTeXコマンドを使わず、「√」「≧」「≦」「≠」「±」などの環境依存しない文字記号を直接使用してください。
-                3. 定理（theorem）ノードの抽出と接続ルール（【絶対遵守】）:
-                   - **Σ（シグマ）記号を使った和の計算や等差・等比数列の公式変形が含まれている場合、必ず「自然数の和の公式」や「等差数列の和の公式」などの正しい定理ノード（type: "theorem"）を生成し、対応する推論ノードに 'edges' で確実に接続してください。** 単なる「代入」や「約分」でごまかさず、公式の適用を正確に反映させてください。
-                   - 答案で使用された定理は必ずノードとして作成し、必ず対応する「推論ノード」または「命題ノード」から 'edges' で矢印を繋いでください。画面の左側に定理ノードが孤立して残るような中途半端な出力は絶対に避けてください。
-                4. 推論ノードの検証ステータスと数式データの付与（【絶対遵守】）:
+                [出力の制約事項（【絶対遵守】途切れ防止とコンパクト化）]
+                1. トークン上限による途切れを防ぐため、ステップ数やノード数は**必要最小限（コンパクト）**に絞り、冗長な解説や長すぎる説明文を避けてください。
+                2. メインの論理フローは必ず「命題」→「推論」→「命題」→「推論」と交互に配置し、**グラフの最後のノードは必ず「命題（proposition）」で終了してください。**
+                3. ハルシネーション（勝手な捏造）の絶対禁止:
+                   - 答案画像にインクとして実際に書かれている数式・文字のみを正確に抽出してください。書かれていない式を勝手に補完してはいけません。
+                4. 定理（theorem）ノードの抽出と接続:
+                   - 適用された定理がある場合、対応する定理ノード（type: "theorem"）を生成し、対応する推論ノードから 'edges' で確実に接続してください。定理ノードを画面左側に孤立させないこと。
+                5. 推論ノードの検証データ付与:
                    - ノードの種類が「推論（inference）」である場合、必ず以下のプロパティをすべて含めてください：
-                     - "verification_status": 必ず「検証前」にしてください。
+                     - "verification_status": "検証前"
                      - "theorem": 適用した定理の "before" と "after"
-                     - "input_expression": 変形する前の入力式（文字列）
-                     - "output_expression": 変形した後の出力式（文字列）
+                     - "input_expression": 変形前の入力式（文字列）
+                     - "output_expression": 変形後の出力式（文字列）
                    - 命題や定義・定理ノードにはこれらを追加しないでください。
 
                 [出力フォーマット（厳守）]
-                - 以下のJSONスキーマに厳密に従って出力してください。
-                - 挨拶、説明、Markdownのコードブロックなどの余分なテキストは一切含めず、パース可能な生のJSON文字列のみを返してください。
+                - 以下のJSONスキーマに従って出力してください。Markdownのコードブロックなどの余分なテキストを含めず、パース可能な生のJSON文字列のみを返してください。
                 
                 {
                   "graph": {
@@ -202,8 +191,7 @@ export async function GET(request: NextRequest) {
                     ]
                   },
                   "construction_process": [
-                    "Step 1: 命題「x - 2 > 0」を抽出しました。",
-                    "Step 2: 分配法則を適用する推論と定理を接続し、命題「3 * x + 6 > 0」を導きました。"
+                    "Step 1: 命題「x - 2 > 0」を抽出しました。"
                   ]
                 }
                 
