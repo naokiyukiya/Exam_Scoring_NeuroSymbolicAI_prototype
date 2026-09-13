@@ -3,10 +3,9 @@ import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
-// ★ タイムアウトを60秒に延長
+// ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
-// ★ プロンプトバージョン
-const PROMPT_VERSION = "1.14.0";
+const PROMPT_VERSION = "1.15.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -60,21 +59,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const answerId = searchParams.get('answerId')
 
-  if (!answerId) {
-    return NextResponse.json({ error: 'Missing answerId (パラメータが空です)' }, { status: 400 })
-  }
+  if (!answerId) return NextResponse.json({ error: 'Missing answerId' }, { status: 400 })
 
-  const { data: answer, error } = await supabase
-    .from('posts')
-    .select('image_url')
-    .eq('id', answerId)
-    .single()
+  const { data: answer, error } = await supabase.from('posts').select('image_url').eq('id', answerId).single()
 
   if (error || !answer?.image_url) {
-    return NextResponse.json({ 
-      error: 'Supabaseから画像URLを取得できませんでした', 
-      details: error?.message || '該当する答案データに画像URLがありません。' 
-    }, { status: 404 })
+    return NextResponse.json({ error: '画像URLを取得できませんでした' }, { status: 404 })
   }
 
   const data: any = theorems;
@@ -91,26 +81,14 @@ export async function GET(request: NextRequest) {
       imageUrl: answer.image_url,
       graph: existingGraph.graph_data,
       constructionProcess: existingGraph.construction_process,
-      metadata: {
-        promptVersion: existingGraph.prompt_version || null,
-        theoremVersion: existingGraph.theorem_version || null,
-        cached: true
-      }
+      metadata: { promptVersion: existingGraph.prompt_version, theoremVersion: existingGraph.theorem_version, cached: true }
     })
   }
 
   let theoremListString = "";
   try {
     if (data?.theorems?.rule_groups) {
-      theoremListString = data.theorems.rule_groups
-        .flatMap((g: any) => g.rules || [])
-        .map((r: any) => `- ${r.name}`)
-        .join('\n');
-    } else if (data?.rule_groups) {
-      theoremListString = data.rule_groups
-        .flatMap((g: any) => g.rules || [])
-        .map((r: any) => `- ${r.name}`)
-        .join('\n');
+      theoremListString = data.theorems.rule_groups.flatMap((g: any) => g.rules || []).map((r: any) => `- ${r.name}`).join('\n');
     } else if (Array.isArray(data)) {
       theoremListString = data.map((r: any) => `- ${r.name}`).join('\n');
     }
@@ -132,47 +110,54 @@ export async function GET(request: NextRequest) {
             { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
             {
               text: `
-                [役割]
-                あなたは数学教育の専門家であり、論理構造解析に特化したAIアシスタントです。
+[役割 (Persona)]
+あなたは、数学の論理構造解析に精通したAIアシスタントです。
 
-                [目的]
-                入力された数学の答案画像を解析し、生徒の思考プロセスを「命題（数式や条件）」と「推論（変形ルール）」からなる有向グラフとして最後まで省略せずに抽出します。
+[目的 (Purpose)]
+入力された数学の答案画像を解析し、生徒の思考プロセスを「命題」「推論」「定理」からなる有向グラフとして抽出します。
+【超重要】問題に場合分け（(i), (ii)など）がある場合、全ての場合分けの最後の結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。途中でサボることは固く禁じます。
 
-                [抽出ルール（厳守）]
-                1. グラフの基本構造:
-                   - メインのフローは、必ず「命題」→「推論」→「命題」→「推論」と交互に配置してください。
-                2. 定理（theorem）ノードの【完全必須化】と【動的生成の許可】（超重要）:
-                   - すべての推論ノードには、必ず1つの定理ノード（type: "theorem"）をエッジで接続してください。
-                   - 【重要】提供された「定理ライブラリ」の中に「移項」「同類項をまとめる」「両辺を割る」などの基本的な変形ルールが存在しない場合でも、決して定理ノードを省略してはいけません。
-                   - ライブラリにない場合は、AI自身の判断で「移項の性質」「条件の組み合わせ」などの適切な名前をつけて、**必ず新しい定理ノードを自作（動的生成）**してください。
-                3. 推論ノードの検証ステータス:
-                   - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" というプロパティを追加してください。
+[制約事項 (Rules)]
+1. グラフの基本構造と完走の義務:
+   - メインのフローは必ず「命題」→「推論」→「命題」と交互に配置してください。
+   - 途中で抽出を打ち切ることは絶対に許されません。答案の最後まで必ずエッジを繋ぎ切ってください。
+2. 定理ノードの完全必須化とエッジの向き（超重要）:
+   - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
+   - ライブラリに適切な定理がない場合は、AI自身で「移項のルール」等の名前をつけて定理ノードを自作してください。
+3. 複数の命題の組み合わせ:
+   - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジ（from）を向けてください。
+4. 推論ノードの検証ステータス:
+   - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
+5. 出力キーの制限（【絶対遵守】）:
+   - 指定されたJSONスキーマ以外のキー（例: new_theorems）は絶対に出力しないでください。
 
-                [出力フォーマット（厳守）]
-                - 以下のJSONフォーマットに厳密に従ってください。余分なキー（new_theoremsなど）は追加しないでください。
-                
-                {
-                  "graph": {
-                    "nodes": [
-                      { "id": "p1", "label": "x - 2 > 0", "type": "proposition" },
-                      { "id": "t1", "label": "移項の性質", "type": "theorem" },
-                      { "id": "i1", "label": "移項する", "type": "inference", "verification_status": "検証前" },
-                      { "id": "p2", "label": "x > 2", "type": "proposition" }
-                    ],
-                    "edges": [
-                      { "from": "p1", "to": "i1" },
-                      { "from": "t1", "to": "i1" },
-                      { "from": "i1", "to": "p2" }
-                    ]
-                  },
-                  "construction_process": [
-                    "Step 1: 命題「x - 2 > 0」を抽出しました。",
-                    "Step 2: 移項する推論と定理を接続し、命題「x > 2」を導きました。"
-                  ]
-                }
+[出力形式 (Format)]
+- 以下のJSONフォーマットに厳密に従ってください。JSON以外の説明文やマークダウン記法は一切含めないでください。
 
-                [利用可能な定理ライブラリ]
-                ${theoremListString}
+{
+  "graph": {
+    "nodes": [
+      { "id": "p1", "label": "x > 2", "type": "proposition" },
+      { "id": "p2", "label": "x <= 5", "type": "proposition" },
+      { "id": "t1", "label": "複数の条件を組み合わせる", "type": "theorem" },
+      { "id": "i1", "label": "命題p1とp2の条件を組み合わせる", "type": "inference", "verification_status": "検証前" },
+      { "id": "p3", "label": "2 < x <= 5", "type": "proposition" }
+    ],
+    "edges": [
+      { "from": "p1", "to": "i1" },
+      { "from": "p2", "to": "i1" },
+      { "from": "t1", "to": "i1" },
+      { "from": "i1", "to": "p3" }
+    ]
+  },
+  "construction_process": [
+    "Step 1: 命題「x > 2」と「x <= 5」を抽出しました。",
+    "Step 2: 複数の条件を組み合わせる推論と定理を接続し、命題「2 < x <= 5」を導きました。"
+  ]
+}
+
+[利用可能な定理ライブラリ]
+${theoremListString}
               `
             }
           ]
@@ -229,11 +214,8 @@ export async function GET(request: NextRequest) {
     let parsedData: any = null
 
     let cleanText = rawText.trim()
-    if (cleanText.startsWith('```json')) {
-      cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim()
-    } else if (cleanText.startsWith('```')) {
-      cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim()
-    }
+    if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim()
+    else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim()
 
     try {
       parsedData = JSON.parse(cleanText)
@@ -252,8 +234,7 @@ export async function GET(request: NextRequest) {
     }
 
     // =================================================================================
-    // ★ 解決策：システム側による定理ノードの「自動補完」機能（セーフティネット）
-    // AIが万が一定理ノードを作り忘れても、プログラム側で強制的に生成して接続します。
+    // ★ セーフティネット：推論ノードに定理が繋がっていなかったら自動で作成して繋ぐ
     // =================================================================================
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
       const nodes = parsedData.graph.nodes;
@@ -262,20 +243,16 @@ export async function GET(request: NextRequest) {
 
       nodes.forEach((node: any) => {
         if (node.type === 'inference') {
-          // この推論ノードに繋がっている定理ノードが存在するかチェック
+          // 推論ノードに向かって（to）エッジが伸びている定理ノード（from）があるかチェック
           const hasTheorem = edges.some((e: any) => {
             if (e.to === node.id) {
               const fromNode = nodes.find((n: any) => n.id === e.from);
               return fromNode && fromNode.type === 'theorem';
             }
-            if (e.from === node.id) {
-              const toNode = nodes.find((n: any) => n.id === e.to);
-              return toNode && toNode.type === 'theorem';
-            }
             return false;
           });
 
-          // 定理ノードがない場合、推論名から自動的に定理ノードを作ってくっつける！
+          // 定理ノードがない場合、自動生成して from: 定理, to: 推論 で接続する
           if (!hasTheorem) {
             const newTheoremId = `t_auto_${autoTheoremCount++}`;
             nodes.push({
@@ -306,11 +283,11 @@ export async function GET(request: NextRequest) {
         };
 
         if (existing) {
-          const { error: updateErr } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id)
-          if (updateErr) dbSaveError = updateErr
+          const { error } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id)
+          if (error) dbSaveError = error
         } else {
-          const { error: insertErr } = await supabase.from('logic_graphs').insert({ post_id: answerId, ...payload })
-          if (insertErr) dbSaveError = insertErr
+          const { error } = await supabase.from('logic_graphs').insert({ post_id: answerId, ...payload })
+          if (error) dbSaveError = error
         }
       } catch (dbEx) {
         dbSaveError = dbEx
