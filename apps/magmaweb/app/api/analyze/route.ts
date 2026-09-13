@@ -7,7 +7,7 @@ import theorems from '../../../lib/constants/theorems.json';
 export const maxDuration = 60;
 
 // ★ プロンプトのバージョン
-const PROMPT_VERSION = "1.12.0";
+const PROMPT_VERSION = "1.13.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -147,16 +147,19 @@ export async function GET(request: NextRequest) {
                 [抽出ルール（厳守）]
                 1. グラフの基本構造と完走の義務:
                    - メインのフローは、必ず「命題」→「推論」→「命題」→「推論」と交互に配置してください。
-                   - 【超重要】途中でサボったり省略したりすることは絶対に許されません。答案の最後の結論まで、すべてのステップを抽出し、必ずすべての 'edges'（エッジ）を繋ぎ切ってください。
+                   - 【超重要】問題に場合分け（(i), (ii)など）がある場合、全ての場合分けの最後の結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。途中でサボることは固く禁じます。
                 2. 命題（proposition）ノード:
                    - 答案に書かれている数式や条件のみを正確に抽出してください。
-                3. 推論（inference）と定理（theorem）の分離（超重要）:
-                   - 推論ノードはシンプルに保ち、使用された公式や定理は必ず独立した「定理ノード（type: "theorem"）」として枝分かれさせて作成し、推論ノードからエッジを繋いでください。
+                3. 推論（inference）と定理（theorem）の分離:
+                   - 推論ノードはシンプルに保ち、使用された公式や定理は必ず独立した「定理ノード（type: "theorem"）」として作成し、推論ノードからエッジを繋いでください。
                 4. 推論ノードの検証ステータス:
                    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" というプロパティを追加してください。
+                5. 出力キーの制限（【絶対遵守】）:
+                   - あなたは指定されたJSONスキーマ以外のキー（例: "new_theorems"）を出力することをシステムレベルで固く禁じられています。
+                   - "graph" の中には必ず "nodes" と "edges" の両方を記述してください。"nodes" だけを出力して満足してはいけません。必ずノード間の繋がりを "edges" に全て記述してから出力を終えてください。"edges"配列が空のまま終了することは許可されません。
 
                 [出力フォーマット（厳守）]
-                - 以下のJSONフォーマットに厳密に従ってください。指定されていないキー（new_theoremsなど）の出力は禁止です。
+                - 以下のJSONフォーマットに厳密に従ってください。
                 
                 {
                   "graph": {
@@ -187,7 +190,6 @@ export async function GET(request: NextRequest) {
       ],
       config: {
         responseMimeType: 'application/json',
-        // 💡 AIがサボるのを防ぎ、定理を独立させるシンプル構造を強制するスキーマ
         responseSchema: {
           type: 'OBJECT',
           properties: {
