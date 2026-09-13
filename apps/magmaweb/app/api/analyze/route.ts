@@ -5,7 +5,7 @@ import theorems from '../../../lib/constants/theorems.json';
 
 // ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.20.0";
+const PROMPT_VERSION = "1.21.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -61,8 +61,9 @@ function repairTruncatedJson(jsonStr: string): string {
       inString = !inString; continue;
     }
     if (!inString) {
-      if (char === '{' || char === '[') stack.push(char);
-      else if (char === '}') {
+      if (char === '{' || char === '[') {
+        stack.push(char);
+      } else if (char === '}') {
         if (stack.length > 0 && stack[stack.length - 1] === '{') stack.pop();
       } else if (char === ']') {
         if (stack.length > 0 && stack[stack.length - 1] === '[') stack.pop();
@@ -75,6 +76,7 @@ function repairTruncatedJson(jsonStr: string): string {
     if (open === '{') cleaned += '}';
     else if (open === '[') cleaned += ']';
   }
+
   return cleaned;
 }
 
@@ -232,7 +234,8 @@ ${theoremListString}
           required: ['graph']
         },
         temperature: 0.0,
-        maxOutputTokens: 8192
+        // ★ 最大出力トークン数をモデルの上限である 65536 に引き上げ
+        maxOutputTokens: 65536
       }
     });
 
