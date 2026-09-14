@@ -5,7 +5,7 @@ import theorems from '../../../lib/constants/theorems.json';
 
 // ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.27.0";
+const PROMPT_VERSION = "1.24.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -16,10 +16,10 @@ async function generateWithRetry(params: any, maxRetries = 3, initialDelayMs = 2
       return await ai.models.generateContent(params);
     } catch (err: any) {
       const errMsg = err?.message || String(err);
-      const isOverloaded = err?.status === 503 || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('503') || err?.status === 429 || errMsg.includes('429');
+      const isOverloaded = err?.status === 503 || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('503');
       
       if (isOverloaded && attempt < maxRetries) {
-        console.warn(`[Gemini API Overloaded/Quota] サーバー混雑または制限のため自動リトライします (${attempt}/${maxRetries}). ${delay}ms後に再試行...`);
+        console.warn(`[Gemini API Overloaded] サーバー混雑のため自動リトライします (${attempt}/${maxRetries}). ${delay}ms後に再試行...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2;
       } else {
@@ -106,6 +106,7 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // ★ JSONファイル（既存のライブラリ）から定理一覧を読み込む
   let theoremListString = "";
   const allKnownTheorems = new Set<string>();
 
@@ -139,30 +140,48 @@ export async function GET(request: NextRequest) {
 
 [目的 (Purpose)]
 入力された数学の答案画像を解析し、生徒の思考プロセスを「命題」「推論」「定理」からなる有向グラフとして抽出します。
+【超重要】問題に場合分けがある場合、全ての結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。
 
 [制約事項 (Rules)]
-0. 【絶対言語指定】:
-   - 出力するJSON内のすべての文字列（label、construction_processなど）は、**必ず日本語**で記述してください。英語での出力は固く禁じます。
 1. グラフの基本構造と完走の義務:
    - メインのフローは必ず「命題」→「推論」→「命題」と交互に配置してください。
-2. 定理の選択（自作の完全禁止・超厳守事項）:
-   - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを接続してください。
-   - 【警告】定理の \`label\` は、必ず末尾の [利用可能な定理ライブラリ] の一覧から最も適切なものを一つ選び、**一言一句違わず全く同じ文字列**をコピーして使用してください。
-   - 【警告】ライブラリに存在しない独自の定理名（例：[新規定理] Expansion... 等）を勝手に作成することは**一切禁止**します。必ず用意されたリストの既存ルールで代用してください。
-3. 推論ノードのラベルの調整:
-   - 「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」のように、何をどう変形したのかが式レベルで一目で分かる程度に簡潔な日本語で書いてください。
+   - 途中で抽出を打ち切ることは絶対に許されません。答案に書かれているすべての式を命題として抽出し、必ず最後まで対応するエッジを繋ぎ切ってください。
+2. 定理ノードの完全必須化とエッジの向き:
+   - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
+   - ライブラリに適切な定理がない場合は、AI自身で「移項のルール」等の名前をつけて定理ノードを自作してください。
+3. 【推論ノードのラベルの調整（超重要）】:
+   - 推論ノードの \`label\` は、細かすぎる長文解説にせず、どのような計算・式変形を行ったのかを**簡潔**に記述してください。
+   - ただし、「移項する」や「展開する」といった単語だけでは定理ノード名と重複してしまうため、**「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」「2つの条件の共通範囲を求める」**のように、何をどう変形したのかが式レベルで一目で分かる程度に、少しだけ丁寧に書いてください。
 4. 複数の命題の組み合わせ:
-   - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジを向けてください。
+   - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジ（from）を向けてください。
 5. 推論ノードの検証ステータス:
    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
+6. 出力キーの制限:
+   - 指定されたJSONスキーマ以外のキー（例: new_theorems）は絶対に出力しないでください。
 
 [出力形式 (Format)]
+- 以下のJSONフォーマットに厳密に従ってください。
+
 {
   "graph": {
-    "nodes": [ ... ],
-    "edges": [ ... ]
+    "nodes": [
+      { "id": "p1", "label": "x > 2", "type": "proposition" },
+      { "id": "p2", "label": "x <= 5", "type": "proposition" },
+      { "id": "t1", "label": "複数の条件を組み合わせる", "type": "theorem" },
+      { "id": "i1", "label": "2つの条件の共通範囲を求める", "type": "inference", "verification_status": "検証前" },
+      { "id": "p3", "label": "2 < x <= 5", "type": "proposition" }
+    ],
+    "edges": [
+      { "from": "p1", "to": "i1" },
+      { "from": "p2", "to": "i1" },
+      { "from": "t1", "to": "i1" },
+      { "from": "i1", "to": "p3" }
+    ]
   },
-  "construction_process": [ ... ]
+  "construction_process": [
+    "Step 1: 命題「x > 2」と「x <= 5」を抽出しました。",
+    "Step 2: 複数の条件を組み合わせる推論と定理を接続し、命題「2 < x <= 5」を導きました。"
+  ]
 }
 
 [利用可能な定理ライブラリ]
@@ -242,7 +261,7 @@ ${theoremListString}
       }
     }
 
-    const newlyDiscoveredTheorems: any[] = []; // 保険用のリスト（原則空になります）
+    const newlyDiscoveredTheorems: string[] = []; // 手動追加用の新規定理リスト
 
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
       let nodes = parsedData.graph.nodes;
@@ -250,18 +269,14 @@ ${theoremListString}
       let autoTheoremCount = 1;
 
       nodes.forEach((node: any) => {
-        // AIが禁止ルールを破って未知の定理を出力してしまった場合のセーフティネット
+        // ★ AIが生成した定理ノードをチェックし、知らないものなら [新規定理] を付与する
         if (node.type === 'theorem') {
           const cleanName = (node.label || '').replace(/^\[自動生成\]\s*/, '').trim();
           
-          if (cleanName && !Array.from(allKnownTheorems).includes(cleanName)) {
-            node.label = `[要修正:未知の定理] ${cleanName}`; 
-            newlyDiscoveredTheorems.push({
-              id: `rule_auto_${Date.now()}_${autoTheoremCount}`,
-              name: cleanName,
-              note: "AIが禁止ルールを破って生成した定理です。theorems.jsonに手動で同義のものを追加するか、AIに既存のものを選ばせる必要があります。"
-            });
-            allKnownTheorems.add(cleanName); 
+          if (cleanName && !allKnownTheorems.has(cleanName)) {
+            node.label = `[新規定理] ${cleanName}`; // 画面上で分かりやすくする
+            newlyDiscoveredTheorems.push(cleanName); // APIレスポンスに含める用
+            allKnownTheorems.add(cleanName); // 1回の処理中での重複付与を防ぐ
           }
         }
         
@@ -277,7 +292,7 @@ ${theoremListString}
 
           if (!hasTheorem) {
             const newTheoremId = `t_auto_${autoTheoremCount++}`;
-            const generatedLabel = `基本変形`; // 自動補完もシンプルな名前に
+            const generatedLabel = `[自動生成] ${node.label || '基本変形'}`;
             nodes.push({
               id: newTheoremId,
               type: 'theorem',
@@ -321,7 +336,7 @@ ${theoremListString}
       imageUrl: answer.image_url, 
       graph: parsedData.graph, 
       constructionProcess: parsedData.construction_process || [],
-      newTheoremsDetails: newlyDiscoveredTheorems,
+      newTheorems: newlyDiscoveredTheorems, // ★ 開発者が確認しやすいように追加
       metadata: { promptVersion: PROMPT_VERSION, theoremVersion: theoremVersion, cached: false },
       dbSaved: !dbSaveError,
       dbError: dbSaveError ? (dbSaveError.message || String(dbSaveError)) : null
