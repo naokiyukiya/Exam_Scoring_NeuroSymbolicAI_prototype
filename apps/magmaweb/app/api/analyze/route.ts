@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
-// ★ 確実に読み込める相対パスに戻しました
+
+// 相対パスで正しく指定
 import { supabase } from '../../../lib/supabase'
-import theorems from '../../../lib/constants/theorems.json';
+// theorems.json ではなく mathematics.json を読み込む
+import theorems from '../../../lib/constants/mathematics.json'; 
 
 // ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
+// ... (以下略)
 const PROMPT_VERSION = "1.29.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
@@ -127,7 +130,7 @@ export async function GET(request: NextRequest) {
     const base64Image = Buffer.from(arrayBuffer).toString('base64')
 
     const response = await generateWithRetry({
-      model: 'gemini-2.5-flash', // ★ 429エラー対策として 1.5-flash を指定
+      model: 'gemini-1.5-flash', // ★ 429エラー対策として 1.5-flash を指定
       contents: [
         {
           role: 'user',
