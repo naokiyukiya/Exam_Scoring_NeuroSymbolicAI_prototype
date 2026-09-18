@@ -3,34 +3,11 @@ import { GoogleGenAI } from '@google/genai'
 import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
-// ★ Next.js のAPIタイムアウト制限を60秒に延長
+// ★ タイムアウトを60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.19.0";
+const PROMPT_VERSION = "1.17.0";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
-
-/**
- * 503 (High Demand) などの一時的な過負荷エラー時に自動で再試行するヘルパー関数
- */
-async function generateWithRetry(params: any, maxRetries = 3, initialDelayMs = 2000) {
-  let delay = initialDelayMs;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await ai.models.generateContent(params);
-    } catch (err: any) {
-      const errMsg = err?.message || String(err);
-      const isOverloaded = err?.status === 503 || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('503');
-      
-      if (isOverloaded && attempt < maxRetries) {
-        console.warn(`[Gemini API Overloaded] サーバー混雑のため自動リトライします (${attempt}/${maxRetries}). ${delay}ms後に再試行...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // 待ち時間を倍増させる（指数バックオフ）
-      } else {
-        throw err; // 最大試行回数に達したか、別のエラーの場合はそのまま投げる
-      }
-    }
-  }
-}
 
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
@@ -124,8 +101,7 @@ export async function GET(request: NextRequest) {
     const arrayBuffer = await imageRes.arrayBuffer()
     const base64Image = Buffer.from(arrayBuffer).toString('base64')
 
-    // ★ 自動リトライ機能付きのラッパー関数経由で呼び出す
-    const response = await generateWithRetry({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash', 
       contents: [
         {
@@ -148,11 +124,10 @@ export async function GET(request: NextRequest) {
 2. 定理ノードの完全必須化とエッジの向き:
    - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
    - ライブラリに適切な定理がない場合は、AI自身で「移項のルール」等の名前をつけて定理ノードを自作してください。
-3. 【推論ノードのラベルの具体化（超重要）】:
-   - 推論ノードの \`label\` に「命題p11とp4から命題p12を導出」のような機械的で抽象的な表現を使うことは固く禁じます。
-   - 代わりに、どの命題に対してどのような式変形や条件適用を行ったのかを詳細かつ分かりやすく日本語で記述してください。
-4. 複数の命題の組み合わせ:
+3. 複数の命題の組み合わせ:
    - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジ（from）を向けてください。
+4. 【孤立ノードの絶対禁止と全結合の義務】（超重要）:
+   - "nodes" 配列に作成したすべての命題ノード・推論ノードは、必ず前後の文脈に合わせて "edges" で接続してください。ノードだけ作ってエッジの記述をサボることは固く禁じます。抽出したすべての命題が繋がるように論理を補完してください。
 5. 推論ノードの検証ステータス:
    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
 6. 出力キーの制限:
@@ -167,7 +142,7 @@ export async function GET(request: NextRequest) {
       { "id": "p1", "label": "x > 2", "type": "proposition" },
       { "id": "p2", "label": "x <= 5", "type": "proposition" },
       { "id": "t1", "label": "複数の条件を組み合わせる", "type": "theorem" },
-      { "id": "i1", "label": "命題p1の条件（x > 2）と命題p2を組み合わせて共通範囲を求める", "type": "inference", "verification_status": "検証前" },
+      { "id": "i1", "label": "命題p1とp2の条件を組み合わせる", "type": "inference", "verification_status": "検証前" },
       { "id": "p3", "label": "2 < x <= 5", "type": "proposition" }
     ],
     "edges": [
@@ -235,7 +210,7 @@ ${theoremListString}
         temperature: 0.0,
         maxOutputTokens: 8192
       }
-    });
+    })
 
     const rawText = response.text || ''
     let parsedData: any = null
@@ -265,6 +240,9 @@ ${theoremListString}
       const edges = parsedData.graph.edges;
       let autoTheoremCount = 1;
 
+      // =================================================================================
+      // ★ セーフティネット：推論ノードに定理が繋がっていなかったら自動で作成して繋ぐ
+      // =================================================================================
       nodes.forEach((node: any) => {
         if (node.type === 'inference') {
           const hasTheorem = edges.some((e: any) => {
@@ -289,6 +267,8 @@ ${theoremListString}
           }
         }
       });
+      
+      // ※ 孤立ノードを自動削除するロジック（ゴミ掃除機能）は撤廃しました。
     }
 
     let dbSaveError: any = null
