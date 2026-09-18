@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
     const base64Image = Buffer.from(arrayBuffer).toString('base64')
 
     const response = await generateWithRetry({
-      model: 'gemini-1.5-flash', // ★ 429エラー対策として 1.5-flash を指定
+      model: 'gemini-2.5-flash', // ← ここを 1.5 から 2.5 に戻す
       contents: [
         {
           role: 'user',
