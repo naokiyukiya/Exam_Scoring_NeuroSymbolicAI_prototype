@@ -1,17 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
-import { supabase } from '../../../lib/supabase';
+import { NextRequest, NextResponse } from 'next/server'
+import { GoogleGenAI } from '@google/genai'
+import { supabase } from '../../../lib/supabase'
 import theorems from '../../../lib/constants/theorems.json';
 
-// ★ Next.js のAPIタイムアウト制限を60秒に設定
+// ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.28.0";
+const PROMPT_VERSION = "1.22.0";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
-/**
- * 503 (High Demand) や 429 (Rate Limit / Quota) などの一時的過負荷時に自動で再試行するヘルパー関数
- */
 async function generateWithRetry(params: any, maxRetries = 3, initialDelayMs = 2000) {
   let delay = initialDelayMs;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -19,21 +16,12 @@ async function generateWithRetry(params: any, maxRetries = 3, initialDelayMs = 2
       return await ai.models.generateContent(params);
     } catch (err: any) {
       const errMsg = err?.message || String(err);
-      const isRetryable =
-        err?.status === 503 ||
-        err?.status === 429 ||
-        errMsg.includes('high demand') ||
-        errMsg.includes('UNAVAILABLE') ||
-        errMsg.includes('503') ||
-        errMsg.includes('429') ||
-        errMsg.includes('RESOURCE_EXHAUSTED');
-
-      if (isRetryable && attempt < maxRetries) {
-        console.warn(
-          `[Gemini API Overloaded/Quota] サーバー混雑または制限検知のためリトライ (${attempt}/${maxRetries}). ${delay}ms後に再試行...`
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        delay *= 2; // 指数バックオフ
+      const isOverloaded = err?.status === 503 || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('503');
+      
+      if (isOverloaded && attempt < maxRetries) {
+        console.warn(`[Gemini API Overloaded] サーバー混雑のため自動リトライします (${attempt}/${maxRetries}). ${delay}ms後に再試行...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
       } else {
         throw err;
       }
@@ -41,9 +29,6 @@ async function generateWithRetry(params: any, maxRetries = 3, initialDelayMs = 2
   }
 }
 
-/**
- * トークン切れ等で途中で切れた不完全なJSON文字列を安全に閉じて修復する関数
- */
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
   const lastValidIndex = Math.max(
@@ -64,16 +49,13 @@ function repairTruncatedJson(jsonStr: string): string {
   for (let i = 0; i < cleaned.length; i++) {
     const char = cleaned[i];
     if (escape) {
-      escape = false;
-      continue;
+      escape = false; continue;
     }
     if (char === '\\') {
-      escape = true;
-      continue;
+      escape = true; continue;
     }
     if (char === '"') {
-      inString = !inString;
-      continue;
+      inString = !inString; continue;
     }
     if (!inString) {
       if (char === '{' || char === '[') {
@@ -96,71 +78,53 @@ function repairTruncatedJson(jsonStr: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const answerId = searchParams.get('answerId');
+  const { searchParams } = new URL(request.url)
+  const answerId = searchParams.get('answerId')
 
-  if (!answerId) {
-    return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
-  }
+  if (!answerId) return NextResponse.json({ error: 'Missing answerId' }, { status: 400 })
 
-  const { data: answer, error } = await supabase
-    .from('posts')
-    .select('image_url')
-    .eq('id', answerId)
-    .single();
+  const { data: answer, error } = await supabase.from('posts').select('image_url').eq('id', answerId).single()
 
   if (error || !answer?.image_url) {
-    return NextResponse.json({ error: '画像URLを取得できませんでした' }, { status: 404 });
+    return NextResponse.json({ error: '画像URLを取得できませんでした' }, { status: 404 })
   }
 
   const data: any = theorems;
   const theoremVersion = data?.version || "unknown";
 
-  // キャッシュの確認（プロンプトバージョン一致時のみキャッシュ返却）
   const { data: existingGraph } = await supabase
     .from('logic_graphs')
     .select('graph_data, construction_process, prompt_version, theorem_version')
     .eq('post_id', answerId)
-    .maybeSingle();
+    .maybeSingle()
 
   if (existingGraph && existingGraph.prompt_version === PROMPT_VERSION) {
     return NextResponse.json({
       imageUrl: answer.image_url,
       graph: existingGraph.graph_data,
       constructionProcess: existingGraph.construction_process,
-      metadata: {
-        promptVersion: existingGraph.prompt_version,
-        theoremVersion: existingGraph.theorem_version,
-        cached: true
-      }
-    });
+      metadata: { promptVersion: existingGraph.prompt_version, theoremVersion: existingGraph.theorem_version, cached: true }
+    })
   }
 
-  // 定理ライブラリの展開
   let theoremListString = "";
-  const allKnownTheorems = new Set<string>();
-
   try {
     if (data?.theorems?.rule_groups) {
-      data.theorems.rule_groups
-        .flatMap((g: any) => g.rules || [])
-        .forEach((r: any) => allKnownTheorems.add(r.name));
+      theoremListString = data.theorems.rule_groups.flatMap((g: any) => g.rules || []).map((r: any) => `- ${r.name}`).join('\n');
     } else if (Array.isArray(data)) {
-      data.forEach((r: any) => allKnownTheorems.add(r.name));
+      theoremListString = data.map((r: any) => `- ${r.name}`).join('\n');
     }
-    theoremListString = Array.from(allKnownTheorems).map((name) => `- ${name}`).join('\n');
   } catch (err) {
     console.error("定理データの展開に失敗しました", err);
   }
 
   try {
-    const imageRes = await fetch(answer.image_url);
-    const arrayBuffer = await imageRes.arrayBuffer();
-    const base64Image = Buffer.from(arrayBuffer).toString('base64');
+    const imageRes = await fetch(answer.image_url)
+    const arrayBuffer = await imageRes.arrayBuffer()
+    const base64Image = Buffer.from(arrayBuffer).toString('base64')
 
     const response = await generateWithRetry({
-      // クオータ制限を回避しやすい gemini-1.5-flash を設定（プランに応じて 2.5-flash に変更可）
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash', 
       contents: [
         {
           role: 'user',
@@ -173,24 +137,24 @@ export async function GET(request: NextRequest) {
 
 [目的 (Purpose)]
 入力された数学の答案画像を解析し、生徒の思考プロセスを「命題」「推論」「定理」からなる有向グラフとして抽出します。
-問題に場合分けがある場合は、すべての計算プロセスを省略せずに完全に抽出しきってください。
+【超重要】問題に場合分けがある場合、全ての結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。
 
 [制約事項 (Rules)]
-0. 【絶対言語指定】:
-   - 出力するJSON内のすべての文字列（label、construction_processなど）は、**必ず日本語**で記述してください。英語での出力は固く禁じます。
 1. グラフの基本構造と完走の義務:
    - メインのフローは必ず「命題」→「推論」→「命題」と交互に配置してください。
    - 途中で抽出を打ち切ることは絶対に許されません。答案に書かれているすべての式を命題として抽出し、必ず最後まで対応するエッジを繋ぎ切ってください。
-2. 定理の選択（自作の完全禁止・超厳守事項）:
-   - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ」の向きで接続してください。
-   - 【警告】定理の label は、必ず末尾の [利用可能な定理ライブラリ] の一覧から最も適切なものを一つ選び、**一言一句違わず全く同じ文字列**をコピーして使用してください。
-   - 【警告】ライブラリに存在しない独自の定理名（例: [新規定理] ○○ など）を勝手に作成することは**一切禁止**します。必ず用意されたリストの既存ルールの中から代用してください。
-3. 推論ノードのラベルの調整:
-   - 細かすぎる長文解説にせず、「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」「2つの条件の共通範囲を求める」のように、何をどう変形したのかが式レベルで一目で分かる程度に簡潔な日本語で書いてください。
+2. 定理ノードの完全必須化とエッジの向き:
+   - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
+   - ライブラリに適切な定理がない場合は、AI自身で「移項のルール」等の名前をつけて定理ノードを自作してください。
+3. 【推論ノードのラベルの調整（超重要）】:
+   - 推論ノードの \`label\` は、細かすぎる長文解説にせず、どのような計算・式変形を行ったのかを**簡潔**に記述してください。
+   - ただし、「移項する」や「展開する」といった単語だけでは定理ノード名と重複してしまうため、**「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」「2つの条件の共通範囲を求める」**のように、何をどう変形したのかが式レベルで一目で分かる程度に、少しだけ丁寧に書いてください。
 4. 複数の命題の組み合わせ:
-   - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジを向けてください。
+   - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジ（from）を向けてください。
 5. 推論ノードの検証ステータス:
    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
+6. 出力キーの制限:
+   - 指定されたJSONスキーマ以外のキー（例: new_theorems）は絶対に出力しないでください。
 
 [出力形式 (Format)]
 - 以下のJSONフォーマットに厳密に従ってください。
@@ -267,40 +231,40 @@ ${theoremListString}
           required: ['graph']
         },
         temperature: 0.0,
+        // ★ タイムアウトを回避しつつ、以前(8192)の倍のトークン数を許可
         maxOutputTokens: 16384
       }
     });
 
-    const rawText = response.text || '';
-    let parsedData: any = null;
+    const rawText = response.text || ''
+    let parsedData: any = null
 
-    let cleanText = rawText.trim();
-    if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim();
-    else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim();
+    let cleanText = rawText.trim()
+    if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim()
+    else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim()
 
     try {
-      parsedData = JSON.parse(cleanText);
+      parsedData = JSON.parse(cleanText)
     } catch (parseErr1) {
       try {
-        const fixedText = cleanText.replace(/\\/g, '\\\\').replace(/\\\\"|\\\\'|\\\\n/g, (match) => match.substring(2));
-        parsedData = JSON.parse(fixedText);
+        const fixedText = cleanText.replace(/\\/g, '\\\\').replace(/\\\\"|\\\\'|\\\\n/g, (match) => match.substring(2))
+        parsedData = JSON.parse(fixedText)
       } catch (parseErr2) {
         try {
-          const repairedText = repairTruncatedJson(cleanText);
-          parsedData = JSON.parse(repairedText);
+          const repairedText = repairTruncatedJson(cleanText)
+          parsedData = JSON.parse(repairedText)
         } catch (parseErr3) {
-          return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText }, { status: 500 });
+          return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText })
         }
       }
     }
 
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
-      const nodes = parsedData.graph.nodes;
+      let nodes = parsedData.graph.nodes;
       const edges = parsedData.graph.edges;
       let autoTheoremCount = 1;
 
       nodes.forEach((node: any) => {
-        // 推論ノードに定理が繋がっていない場合の強制補完処理
         if (node.type === 'inference') {
           const hasTheorem = edges.some((e: any) => {
             if (e.to === node.id) {
@@ -315,7 +279,7 @@ ${theoremListString}
             nodes.push({
               id: newTheoremId,
               type: 'theorem',
-              label: '基本変形'
+              label: `[自動生成] ${node.label || '基本変形'}`
             });
             edges.push({
               from: newTheoremId,
@@ -326,49 +290,41 @@ ${theoremListString}
       });
     }
 
-    let dbSaveError: any = null;
+    let dbSaveError: any = null
     if (parsedData && parsedData.graph) {
       try {
-        const { data: existing } = await supabase
-          .from('logic_graphs')
-          .select('id')
-          .eq('post_id', answerId)
-          .maybeSingle();
-
+        const { data: existing } = await supabase.from('logic_graphs').select('id').eq('post_id', answerId).maybeSingle()
         const payload = {
           graph_data: parsedData.graph,
           construction_process: parsedData.construction_process || [],
           status: 'unverified',
-          prompt_version: PROMPT_VERSION,
-          theorem_version: theoremVersion,
+          prompt_version: PROMPT_VERSION,       
+          theorem_version: theoremVersion,      
           updated_at: new Date().toISOString()
         };
 
         if (existing) {
-          const { error } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id);
-          if (error) dbSaveError = error;
+          const { error } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id)
+          if (error) dbSaveError = error
         } else {
-          const { error } = await supabase.from('logic_graphs').insert({ post_id: answerId, ...payload });
-          if (error) dbSaveError = error;
+          const { error } = await supabase.from('logic_graphs').insert({ post_id: answerId, ...payload })
+          if (error) dbSaveError = error
         }
       } catch (dbEx) {
-        dbSaveError = dbEx;
+        dbSaveError = dbEx
       }
     }
 
-    return NextResponse.json({
-      imageUrl: answer.image_url,
-      graph: parsedData.graph,
+    return NextResponse.json({ 
+      imageUrl: answer.image_url, 
+      graph: parsedData.graph, 
       constructionProcess: parsedData.construction_process || [],
       metadata: { promptVersion: PROMPT_VERSION, theoremVersion: theoremVersion, cached: false },
       dbSaved: !dbSaveError,
       dbError: dbSaveError ? (dbSaveError.message || String(dbSaveError)) : null
-    });
+    })
 
   } catch (err: any) {
-    return NextResponse.json(
-      { error: 'APIリクエストで致命的エラーが発生しました', details: err?.message || String(err) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'APIリクエストで致命的エラーが発生しました', details: err?.message || String(err) }, { status: 500 })
   }
 }
