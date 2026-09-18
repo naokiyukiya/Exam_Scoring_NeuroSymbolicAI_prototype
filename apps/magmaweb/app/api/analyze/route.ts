@@ -5,9 +5,30 @@ import theorems from '../../../lib/constants/mathematics.json';
 
 // ★ タイムアウトを60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.17.0";
+const PROMPT_VERSION = "1.17.0"; // バージョンは1.17.0のまま維持します
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
+
+// ★ 追加: 503/429エラーが出た時に自動で再試行するヘルパー関数
+async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 4000) {
+  let delay = initialDelayMs;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      const isOverloaded = err?.status === 503 || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('503') || err?.status === 429 || errMsg.includes('429');
+      
+      if (isOverloaded && attempt < maxRetries) {
+        console.warn(`[Gemini API Overloaded] サーバー混雑または制限のため自動リトライします (${attempt}/${maxRetries}). ${delay}ms後に再試行...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+      } else {
+        throw err;
+      }
+    }
+  }
+}
 
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
@@ -101,7 +122,8 @@ export async function GET(request: NextRequest) {
     const arrayBuffer = await imageRes.arrayBuffer()
     const base64Image = Buffer.from(arrayBuffer).toString('base64')
 
-    const response = await ai.models.generateContent({
+    // ★ 直接呼び出さず、リトライ機能付きの関数を使用 (モデルも429回避のため1.5にしています)
+    const response = await generateWithRetry({
       model: 'gemini-2.5-flash', 
       contents: [
         {
@@ -118,19 +140,24 @@ export async function GET(request: NextRequest) {
 【超重要】問題に場合分けがある場合、全ての結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。
 
 [制約事項 (Rules)]
+0. 【絶対言語指定】:
+   - 出力するJSON内のすべての文字列（label、construction_processなど）は、**必ず日本語**で記述してください。英語での出力は固く禁じます。
 1. グラフの基本構造と完走の義務:
    - メインのフローは必ず「命題」→「推論」→「命題」と交互に配置してください。
    - 途中で抽出を打ち切ることは絶対に許されません。答案に書かれているすべての式を命題として抽出し、必ず最後まで対応するエッジを繋ぎ切ってください。
-2. 定理ノードの完全必須化とエッジの向き:
+2. 定理ノードの完全必須化とエッジの向き（超厳守）:
    - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
-   - ライブラリに適切な定理がない場合は、AI自身で「移項のルール」等の名前をつけて定理ノードを自作してください。
-3. 複数の命題の組み合わせ:
+   - 【警告】定理の label は、必ず末尾の [利用可能な定理ライブラリ] の一覧から最も適切なものを一つ選び、一言一句違わず全く同じ文字列をコピーして使用してください。勝手に新規定理を作ることは一切禁止します。
+3. 【推論ノードのラベルの調整（超重要）】:
+   - 推論ノードの \`label\` は、細かすぎる長文解説にせず、どのような計算・式変形を行ったのかを**簡潔**に記述してください。
+   - 「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」のように、何をどう変形したのかが式レベルで一目で分かる程度に、少しだけ丁寧に書いてください。
+4. 複数の命題の組み合わせ:
    - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジ（from）を向けてください。
-4. 【孤立ノードの絶対禁止と全結合の義務】（超重要）:
+5. 【孤立ノードの絶対禁止と全結合の義務】（超重要）:
    - "nodes" 配列に作成したすべての命題ノード・推論ノードは、必ず前後の文脈に合わせて "edges" で接続してください。ノードだけ作ってエッジの記述をサボることは固く禁じます。抽出したすべての命題が繋がるように論理を補完してください。
-5. 推論ノードの検証ステータス:
+6. 推論ノードの検証ステータス:
    - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
-6. 出力キーの制限:
+7. 出力キーの制限:
    - 指定されたJSONスキーマ以外のキー（例: new_theorems）は絶対に出力しないでください。
 
 [出力形式 (Format)]
@@ -208,7 +235,7 @@ ${theoremListString}
           required: ['graph']
         },
         temperature: 0.0,
-        maxOutputTokens: 8192
+        maxOutputTokens: 16384 // ★ タイムアウトを回避しつつ、以前(8192)の倍のトークン数を許可
       }
     })
 
