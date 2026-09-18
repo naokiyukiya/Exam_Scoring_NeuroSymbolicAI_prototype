@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
-import { supabase } from '../../../lib/supabase'
-import theorems from '../../../lib/constants/theorems.json';
+// ★ 相対パス (../../../) から Next.js 推奨の絶対パスエイリアス (@/) に修正
+import { supabase } from '@/lib/supabase'
+import theorems from '@/lib/constants/theorems.json';
 
 // ★ Next.js のAPIタイムアウト制限を60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.22.0";
+const PROMPT_VERSION = "1.21.1"; // キャッシュ更新のためマイナーバージョンを上げました
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
+/**
+ * 503 (High Demand) などの一時的な過負荷エラー時に自動で再試行するヘルパー関数
+ */
 async function generateWithRetry(params: any, maxRetries = 3, initialDelayMs = 2000) {
   let delay = initialDelayMs;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -231,8 +235,8 @@ ${theoremListString}
           required: ['graph']
         },
         temperature: 0.0,
-        // ★ タイムアウトを回避しつつ、以前(8192)の倍のトークン数を許可
-        maxOutputTokens: 16384
+        // ★ 最大出力トークン数をモデルの上限である 65536 に引き上げ
+        maxOutputTokens: 65536
       }
     });
 
