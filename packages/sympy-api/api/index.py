@@ -16,15 +16,13 @@ def health_check():
 @app.post("/api/verify")
 def verify_expressions(req: VerifyRequest):
     try:
-        # 省略された掛け算（ab -> a*b）や、"=" を "Eq" に変換する設定
         transformations = standard_transformations + (implicit_multiplication_application, convert_equals_signs)
         
-        e1 = parse_expr(req.expr1, transformations=transformations)
-        e2 = parse_expr(req.expr2, transformations=transformations)
+        # 【変更】 .doit() を追加し、シグマ(Sum)や微分積分などを先に計算させておく！
+        e1 = parse_expr(req.expr1, transformations=transformations).doit()
+        e2 = parse_expr(req.expr2, transformations=transformations).doit()
         
-        # 【追加】もしAIが「A = B」という形（等式）で送ってきた場合の特別対応
         if isinstance(e2, sympy.core.relational.Equality):
-            # 等式の左辺(lhs)と右辺(rhs)が同じものか検証してあげる
             diff = sympy.simplify(e2.lhs - e2.rhs)
             return {"is_equal": bool(diff == 0)}
             
@@ -32,7 +30,6 @@ def verify_expressions(req: VerifyRequest):
             diff = sympy.simplify(e1.lhs - e1.rhs)
             return {"is_equal": bool(diff == 0)}
         
-        # 通常の処理（式と式の比較）
         diff = sympy.simplify(e1 - e2)
         return {"is_equal": bool(diff == 0)}
         
