@@ -489,7 +489,7 @@ console.log("🔎 ミス分析結果:", mistakeAnalysis)
       </div>
     </div>
   )
-}
+  }
 
 const styles = {
   container: { width: '100%', display: 'flex', flexDirection: 'column' as const },
