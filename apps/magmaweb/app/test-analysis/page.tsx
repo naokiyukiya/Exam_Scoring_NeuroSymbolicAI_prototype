@@ -6,6 +6,7 @@ import { findMistakes } from '../../lib/findMistakes'
 export default function TestAnalysisPage() {
   const analysis = findMistakes(testData.graph)
   const results = analysis.results
+  const theoremCounts = analysis.theoremCounts
 
   return (
     <main className="p-8">
@@ -13,6 +14,7 @@ export default function TestAnalysisPage() {
         誤り分析テスト
       </h1>
 
+      {/* 問題ありノード */}
       {results.length === 0 ? (
         <p>「問題あり」のノードはありません。</p>
       ) : (
@@ -50,6 +52,30 @@ export default function TestAnalysisPage() {
           </div>
         ))
       )}
+
+      {/* 定理ごとのミス回数 */}
+      <div className="mt-8 rounded-xl border p-5">
+        <h2 className="text-xl font-bold">
+          定理ごとのミス回数
+        </h2>
+
+        {Object.keys(theoremCounts).length === 0 ? (
+          <p className="mt-3 text-gray-500">
+            ミスした定理はありません。
+          </p>
+        ) : (
+          Object.entries(theoremCounts).map(
+            ([theorem, count]) => (
+              <p
+                key={theorem}
+                className="mt-3"
+              >
+                ・{theorem}：{count}回
+              </p>
+            )
+          )
+        )}
+      </div>
     </main>
   )
 }
