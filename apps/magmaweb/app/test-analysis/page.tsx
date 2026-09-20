@@ -35,12 +35,12 @@ export default function TestAnalysisPage() {
               関係する定理
             </h2>
 
-            {result.theorems.length === 0 ? (
+             {result.relatedConcepts.length === 0 ? (
               <p className="mt-2 text-gray-500">
                 定理が見つかりません
               </p>
             ) : (
-              result.theorems.map((theorem) => (
+              result.relatedConcepts.map((concept) => (
                 <p
                   key={theorem.id}
                   className="mt-2"
