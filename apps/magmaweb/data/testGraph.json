@@ -2,9 +2,22 @@
   "graph": {
     "nodes": [
       {
-        "id": "p1",
-        "type": "proposition",
-        "label": "x + y <= x^2 + y^2"
+        "id": "i1",
+        "type": "inference",
+        "label": "平方完成して変形する①",
+        "verification_status": "問題あり"
+      },
+      {
+        "id": "i2",
+        "type": "inference",
+        "label": "平方完成して変形する②",
+        "verification_status": "問題あり"
+      },
+      {
+        "id": "i3",
+        "type": "inference",
+        "label": "円の領域を判断する",
+        "verification_status": "問題あり"
       },
       {
         "id": "t1",
@@ -12,29 +25,23 @@
         "label": "不等式の変形と平方完成"
       },
       {
-        "id": "i1",
-        "type": "inference",
-        "label": "平方完成して変形する",
-        "verification_status": "問題あり"
-      },
-      {
-        "id": "p2",
-        "type": "proposition",
-        "label": "(x - 1/2)^2 + (y - 1/2)^2 >= 1/2"
+        "id": "t2",
+        "type": "theorem",
+        "label": "円の不等式と領域の関係"
       }
     ],
     "edges": [
-      {
-        "from": "p1",
-        "to": "i1"
-      },
       {
         "from": "t1",
         "to": "i1"
       },
       {
-        "from": "i1",
-        "to": "p2"
+        "from": "t1",
+        "to": "i2"
+      },
+      {
+        "from": "t2",
+        "to": "i3"
       }
     ]
   }
