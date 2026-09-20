@@ -42,10 +42,10 @@ export default function TestAnalysisPage() {
             ) : (
               result.relatedConcepts.map((concept) => (
                 <p
-                  key={theorem.id}
+                  key={concept.id}
                   className="mt-2"
                 >
-                  ・{theorem.label}
+                  ・{concept.label}
                 </p>
               ))
             )}
