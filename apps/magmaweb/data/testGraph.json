@@ -1,0 +1,41 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "id": "p1",
+        "type": "proposition",
+        "label": "x + y <= x^2 + y^2"
+      },
+      {
+        "id": "t1",
+        "type": "theorem",
+        "label": "不等式の変形と平方完成"
+      },
+      {
+        "id": "i1",
+        "type": "inference",
+        "label": "平方完成して変形する",
+        "verification_status": "問題あり"
+      },
+      {
+        "id": "p2",
+        "type": "proposition",
+        "label": "(x - 1/2)^2 + (y - 1/2)^2 >= 1/2"
+      }
+    ],
+    "edges": [
+      {
+        "from": "p1",
+        "to": "i1"
+      },
+      {
+        "from": "t1",
+        "to": "i1"
+      },
+      {
+        "from": "i1",
+        "to": "p2"
+      }
+    ]
+  }
+}
