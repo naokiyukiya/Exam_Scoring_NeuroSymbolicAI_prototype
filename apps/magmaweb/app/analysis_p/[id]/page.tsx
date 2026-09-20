@@ -13,20 +13,20 @@ type GraphData = {
   edges: Array<{ from: string; to: string }>
 }
 
-export default function AnalysisPage({ params }: { params: { id: string } }) {
+export default function AnalysisPhysicsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [answerData, setAnswerData] = useState<any>(null)
- 
+  
   // 厳密な構造化DAGデータをステートで持つ
   const [graphData, setGraphData] = useState<GraphData | null>(null)
- 
-  // 💡 AIが生成したグラフ構築用プログラム（JSON文字列）をそのまま保持するステート
+  
+  // AIが生成したグラフ構築用プログラム（JSON文字列）をそのまま保持するステート
   const [rawGraphData, setRawGraphData] = useState<string | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [isVerifying, setIsVerifying] = useState(false)
 
-  // 既存の処理を壊さずにエラーを画面に露出させるためのデバッグ用ステート
+  // デバッグ用ステート
   const [debugError, setDebugError] = useState<string | null>(null)
   const [debugDetails, setDebugDetails] = useState<string | null>(null)
   const [debugRawText, setDebugRawText] = useState<string | null>(null)
@@ -58,8 +58,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         if (pError) throw pError
         setAnswerData(post)
 
-        // ② api/analyze/route.ts の仕様 (GET / ?answerId=) に完全に合わせる
-        const res = await fetch(`/api/analyze?answerId=${params.id}`, {
+        // ② ★物理用API (/api/analyze_p) を呼び出す
+        const res = await fetch(`/api/analyze_p?answerId=${params.id}`, {
           method: 'GET',
         })
 
@@ -78,12 +78,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
           if (json.rawText) setDebugRawText(json.rawText)
           return
         }
-       
+        
         // APIから戻ってきた { imageUrl, graph } の構造から graph を抽出
         if (json.graph) {
           setGraphData(json.graph)
-         
-          // 受け取ったJSONデータ（プログラム）を整形して文字列として保存
+          
           const formattedJson = JSON.stringify({
             graph: json.graph,
             new_theorems: json.newTheorems || []
@@ -92,7 +91,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         }
 
       } catch (e: any) {
-        console.error('診断書データ同期エラー:', e)
+        console.error('物理診断書データ同期エラー:', e)
         setDebugError('フロントエンドの処理中に例外が発生しました')
         setDebugDetails(e?.message || String(e))
       } finally {
@@ -103,7 +102,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     loadAnalysisData()
   }, [params.id])
 
-  // 💡 追加：論理検証ボタンが押されたときの処理（verification_statusのみを更新する）
+  // ★ 物理用論理・数式検証ボタンの処理 ( /api/verify または SymPy検証用 )
   const handleVerify = async () => {
     if (!graphData) return
     setIsVerifying(true)
@@ -127,7 +126,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         setRawGraphData(formattedJson)
       }
     } catch (e: any) {
-      console.error('検証エラー:', e)
+      console.error('物理検証エラー:', e)
       alert(e?.message || '検証中にエラーが発生しました')
     } finally {
       setIsVerifying(false)
@@ -135,7 +134,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   }
 
   if (loading) {
-    return <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>論理構造の解析中…</div>
+    return <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>物理構造の解析中…</div>
   }
 
   if (!answerData) {
@@ -149,10 +148,10 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         <button onClick={() => router.back()} style={styles.backButton}>
           <CircleArrowLeft size={30} />
         </button>
-        <h1 style={styles.title}>論理構造 診断書</h1>
+        <h1 style={styles.title}>物理構造・推論 診断書</h1>
       </div>
 
-      {/* 🚨 デバッグモニター（エラー発生時のみ最上部に自動出現） */}
+      {/* デバッグモニター */}
       {(debugError || debugDetails || debugRawText) && (
         <div style={styles.debugBox}>
           <div style={styles.debugHeader}>
@@ -188,20 +187,19 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
           />
         </div>
 
-        {/* 右側：解析された論理のDAG構造可視化エリア */}
+        {/* 右側：解析された物理DAG構造可視化エリア */}
         <div style={styles.analysisSection}>
           <div style={styles.analysisHeaderRow}>
             <div style={styles.analysisHeader}>
               <Layers size={20} color="#4D96FF" />
-              <span style={styles.analysisTitle}>解析された論理のDAG構造</span>
+              <span style={styles.analysisTitle}>解析された物理推論のDAG構造</span>
             </div>
-            {/* 💡 追加：右上付近に配置した検証開始ボタン */}
             <button 
               onClick={handleVerify} 
               disabled={isVerifying || !graphData}
               style={styles.verifyButton}
             >
-              {isVerifying ? '検証中...' : '論理を検証する'}
+              {isVerifying ? '検証中...' : '物理推論を検証する'}
             </button>
           </div>
           <div style={styles.analysisBody}>
@@ -209,15 +207,15 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
               <DagVisualizer graphData={graphData} />
             ) : (
               <div style={styles.errorText}>
-                論理構造のグラフデータを読み込めませんでした。上のデバッグモニターを確認してください。
+                物理構造のグラフデータを読み込めませんでした。上のデバッグモニターを確認してください。
               </div>
             )}
           </div>
 
-          {/* 💡 グラフ構造の下に、AIが作成したプログラム（JSON文字列）を表示するエリア */}
+          {/* グラフ構造プログラム（JSON）表示エリア */}
           {rawGraphData && (
             <div style={styles.codeContainer}>
-              <h3 style={styles.codeTitle}>📝 グラフ構築プログラム (JSONデータ)</h3>
+              <h3 style={styles.codeTitle}>📝 物理グラフ構築プログラム (JSONデータ)</h3>
               <pre style={styles.codeBlock}>
                 {rawGraphData}
               </pre>
@@ -274,7 +272,7 @@ const styles = {
   },
   analysisHeaderRow: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justify: 'space-between',
     alignItems: 'center',
     borderBottom: '1px solid #eee',
     paddingBottom: 10,
@@ -322,7 +320,6 @@ const styles = {
   debugPre: { backgroundColor: '#edf2f7', padding: '8px', borderRadius: '6px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace' },
   debugRawPre: { backgroundColor: '#1a202c', color: '#aeebd0', padding: '12px', borderRadius: '8px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.4 },
 
-  // 💡 プログラム（JSON文字列）を画面下部に表示するためのCSSスタイル
   codeContainer: {
     marginTop: '24px',
     padding: '16px',
