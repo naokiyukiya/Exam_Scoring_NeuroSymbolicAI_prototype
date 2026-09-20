@@ -4,7 +4,8 @@ import testData from '../../data/testGraph.json'
 import { findMistakes } from '../../lib/findMistakes'
 
 export default function TestAnalysisPage() {
-  const results = findMistakes(testData.graph)
+  const analysis = findMistakes(testData.graph)
+  const results = analysis.results
 
   return (
     <main className="p-8">
