@@ -29,6 +29,9 @@ interface LogicGraph {
 // =========================================================================
 // 2. SymPy向け 数式整形ヘルパー
 // =========================================================================
+// =========================================================================
+// 2. SymPy向け 数式整形ヘルパー
+// =========================================================================
 function formatForSympy(str: string): string {
   if (!str) return '';
   
@@ -42,14 +45,7 @@ function formatForSympy(str: string): string {
   // SymPyは累乗を ^ ではなく ** で計算するため変換
   s = s.replace(/\^/g, '**');
 
-  // 等式 (A = B) の場合は、差分 (A) - (B) を計算させる形に変換する
-  const eqIndex = s.indexOf('=');
-  if (eqIndex !== -1 && !s.includes('<') && !s.includes('>')) {
-    const lhs = s.substring(0, eqIndex);
-    const rhs = s.substring(eqIndex + 1);
-    return `(${lhs}) - (${rhs})`;
-  }
-  
+  // 等式を無理やり引き算にする処理は削除し、そのまま返す
   return s;
 }
 

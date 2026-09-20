@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import sympy
+from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application, convert_equals_signs
 
 app = FastAPI()
 
@@ -15,11 +16,12 @@ def health_check():
 @app.post("/api/verify")
 def verify_expressions(req: VerifyRequest):
     try:
-        # 文字列をSymPyの数式に変換（※簡易的な実装です）
-        e1 = sympy.sympify(req.expr1)
-        e2 = sympy.sympify(req.expr2)
+        # 省略された掛け算（ab -> a*b）や、"=" を "Eq" に変換する設定
+        transformations = standard_transformations + (implicit_multiplication_application, convert_equals_signs)
         
-        # 式の差をとり、展開・簡約して0になれば等価と判定
+        e1 = parse_expr(req.expr1, transformations=transformations)
+        e2 = parse_expr(req.expr2, transformations=transformations)
+        
         diff = sympy.simplify(e1 - e2)
         is_equal = bool(diff == 0)
         
