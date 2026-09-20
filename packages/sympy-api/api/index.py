@@ -22,9 +22,19 @@ def verify_expressions(req: VerifyRequest):
         e1 = parse_expr(req.expr1, transformations=transformations)
         e2 = parse_expr(req.expr2, transformations=transformations)
         
-        diff = sympy.simplify(e1 - e2)
-        is_equal = bool(diff == 0)
+        # 【追加】もしAIが「A = B」という形（等式）で送ってきた場合の特別対応
+        if isinstance(e2, sympy.core.relational.Equality):
+            # 等式の左辺(lhs)と右辺(rhs)が同じものか検証してあげる
+            diff = sympy.simplify(e2.lhs - e2.rhs)
+            return {"is_equal": bool(diff == 0)}
+            
+        if isinstance(e1, sympy.core.relational.Equality):
+            diff = sympy.simplify(e1.lhs - e1.rhs)
+            return {"is_equal": bool(diff == 0)}
         
-        return {"is_equal": is_equal}
+        # 通常の処理（式と式の比較）
+        diff = sympy.simplify(e1 - e2)
+        return {"is_equal": bool(diff == 0)}
+        
     except Exception as e:
         return {"error": str(e)}
