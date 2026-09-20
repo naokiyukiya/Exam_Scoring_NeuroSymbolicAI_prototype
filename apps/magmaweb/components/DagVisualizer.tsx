@@ -488,7 +488,7 @@ console.log("🔎 ミス分析結果:", mistakeAnalysis)
         </ReactFlow>
       </div>
     </div>
-  )}
+  )
 
 const styles = {
   container: { width: '100%', display: 'flex', flexDirection: 'column' as const },
