@@ -21,28 +21,24 @@ export function findMistakes(graph: Graph) {
     (node) => node.verification_status === "問題あり"
   )
 
-  // ② 問題ありノードごとに調べる
-  return problemNodes.map((problemNode) => {
-    // 問題ありノードにつながっているエッジを探す
+  // ② 問題ありノードから、関係する定理を探す
+  const results = problemNodes.map((problemNode) => {
     const connectedEdges = graph.edges.filter(
       (edge) =>
         edge.from === problemNode.id ||
         edge.to === problemNode.id
     )
 
-    // ③ 接続しているノードのIDを取得
     const connectedNodeIds = connectedEdges.map((edge) =>
       edge.from === problemNode.id
         ? edge.to
         : edge.from
     )
 
-    // ④ 接続しているノードを取得
     const connectedNodes = graph.nodes.filter((node) =>
       connectedNodeIds.includes(node.id)
     )
 
-    // ⑤ theorem（定理）だけ取り出す
     const theorems = connectedNodes.filter(
       (node) => node.type === "theorem"
     )
@@ -52,4 +48,19 @@ export function findMistakes(graph: Graph) {
       theorems,
     }
   })
+
+  // ③ 定理ごとのミス回数を数える
+  const theoremCounts: Record<string, number> = {}
+
+  results.forEach((result) => {
+    result.theorems.forEach((theorem) => {
+      theoremCounts[theorem.label] =
+        (theoremCounts[theorem.label] || 0) + 1
+    })
+  })
+
+  return {
+    results,
+    theoremCounts,
+  }
 }
