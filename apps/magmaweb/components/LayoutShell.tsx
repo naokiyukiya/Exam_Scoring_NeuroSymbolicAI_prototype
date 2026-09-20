@@ -44,6 +44,9 @@ export default function LayoutShell({ children }: Props) {
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [uploading, setUploading] = useState(false)
 
+  // 解析モードの指定 ('math': 数学 / 'physics': 物理)
+  const [mode, setMode] = useState<'math' | 'physics'>('math')
+
   const [simpleFile, setSimpleFile] = useState<File | null>(null)
   const [simpleUploading, setSimpleUploading] = useState(false)
 
@@ -138,9 +141,13 @@ export default function LayoutShell({ children }: Props) {
       reset()
       router.refresh()
       
-      // ★ 判定：答案画像が存在すればその答案IDでAIグラフ解析へ。問題画像のみ（スキップ）ならSNSスレッドへ。
+      // ★ 判定：答案画像が存在すれば mode に応じて /analysis または /analysis_p へ移動
       if (createdAnswerId) {
-        router.push(`/analysis/${createdAnswerId}`)
+        if (mode === 'physics') {
+          router.push(`/analysis_p/${createdAnswerId}`)
+        } else {
+          router.push(`/analysis/${createdAnswerId}`)
+        }
       } else {
         router.push(`/threads/${pId}`)
       }
@@ -162,7 +169,7 @@ export default function LayoutShell({ children }: Props) {
 
       <main style={styles.main}>{children}</main>
 
-      {/* 「SNS(search)」の時だけ表示されるオプション投稿ボタン（現状維持） */}
+      {/* 「SNS(search)」の時だけ表示されるオプション投稿ボタン */}
       {pathname === '/search' && (
         <button 
           style={styles.floatingPlus} 
@@ -179,13 +186,25 @@ export default function LayoutShell({ children }: Props) {
           <Search size={28} />
         </button>
 
-        {/* 2番目のボタン：暫定的に3番目と同じ解析撮影フロー（goToStep(1)）を実行するように書き換え */}
-        <button style={styles.icon} onClick={() => goToStep(1)}>
+        {/* 2番目のボタン（物理用：analysis_p への撮影・解析フロー） */}
+        <button 
+          style={styles.icon} 
+          onClick={() => {
+            setMode('physics')
+            goToStep(1)
+          }}
+        >
           <GitFork size={28} />
         </button>
 
-        {/* 【主役】解析 / スキャン（従来の数学検証用として現状維持） */}
-        <button style={styles.scanIconBtn} onClick={() => goToStep(1)}>
+        {/* 3番目のボタン（数学用：analysis への撮影・解析フロー） */}
+        <button 
+          style={styles.scanIconBtn} 
+          onClick={() => {
+            setMode('math')
+            goToStep(1)
+          }}
+        >
           <Scan size={30} color="#fff" />
         </button>
 
@@ -296,7 +315,7 @@ export default function LayoutShell({ children }: Props) {
         </div>
       )}
 
-      {/* オプション投稿用のファイルインプット＆モーダル（既存維持） */}
+      {/* オプション投稿用のファイルインプット＆モーダル */}
       <input
         ref={simplePostInputRef}
         type="file"
@@ -345,18 +364,18 @@ const styles: { [key: string]: CSSProperties } = {
   main: { paddingBottom: 16, marginTop: 0 },
   footer: { position: 'fixed', bottom: 0, left: 0, right: 0, height: 54, display: 'flex', justifyContent: 'space-around', alignItems: 'center', background: BASE_COLOR, zIndex: 1000 },
   icon: { background: 'none', border: 'none', color: '#eee', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
-scanIconBtn: {
-  background: '#00aaff',
-  border: 'none',
-  width: 44,
-  height: 44,
-  borderRadius: '22px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center', // ← justifyContent に変更
-  cursor: 'pointer',
-  boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
-},
+  scanIconBtn: {
+    background: '#00aaff',
+    border: 'none',
+    width: 44,
+    height: 44,
+    borderRadius: '22px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
+  },
   floatingPlus: {
     position: 'fixed',
     right: 20,
