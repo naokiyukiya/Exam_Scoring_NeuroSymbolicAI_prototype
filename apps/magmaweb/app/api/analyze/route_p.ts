@@ -1,357 +1,211 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenAI } from '@google/genai'
-import { supabase } from '../../../lib/supabase'
-import theorems from '../../../lib/constants/mathematics.json';
+import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI, Type, Schema } from '@google/generative-ai';
+import physicsLibrary from './physics.json';
 
-// ★ タイムアウトを60秒に延長
-export const maxDuration = 60;
-const PROMPT_VERSION = "1.17.0"; // バージョンは1.17.0のまま維持します
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
-
-// ★ 追加: 503/429エラーが出た時に自動で再試行するヘルパー関数
-async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 4000) {
-  let delay = initialDelayMs;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await ai.models.generateContent(params);
-    } catch (err: any) {
-      const errMsg = err?.message || String(err);
-      const isOverloaded = err?.status === 503 || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('503') || err?.status === 429 || errMsg.includes('429');
-      
-      if (isOverloaded && attempt < maxRetries) {
-        console.warn(`[Gemini API Overloaded] サーバー混雑または制限のため自動リトライします (${attempt}/${maxRetries}). ${delay}ms後に再試行...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2;
-      } else {
-        throw err;
-      }
-    }
-  }
+// --- 型定義 ---
+export interface Node {
+  id: string;
+  type: 'proposition' | 'inference' | 'theorem';
+  label: string;
+  latex?: string;
+  // 推論ノードにおいて適用された入出力の対応関係
+  inputs_used?: Record<string, string>;
+  outputs_derived?: Record<string, string>;
+  construction_process?: string;
 }
 
-function repairTruncatedJson(jsonStr: string): string {
-  let cleaned = jsonStr.trim();
-  const lastValidIndex = Math.max(
-    cleaned.lastIndexOf('}'),
-    cleaned.lastIndexOf(']'),
-    cleaned.lastIndexOf('"')
-  );
-  if (lastValidIndex !== -1 && lastValidIndex < cleaned.length - 1) {
-    cleaned = cleaned.substring(0, lastValidIndex + 1);
-  }
-  cleaned = cleaned.replace(/,\s*"[^"]*"\s*:\s*"?[^"]*$/, '');
-  cleaned = cleaned.replace(/,\s*$/, '');
-
-  let inString = false;
-  let escape = false;
-  const stack: string[] = [];
-
-  for (let i = 0; i < cleaned.length; i++) {
-    const char = cleaned[i];
-    if (escape) {
-      escape = false; continue;
-    }
-    if (char === '\\') {
-      escape = true; continue;
-    }
-    if (char === '"') {
-      inString = !inString; continue;
-    }
-    if (!inString) {
-      if (char === '{' || char === '[') stack.push(char);
-      else if (char === '}') {
-        if (stack.length > 0 && stack[stack.length - 1] === '{') stack.pop();
-      } else if (char === ']') {
-        if (stack.length > 0 && stack[stack.length - 1] === '[') stack.pop();
-      }
-    }
-  }
-
-  while (stack.length > 0) {
-    const open = stack.pop();
-    if (open === '{') cleaned += '}';
-    else if (open === '[') cleaned += ']';
-  }
-  return cleaned;
+export interface Edge {
+  source: string;
+  target: string;
+  role?: string;
 }
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const answerId = searchParams.get('answerId')
+export interface PhysicsDagResponse {
+  nodes: Node[];
+  edges: Edge[];
+  overall_summary?: string;
+}
 
-  if (!answerId) return NextResponse.json({ error: 'Missing answerId' }, { status: 400 })
-
-  const { data: answer, error } = await supabase.from('posts').select('image_url').eq('id', answerId).single()
-
-  if (error || !answer?.image_url) {
-    return NextResponse.json({ error: '画像URLを取得できませんでした' }, { status: 404 })
-  }
-
-  const data: any = theorems;
-  const theoremVersion = data?.version || "unknown";
-
-  const { data: existingGraph } = await supabase
-    .from('logic_graphs')
-    .select('graph_data, construction_process, prompt_version, theorem_version')
-    .eq('post_id', answerId)
-    .maybeSingle()
-
-  if (existingGraph && existingGraph.prompt_version === PROMPT_VERSION) {
-    return NextResponse.json({
-      imageUrl: answer.image_url,
-      graph: existingGraph.graph_data,
-      constructionProcess: existingGraph.construction_process,
-      metadata: { promptVersion: existingGraph.prompt_version, theoremVersion: existingGraph.theorem_version, cached: true }
-    })
-  }
-
-  let theoremListString = "";
-  try {
-    if (data?.theorems?.rule_groups) {
-      theoremListString = data.theorems.rule_groups.flatMap((g: any) => g.rules || []).map((r: any) => `- ${r.name}`).join('\n');
-    } else if (Array.isArray(data)) {
-      theoremListString = data.map((r: any) => `- ${r.name}`).join('\n');
+// --- Gemini 構造化出力用 JSON Schema 定義 ---
+const responseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    nodes: {
+      type: Type.ARRAY,
+      description: "DAGに含まれる全ノードのリスト",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: {
+            type: Type.STRING,
+            description: "一意のノードID（例: p1, inf1, th1）"
+          },
+          type: {
+            type: Type.STRING,
+            enum: ["proposition", "inference", "theorem"],
+            description: "ノードの種類（proposition: 物理状態/方程式, inference: 規則・定理の適用推論, theorem: 定理ライブラリの法則）"
+          },
+          label: {
+            type: Type.STRING,
+            description: "日本語によるノードの説明または数式ラベル"
+          },
+          latex: {
+            type: Type.STRING,
+            description: "数式が存在する場合のLaTeX表現"
+          },
+          inputs_used: {
+            type: Type.OBJECT,
+            description: "推論ノード（inference）において、適用したルールに与えた入力物理量・前提式のマップ",
+            properties: {}
+          },
+          outputs_derived: {
+            type: Type.OBJECT,
+            description: "推論ノード（inference）において、適用したルールによって得られた出力式・運動同定結果のマップ",
+            properties: {}
+          },
+          construction_process: {
+            type: Type.STRING,
+            description: "思考・計算ステップの補足解説"
+          }
+        },
+        required: ["id", "type", "label"]
+      }
+    },
+    edges: {
+      type: Type.ARRAY,
+      description: "ノード間の接続（有向エッジ）のリスト",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          source: {
+            type: Type.STRING,
+            description: "接続元ノードID"
+          },
+          target: {
+            type: Type.STRING,
+            description: "接続先ノードID"
+          },
+          role: {
+            type: Type.STRING,
+            description: "エッジの役割（例: input_binding, theorem_apply, output_result）"
+          }
+        },
+        required: ["source", "target"]
+      }
+    },
+    overall_summary: {
+      type: Type.STRING,
+      description: "思考プロセスの全体要約（日本語）"
     }
-  } catch (err) {
-    console.error("定理データの展開に失敗しました", err);
-  }
+  },
+  required: ["nodes", "edges"]
+};
 
+// Gemini APIクライアント初期化
+const apiKey = process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
+
+export async function POST(req: NextRequest) {
   try {
-    const imageRes = await fetch(answer.image_url)
-    const arrayBuffer = await imageRes.arrayBuffer()
-    const base64Image = Buffer.from(arrayBuffer).toString('base64')
+    const formData = await req.formData();
+    const imageFile = formData.get('image') as File | null;
 
-    // ★ 直接呼び出さず、リトライ機能付きの関数を使用 (モデルも429回避のため1.5にしています)
-    const response = await generateWithRetry({
-      model: 'gemini-2.5-flash', 
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-            {
-              text: `
+    if (!imageFile) {
+      return NextResponse.json({ error: '画像ファイルが送信されていません。' }, { status: 400 });
+    }
+
+    // 画像をBase64化
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const base64Image = Buffer.from(arrayBuffer).toString('base64');
+
+    // physics.json から入力・出力の仕様を含めた定理ライブラリ文字列を生成
+    const theoremListString = physicsLibrary.theorems
+      .map(t => {
+        const inputsStr = JSON.stringify(t.inputs);
+        const outputsStr = JSON.stringify(t.outputs);
+        return `- ID: [${t.id}] | Name: "${t.name}"\n  Type: ${t.type}\n  Inputs(仮定/物理量): ${inputsStr}\n  Outputs(結論/等式/運動分類): ${outputsStr}`;
+      })
+      .join('\n\n');
+
+    // システムプロンプトの構築
+    const promptText = `
 [役割 (Persona)]
-あなたは、数学の論理構造解析に精通したAIアシスタントです。
+あなたは、高校物理の論理構造および解法プロセスの自動検証を行うAI物理エンジニアです。
 
 [目的 (Purpose)]
-入力された数学の答案画像を解析し、生徒の思考プロセスを「命題」「推論」「定理」からなる有向グラフとして抽出します。
-【超重要】問題に場合分けがある場合、全ての結論に至るまで、すべての計算プロセスを省略せずに完全に抽出しきってください。
+入力された答案・思考ノート画像を解析し、物理法則の【入力（Inputs: 前提・仮定・物理量）】から【出力（Outputs: 成り立つ等式・運動の分類）】への推論フローを有向グラフ（DAG）として抽出してください。
 
-[制約事項 (Rules)]
-0. 【絶対言語指定】:
-   - 出力するJSON内のすべての文字列（label、construction_processなど）は、**必ず日本語**で記述してください。英語での出力は固く禁じます。
-1. グラフの基本構造と完走の義務:
-   - メインのフローは必ず「命題」→「推論」→「命題」と交互に配置してください。
-   - 途中で抽出を打ち切ることは絶対に許されません。答案に書かれているすべての式を命題として抽出し、必ず最後まで対応するエッジを繋ぎ切ってください。
-2. 定理ノードの完全必須化とエッジの向き（超厳守）:
-   - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
-   - 【警告】定理の label は、必ず末尾の [利用可能な定理ライブラリ] の一覧から最も適切なものを一つ選び、一言一句違わず全く同じ文字列をコピーして使用してください。勝手に新規定理を作ることは一切禁止します。
-3. 【推論ノードのラベルの調整（超重要）】:
-   - 推論ノードの \`label\` は、細かすぎる長文解説にせず、どのような計算・式変形を行ったのかを**簡潔**に記述してください。
-   - 「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」のように、何をどう変形したのかが式レベルで一目で分かる程度に、少しだけ丁寧に書いてください。
-4. 複数の命題の組み合わせ:
-   - 2つの命題を組み合わせる推論の場合、「2つの命題ノード」と「1つの定理ノード」の合計3つから、1つの推論ノードへエッジ（from）を向けてください。
-5. 【孤立ノードの絶対禁止と全結合の義務】（超重要）:
-   - "nodes" 配列に作成したすべての命題ノード・推論ノードは、必ず前後の文脈に合わせて "edges" で接続してください。ノードだけ作ってエッジの記述をサボることは固く禁じます。抽出したすべての命題が繋がるように論理を補完してください。
-6. 推論ノードの検証ステータス:
-   - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
-7. 出力キーの制限:
-   - 指定されたJSONスキーマ以外のキー（例: new_theorems）は絶対に出力しないでください。
-8.【禁止事項】:
-   - 「等号で結ぶ」「等式を立てる」などの自明な操作を独立した推論ノードとして抽出しないでください。「等号の定義」のような当たり前の定理ノードも不要です。数式の変形（展開、因数分解、代入など）のみを推論ステップとして抽出してください。
-9.【数式記号の統一フォーマット】:
-     数学記号は検証エンジンのパース制約上、必ず以下のフォーマットで出力してください。LaTeX表記や独自の省略表記は禁止です。
-   - 極限: lim[変数->近づく値] 式 (例: lim[x->0] (x^2))
-   - 定積分: ∫[下端 to 上端] 式 d変数 (例: ∫[0 to 1] (x^2) dx)
-   - 不定積分: ∫ 式 d変数 (例: ∫ (x^2) dx)
-   - 微分: d/d変数 (式) (例: d/dx (x^2) ※f'(x)のようなダッシュ表記は使わない)
-   - シグマ: Σ[変数=初期値 to 終点] 式 (例: Σ[k=1 to n] (2k))
-   - 対数: log[底](真数) (例: log[2](8) / 自然対数は ln(x) とする)
-   - 絶対値: |式| (例: |x-1|)
-   - 順列・組合せ: P(n, r), C(n, r) (例: C(n, k))
-   - 平方根・累乗根: sqrt(式), root(式, n) (例: √x やルート記号は使わず sqrt(x) とする)
-   - 三角関数: sin(x), cos(x), tan(x) (※必ず括弧をつけること)
-   - 数学定数: 円周率は pi、自然対数の底(ネイピア数)は E、虚数単位は I (大文字のアイ) とする。
-  10.【重要】:
-   - 数式の中に「Σ（シグマ）」「∫（積分）」「lim（極限）」などが含まれている場合、その計算や変形を行うステップには、ただの「式の展開・整理」ではなく、必ず「シグマの公式」「定積分の計算」「極限の性質」といった具体的な【定理・定義ノード】を抽出して接続してください。
-  11.【絶対遵守事項】:
-   - Σ（シグマ）記号の計算・消去を行うステップでは、対応する定理・定義ノード（theorem）に必ず「シグマの計算」や「数列の和の公式」といった具体的な名称を付けて独立させてください。これを単なる「式の展開・整理」や「同類項の整理」としてひとまとめにすることは固く禁じます。
-  
-[出力形式 (Format)]
-- 以下のJSONフォーマットに厳密に従ってください。
+[思考ノードの種類 (Node Types)]
+- proposition (命題・状態・式ノード): 物理的な状況設定、定義された座標、立てられた方程式、得られた数値や結論（運動分類含む）。
+- inference (物理的推論ノード): 入力前提（inputs）からルールを適用して出力結論（outputs）を導く推論ステップ。
+- theorem (物理法則・定理ノード): [利用可能な構造化定理ライブラリ] に定義されている物理ルール。
 
-{
-  "graph": {
-    "nodes": [
-      { "id": "p1", "label": "x > 2", "type": "proposition" },
-      { "id": "p2", "label": "x <= 5", "type": "proposition" },
-      { "id": "t1", "label": "複数の条件を組み合わせる", "type": "theorem" },
-      { "id": "i1", "label": "命題p1とp2の条件を組み合わせる", "type": "inference", "verification_status": "検証前" },
-      { "id": "p3", "label": "2 < x <= 5", "type": "proposition" }
-    ],
-    "edges": [
-      { "from": "p1", "to": "i1" },
-      { "from": "p2", "to": "i1" },
-      { "from": "t1", "to": "i1" },
-      { "from": "i1", "to": "p3" }
-    ]
-  },
-  "construction_process": [
-    "Step 1: 命題「x > 2」と「x <= 5」を抽出しました。",
-    "Step 2: 複数の条件を組み合わせる推論と定理を接続し、命題「2 < x <= 5」を導きました。"
-  ]
-}
+[推論ステップ（inference）のバインディング規則]
+推論ノード（inference）を作成する際は、必ず適用した theorem ノードの Inputs / Outputs の契約に従い、具体的にどの物理量や式が代入・抽出されたかを \`inputs_used\` と \`outputs_derived\` に記録してください。
 
-[利用可能な定理ライブラリ]
+例 (単振動の同定の場合):
+- 定理: pattern_restoring_force
+- inputs_used: { "equation_form": "m * d^2x/dt^2 = -K * (x - x_c)" }
+- outputs_derived: { "motion_type": "単振動", "vibration_center": "x_c", "angular_frequency": "sqrt(K/m)" }
+
+[構造ルール (Graph Rules)]
+1. フロー構造:
+   - 前提の proposition ノード群 -> (inputとして) -> inference ノード
+   - theorem ノード -> (ルール適用として) -> inference ノード
+   - inference ノード -> (outputとして) -> 結論の proposition ノード群
+2. 明示的抽象化:
+   - 式変形だけで終わらせず、得られた式（例: ma = -Kx）から「この運動は単振動である」という運動分類（Outputs）へのマッピングノードを必ず含めてください。
+3. 言語指定:
+   - 説明テキストは日本語を使用してください。
+
+[利用可能な構造化定理ライブラリ]
 ${theoremListString}
-              `
-            }
-          ]
-        }
-      ],
-      config: {
+    `.trim();
+
+    // Gemini API呼び出し
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: {
         responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            graph: {
-              type: 'OBJECT',
-              properties: {
-                nodes: {
-                  type: 'ARRAY',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      id: { type: 'STRING' },
-                      type: { type: 'STRING' },
-                      label: { type: 'STRING' },
-                      verification_status: { type: 'STRING' }
-                    },
-                    required: ['id', 'type', 'label']
-                  }
-                },
-                edges: {
-                  type: 'ARRAY',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      from: { type: 'STRING' },
-                      to: { type: 'STRING' }
-                    },
-                    required: ['from', 'to']
-                  }
-                }
-              },
-              required: ['nodes', 'edges']
-            },
-            construction_process: {
-              type: 'ARRAY',
-              items: { type: 'STRING' }
+        responseSchema: responseSchema,
+        temperature: 0.1,
+      }
+    });
+
+    let attempts = 0;
+    const maxAttempts = 3;
+    let rawText = '';
+
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        const result = await model.generateContent([
+          {
+            inlineData: {
+              mimeType: imageFile.type || 'image/jpeg',
+              data: base64Image
             }
           },
-          required: ['graph']
-        },
-        temperature: 0.0,
-        maxOutputTokens: 16384 // ★ タイムアウトを回避しつつ、以前(8192)の倍のトークン数を許可
-      }
-    })
+          { text: promptText }
+        ]);
 
-    const rawText = response.text || ''
-    let parsedData: any = null
-
-    let cleanText = rawText.trim()
-    if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim()
-    else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim()
-
-    try {
-      parsedData = JSON.parse(cleanText)
-    } catch (parseErr1) {
-      try {
-        const fixedText = cleanText.replace(/\\/g, '\\\\').replace(/\\\\"|\\\\'|\\\\n/g, (match) => match.substring(2))
-        parsedData = JSON.parse(fixedText)
-      } catch (parseErr2) {
-        try {
-          const repairedText = repairTruncatedJson(cleanText)
-          parsedData = JSON.parse(repairedText)
-        } catch (parseErr3) {
-          return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText })
-        }
+        rawText = result.response.text();
+        if (rawText) break;
+      } catch (err) {
+        console.warn(`Gemini API 呼び出し試行 ${attempts} 失敗:`, err);
+        if (attempts >= maxAttempts) throw err;
       }
     }
 
-    if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
-      let nodes = parsedData.graph.nodes;
-      const edges = parsedData.graph.edges;
-      let autoTheoremCount = 1;
+    const parsedData: PhysicsDagResponse = JSON.parse(rawText);
 
-      // =================================================================================
-      // ★ セーフティネット：推論ノードに定理が繋がっていなかったら自動で作成して繋ぐ
-      // =================================================================================
-      nodes.forEach((node: any) => {
-        if (node.type === 'inference') {
-          const hasTheorem = edges.some((e: any) => {
-            if (e.to === node.id) {
-              const fromNode = nodes.find((n: any) => n.id === e.from);
-              return fromNode && fromNode.type === 'theorem';
-            }
-            return false;
-          });
+    return NextResponse.json(parsedData, { status: 200 });
 
-          if (!hasTheorem) {
-            const newTheoremId = `t_auto_${autoTheoremCount++}`;
-            nodes.push({
-              id: newTheoremId,
-              type: 'theorem',
-              label: `[自動生成] ${node.label || '基本変形'}`
-            });
-            edges.push({
-              from: newTheoremId,
-              to: node.id
-            });
-          }
-        }
-      });
-      
-      // ※ 孤立ノードを自動削除するロジック（ゴミ掃除機能）は撤廃しました。
-    }
-
-    let dbSaveError: any = null
-    if (parsedData && parsedData.graph) {
-      try {
-        const { data: existing } = await supabase.from('logic_graphs').select('id').eq('post_id', answerId).maybeSingle()
-        const payload = {
-          graph_data: parsedData.graph,
-          construction_process: parsedData.construction_process || [],
-          status: 'unverified',
-          prompt_version: PROMPT_VERSION,       
-          theorem_version: theoremVersion,      
-          updated_at: new Date().toISOString()
-        };
-
-        if (existing) {
-          const { error } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id)
-          if (error) dbSaveError = error
-        } else {
-          const { error } = await supabase.from('logic_graphs').insert({ post_id: answerId, ...payload })
-          if (error) dbSaveError = error
-        }
-      } catch (dbEx) {
-        dbSaveError = dbEx
-      }
-    }
-
-    return NextResponse.json({ 
-      imageUrl: answer.image_url, 
-      graph: parsedData.graph, 
-      constructionProcess: parsedData.construction_process || [],
-      metadata: { promptVersion: PROMPT_VERSION, theoremVersion: theoremVersion, cached: false },
-      dbSaved: !dbSaveError,
-      dbError: dbSaveError ? (dbSaveError.message || String(dbSaveError)) : null
-    })
-
-  } catch (err: any) {
-    return NextResponse.json({ error: 'APIリクエストで致命的エラーが発生しました', details: err?.message || String(err) }, { status: 500 })
+  } catch (error: any) {
+    console.error('route_p POST エラー:', error);
+    return NextResponse.json(
+      { error: '物理思考DAGの解析処理中にエラーが発生しました。', details: error?.message || String(error) },
+      { status: 500 }
+    );
   }
 }
