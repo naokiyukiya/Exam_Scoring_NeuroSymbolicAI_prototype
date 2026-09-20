@@ -21,7 +21,7 @@ import {
 
 import '@xyflow/react/dist/style.css'
 
-import { findMistakes } from '@/lib/findMistakes'
+import { findMistakes } from '../lib/findMistakes'
 
 // 💡 1. 型定義に verification_status を追加
 type GraphNode = {
