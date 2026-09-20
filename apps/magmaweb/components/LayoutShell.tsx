@@ -179,11 +179,12 @@ export default function LayoutShell({ children }: Props) {
           <Search size={28} />
         </button>
 
-        <button style={styles.icon} onClick={() => router.push('/rules/page.tsx')}>
+        {/* 2番目のボタン：暫定的に3番目と同じ解析撮影フロー（goToStep(1)）を実行するように書き換え */}
+        <button style={styles.icon} onClick={() => goToStep(1)}>
           <GitFork size={28} />
         </button>
 
-        {/* 【主役】解析 / スキャン */}
+        {/* 【主役】解析 / スキャン（従来の数学検証用として現状維持） */}
         <button style={styles.scanIconBtn} onClick={() => goToStep(1)}>
           <Scan size={30} color="#fff" />
         </button>
@@ -352,7 +353,7 @@ const styles: { [key: string]: CSSProperties } = {
     borderRadius: '22px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
+    justify: 'center',
     cursor: 'pointer',
     boxShadow: '0 2px 8px rgba(0,170,255,0.4)',
   },
