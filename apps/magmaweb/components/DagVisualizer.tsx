@@ -450,6 +450,24 @@ console.log("🔎 ミス分析結果:", mistakeAnalysis)
   }
 
   return (
+  <div style={styles.container}>
+
+    {/* 🔎 ミス分析デバッグ */}
+    <div
+      style={{
+        background: 'white',
+        color: 'black',
+        padding: 20,
+        marginBottom: 20,
+        maxHeight: 400,
+        overflow: 'auto',
+      }}
+    >
+      <h2>🔎 ミス分析デバッグ</h2>
+
+      <pre>
+        {JSON.stringify(mistakeAnalysis, null, 2)}
+      </pre>
     <div style={styles.container}>
       <h3 style={styles.title}>論理構造 DAG モニター</h3>
       <div style={styles.canvasWrapper}>
