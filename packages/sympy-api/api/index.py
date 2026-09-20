@@ -16,22 +16,28 @@ def health_check():
 @app.post("/api/verify")
 def verify_expressions(req: VerifyRequest):
     try:
-        # rationalizeを追加し、1/6などの分数を小数(0.166...)にせず厳密な分数として処理する
         transformations = standard_transformations + (implicit_multiplication_application, convert_equals_signs, rationalize)
         
-        e1 = parse_expr(req.expr1, transformations=transformations).doit()
-        e2 = parse_expr(req.expr2, transformations=transformations).doit()
-        
-        # 等式(A=B)の場合は、(A - B) の形にしてから比較する関数
-        def get_diff(expr):
-            if isinstance(expr, sympy.core.relational.Equality):
-                return expr.lhs - expr.rhs
-            return expr
+        def get_diff(expr_str):
+            # 1. パースする（まだ計算はしない）
+            expr = parse_expr(expr_str, transformations=transformations)
             
-        diff1 = get_diff(e1)
-        diff2 = get_diff(e2)
+            # 2. 等式なら「左辺 - 右辺」の形にする
+            if isinstance(expr, sympy.core.relational.Equality):
+                diff = expr.lhs - expr.rhs
+            elif isinstance(expr, sympy.logic.boolalg.BooleanTrue) or expr is True:
+                diff = sympy.Integer(0) # 常に成り立つ等式なら差分は0
+            elif isinstance(expr, sympy.logic.boolalg.BooleanFalse) or expr is False:
+                diff = sympy.Integer(1) # 成り立たない等式なら差分は0以外
+            else:
+                diff = expr
+                
+            # 3. ここで初めてdoit()を実行し、シグマなどを計算する
+            return diff.doit()
+
+        diff1 = get_diff(req.expr1)
+        diff2 = get_diff(req.expr2)
         
-        # 2つの式の差分をとって、それが0になるか（変形が正しいか）チェック
         check1 = sympy.simplify(diff1 - diff2)
         check2 = sympy.simplify(diff1 + diff2)
         
@@ -41,7 +47,6 @@ def verify_expressions(req: VerifyRequest):
         elif check2.is_zero or check2 == 0:
             is_eq = True
         else:
-            # 念のため、微小な誤差を吸収する equals(0) も試す
             try:
                 if check1.equals(0) or check2.equals(0):
                     is_eq = True
@@ -51,5 +56,4 @@ def verify_expressions(req: VerifyRequest):
         return {"is_equal": is_eq}
         
     except Exception as e:
-        # エラーの内容をそのままNext.jsに返す
         return {"error": str(e)}
