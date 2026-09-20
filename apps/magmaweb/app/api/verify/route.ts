@@ -134,7 +134,10 @@ export async function POST(req: Request) {
                 delete node.error_reason; // 成功時はエラー理由を消去
               } else {
                 node.verification_status = '問題あり';
-                node.error_reason = `SymPy解析: 数学的に等価ではありません (変形ミスまたは論理の飛躍)`;
+                // 【変更】Python側でエラーが起きた場合は、そのエラー内容をそのまま表示する！
+                node.error_reason = data.error 
+                  ? `SymPyエラー: ${data.error}` 
+                  : `SymPy解析: 数学的に等価ではありません (変形ミスまたは論理の飛躍)`;
               }
             } else {
               node.verification_status = '問題あり';
