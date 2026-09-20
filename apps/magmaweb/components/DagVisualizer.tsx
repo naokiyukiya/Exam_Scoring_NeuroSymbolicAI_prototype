@@ -21,12 +21,14 @@ import {
 
 import '@xyflow/react/dist/style.css'
 
+import { findMistakes } from '@/lib/findMistakes'
+
 // 💡 1. 型定義に verification_status を追加
-type GraphNode = { 
-  id: string; 
-  label: string; 
-  type: 'proposition' | 'inference' | 'theorem';
-  verification_status?: string; 
+type GraphNode = {
+  id: string
+  label: string
+  type: 'proposition' | 'inference' | 'theorem' | 'definition'
+  verification_status?: string
 }
 type GraphEdge = { from: string; to: string }
 type DagVisualizerProps = { graphData: { nodes: GraphNode[]; edges: GraphEdge[] } }
@@ -154,6 +156,10 @@ export default function DagVisualizer({ graphData }: DagVisualizerProps) {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
 
   const { nodes: rawNodes, edges: rawEdges } = graphData
+  const mistakeAnalysis = useMemo(
+  () => findMistakes(graphData),
+  [graphData]
+)
 
   const depths = useMemo(() => {
     const dMap = new Map<string, number>()
