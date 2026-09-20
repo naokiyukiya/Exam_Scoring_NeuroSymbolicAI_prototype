@@ -160,6 +160,7 @@ export default function DagVisualizer({ graphData }: DagVisualizerProps) {
   () => findMistakes(graphData),
   [graphData]
 )
+console.log("🔎 ミス分析結果:", mistakeAnalysis)
 
   const depths = useMemo(() => {
     const dMap = new Map<string, number>()
