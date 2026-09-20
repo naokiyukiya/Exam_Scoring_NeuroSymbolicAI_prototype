@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { supabase } from '../../../lib/supabase';
-import physicsLibrary from './physics.json';
+import physicsLibrary from '../../../lib/constants/physics.json';
 
 // タイムアウトとプロンプトバージョン設定
 export const maxDuration = 60;
