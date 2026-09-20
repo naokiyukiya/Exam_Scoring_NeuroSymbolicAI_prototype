@@ -468,6 +468,7 @@ console.log("🔎 ミス分析結果:", mistakeAnalysis)
       <pre>
         {JSON.stringify(mistakeAnalysis, null, 2)}
       </pre>
+    </div>
     <div style={styles.container}>
       <h3 style={styles.title}>論理構造 DAG モニター</h3>
       <div style={styles.canvasWrapper}>
