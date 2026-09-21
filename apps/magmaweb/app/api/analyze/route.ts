@@ -5,7 +5,7 @@ import theorems from '../../../lib/constants/mathematics.json';
 
 // ★ タイムアウトを60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.22.0"; // バージョンを更新
+const PROMPT_VERSION = "1.23.0"; // バージョンを更新
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
 5. 【孤立ノードの絶対禁止と全結合の義務】（超重要）:
    - "nodes" 配列に作成したすべての命題ノード・推論ノードは、必ず前後の文脈に合わせて "edges" で接続してください。ノードだけ作ってエッジの記述をサボることは固く禁じます。抽出したすべての命題が繋がるように論理を補完してください。
 6. 推論ノードの検証ステータス:
-   - ノードの種類が「推論（inference）」である場合のみ、必ず "verification_status": "検証前" を追加してください。
+   - verification_status は、**種類が「推論（inference）」であるノードにのみ**必ず追加してください。「命題（proposition）」や「定理（theorem）」のノードには、verification_status を絶対に含めないでください。
 7. 出力キーの制限:
    - 指定されたJSONスキーマ以外のキー（例: new_theorems）は絶対に出力しないでください。
 8.【禁止事項】:
