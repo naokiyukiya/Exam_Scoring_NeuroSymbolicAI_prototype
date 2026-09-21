@@ -59,9 +59,9 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
         setAnswerData(post)
 
         // ② ★物理用API (/api/analyze_p) を呼び出す
-        const res = await fetch(`/api/analyze_p?answerId=${params.id}`, {
-          method: 'GET',
-        })
+const res = await fetch(`/api/analyze/physics?answerId=${params.id}`, {
+  method: 'GET',
+})
 
         const json = await res.json()
 
