@@ -4,7 +4,10 @@ import { supabase } from '../../../../lib/supabase';
 import physicsLibrary from '../../../../lib/constants/physics.json';
 
 export const maxDuration = 60;
-const PROMPT_VERSION = "2.3.1_strict_binding";
+
+const physicsData: any = physicsLibrary;
+const theoremVersion = physicsData?.version || "2.4.2";
+const PROMPT_VERSION = `${theoremVersion}_sub_question_and_variables`;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -97,9 +100,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const physicsData: any = physicsLibrary;
-  const theoremVersion = physicsData?.version || "2.3.1";
-
   // キャッシュチェック
   const { data: existingGraph } = await supabase
     .from('logic_graphs')
@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // ライブラリ内の変数定義 (variables) もプロンプトに文字列化して渡す
   let theoremListString = "";
   try {
     if (Array.isArray(physicsData?.theorems)) {
@@ -123,7 +124,8 @@ export async function GET(request: NextRequest) {
         .map((t: any) => {
           const inputsStr = JSON.stringify(t.inputs || {});
           const outputsStr = JSON.stringify(t.outputs || {});
-          return `- ID: [${t.id}] | Name: "${t.name}"\n  Inputs: ${inputsStr}\n  Outputs: ${outputsStr}`;
+          const varsStr = t.variables ? JSON.stringify(t.variables) : "{}";
+          return `- ID: [${t.id}] | Name: "${t.name}"\n  Variables Definition: ${varsStr}\n  Inputs: ${inputsStr}\n  Outputs: ${outputsStr}`;
         })
         .join('\n\n');
     }
@@ -136,6 +138,9 @@ export async function GET(request: NextRequest) {
       fetch(problemImageUrl),
       fetch(answer.image_url)
     ]);
+
+    const problemMimeType = problemRes.headers.get('content-type') || 'image/jpeg';
+    const answerMimeType = answerRes.headers.get('content-type') || 'image/jpeg';
 
     const [problemBuffer, answerBuffer] = await Promise.all([
       problemRes.arrayBuffer(),
@@ -154,40 +159,45 @@ export async function GET(request: NextRequest) {
 
 [最重要制約ルール (Strict Rules)]
 1. **【答案への完全忠実原則（ハルシネーションの絶対禁止）】**:
-   - 生徒が答案に書いていない思考ステップや数式（例: 運動方程式 Ma=F など）を勝手に補完・捏造してノードに組み込まないでください。
-   - 生徒が「合力 F = -Kx」から直ちに単振動と同定した場合は、「合力からの復元力定数の特定」を使用し、運動方程式のノードを作らないでください。
-2. **【Inputs / Outputs の必須バインディング】**:
+   - 生徒が答案に書いていない思考ステップや数式を勝手に補完・捏造してノードに組み込まないでください。
+2. **【Inputs / Outputs の必須バインディングと変数定義の尊重】**:
    - 推論ノード（type: "inference"）における \`inputs_used\` と \`outputs_derived\` は**絶対に使用・出力**してください。決して空のオブジェクト \`{}\` や \`null\` にしないでください。
-   - 定理の適用に使用された変数・前提式を \`inputs_used\` に、その結果導出された式・物理量を \`outputs_derived\` に必ずキーと値のペアで格納してください。
+   - [利用可能な構造化定理ライブラリ] の **Variables Definition** に記載されている物理的意味（例: "rho": "流体の密度", "V": "水没部の体積"）を踏まえ、問題文・答案内のどの文字や式が定理のどの変数に対応しているかを正しく理解した上で \`inputs_used\` に格納してください。
 3. **【座標軸・正の向きの一貫性】**:
-   - 問題文および答案で定義された座標軸・正の向き（例: 鉛直下向き正、右向き正）に従い、符号（+ / -）の矛盾が生じないように数式を記述してください。
-4. **【定理ラベルの一致】**:
+   - 問題文および答案で定義された座標軸・正の向きに従い、符号（+ / -）の矛盾が生じないように数式を記述してください。
+4. **【小問（sub_question）の接続性とタグ付け】**:
+   - 小問 (1), (2), (3) が分かれている問題でも、前後の小問の論理的つながり（例: (1)で求めた式を(2)で使う等）を途切れさせず、**全体の1つの繋がったグラフ（DAG）**として構成してください。
+   - 各ノードには、それがどの小問に対応するかを示す \`sub_question\`（例: "(1)", "(2)", "共通"）を付与してください。
+   - 各小問の最終結論・答えとなる proposition ノードには \`is_final_answer: true\` を設定してください。それ以外のノードは \`false\` としてください。
+5. **【定理ラベルの一致】**:
    - 推論ノードに接続する \`theorem\` ノードの label は、必ず [利用可能な構造化定理ライブラリ] の Name と一字一句違わず一致させてください。
-5. **【全記述の日本語指定】**:
+6. **【全記述の日本語指定】**:
    - label および construction_process はすべて日本語で記述してください。
-   
+
 [SymPy 互換数式フォーマットの厳格適用]
-1. inputs_used および outputs_derived 内の数式は、SymPy の sympy.sympify() や parse_expr() で直接パース可能な記法を用いてください。
-   - 掛け算記号 '*' を省略しないこと (例: '2*H', 'm*g', 'S*g', '1*(2/3*H + x)*S*g')
-   - べき乗は '**' を使用すること (例: 'x**2', '(1/2)')
-   - ギリシャ文字は英字表記にすること (例: 'rho', 'pi', 'omega', 'theta')
-   - 平方根は 'sqrt(...)' を使用すること (例: '2*pi*sqrt((2*H)/(3*g))')
+1. inputs_used および outputs_derived 内の数式は、SymPy の parse_expr() でパース可能な記法を用いてください。
+   - 掛け算記号 '*' を省略しないこと (例: '2*H', 'm*g', 'S*g')
+   - べき乗は '**' を使用すること
+   - ギリシャ文字は英字表記にすること (例: 'rho', 'pi', 'omega')
+   - 平方根は 'sqrt(...)' を使用すること
    - 等式関係は 'E1 == E2' または 'variable = expression' の形式で書くこと
 
 [出力形式 (Format Example)]
 {
   "graph": {
     "nodes": [
-      { "id": "p1", "label": "変位 x での水没体積 V' = ((2/3)*H + x)*S", "type": "proposition" },
-      { "id": "t1", "label": "アルキメデスの原理（浮力）", "type": "theorem" },
+      { "id": "p1", "label": "変位 x での水没体積 V' = ((2/3)*H + x)*S", "type": "proposition", "sub_question": "(1)", "is_final_answer": false },
+      { "id": "t1", "label": "アルキメデスの原理（浮力）", "type": "theorem", "sub_question": "(1)", "is_final_answer": false },
       {
         "id": "i1",
         "label": "変位 x での浮力 F' を計算する",
         "type": "inference",
+        "sub_question": "(1)",
+        "is_final_answer": false,
         "inputs_used": { "fluid_density": "1", "submerged_volume": "((2/3)*H + x)*S", "gravity_acc": "g" },
         "outputs_derived": { "buoyant_force": "F' = 1 * ((2/3)*H + x)*S * g" }
       },
-      { "id": "p2", "label": "浮力 F' = 1 * ((2/3)*H + x)*S * g", "type": "proposition" }
+      { "id": "p2", "label": "浮力 F' = 1 * ((2/3)*H + x)*S * g", "type": "proposition", "sub_question": "(1)", "is_final_answer": true }
     ],
     "edges": [
       { "from": "p1", "to": "i1" },
@@ -212,9 +222,9 @@ ${theoremListString}
           role: 'user',
           parts: [
             { text: "【1枚目画像: 問題文】" },
-            { inlineData: { mimeType: 'image/jpeg', data: problemBase64 } },
+            { inlineData: { mimeType: problemMimeType, data: problemBase64 } },
             { text: "【2枚目画像: 解答答案】" },
-            { inlineData: { mimeType: 'image/jpeg', data: answerBase64 } },
+            { inlineData: { mimeType: answerMimeType, data: answerBase64 } },
             { text: promptText }
           ]
         }
@@ -238,16 +248,24 @@ ${theoremListString}
                         description: 'ノード種別: "proposition", "theorem", "inference" のいずれか'
                       },
                       label: { type: 'STRING' },
+                      sub_question: {
+                        type: 'STRING',
+                        description: '対応する小問（例: "(1)", "(2)", "共通"）。グラフ全体の接続性は維持すること。'
+                      },
+                      is_final_answer: {
+                        type: 'BOOLEAN',
+                        description: '該当する小問の最終結果となる答えのノードである場合は true'
+                      },
                       inputs_used: { 
                         type: 'OBJECT',
-                        description: '【inferenceノードで必須】定理に代入された実際の変数や数式（例: {"mass": "M", "gravity": "g"}）。空にしてはいけません。'
+                        description: '【inferenceノードで必須】定理の変数定義(variables)に対応させた実際の変数や数式。キーと値のペア。'
                       },
                       outputs_derived: { 
                         type: 'OBJECT',
-                        description: '【inferenceノードで必須】推論によって導かれた式や物理量（例: {"buoyant_force": "F = rho*V*g"}）。空にしてはいけません。'
+                        description: '【inferenceノードで必須】推論によって導かれた式や物理量。キーと値のペア。'
                       }
                     },
-                    required: ['id', 'type', 'label']
+                    required: ['id', 'type', 'label', 'sub_question']
                   }
                 },
                 edges: {
@@ -275,6 +293,7 @@ ${theoremListString}
         maxOutputTokens: 16384
       }
     });
+
     const rawText = response.text || '';
     let parsedData: any = null;
 
@@ -293,22 +312,23 @@ ${theoremListString}
           const repairedText = repairTruncatedJson(cleanText);
           parsedData = JSON.parse(repairedText);
         } catch (parseErr3) {
-          return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText });
+          return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText }, { status: 500 });
         }
       }
     }
 
-    // 浮いている推論ノードへのセーフティ補填
+    // 浮いている推論ノードへのセーフティ補填（配列破壊を防ぐための安全なループ処理）
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
-      let nodes = parsedData.graph.nodes;
+      const currentNodes = [...parsedData.graph.nodes];
       const edges = parsedData.graph.edges;
+      const additionalNodes: any[] = [];
       let autoTheoremCount = 1;
 
-      nodes.forEach((node: any) => {
+      currentNodes.forEach((node: any) => {
         if (node.type === 'inference') {
           const hasTheorem = edges.some((e: any) => {
             if (e.to === node.id) {
-              const fromNode = nodes.find((n: any) => n.id === e.from);
+              const fromNode = currentNodes.find((n: any) => n.id === e.from);
               return fromNode && fromNode.type === 'theorem';
             }
             return false;
@@ -316,10 +336,12 @@ ${theoremListString}
 
           if (!hasTheorem) {
             const newTheoremId = `t_auto_${autoTheoremCount++}`;
-            nodes.push({
+            additionalNodes.push({
               id: newTheoremId,
               type: 'theorem',
-              label: `代数計算・連立方程式の消去`
+              label: `代数計算・連立方程式の消去`,
+              sub_question: node.sub_question || "共通",
+              is_final_answer: false
             });
             edges.push({
               from: newTheoremId,
@@ -328,6 +350,8 @@ ${theoremListString}
           }
         }
       });
+
+      parsedData.graph.nodes = [...currentNodes, ...additionalNodes];
     }
 
     let dbSaveError: any = null;
