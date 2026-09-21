@@ -125,22 +125,21 @@ export async function POST(req: Request) {
             }
           }
 
-          // 【修正ポイント】先に個々の式を formatForSympy で翻訳してから、最後にカッコで囲んで '&' で繋ぐ！
-          const combinedSourceStr = realSourceStrs
-            .map(s => formatForSympy(s))
-            .map(s => `(${s})`)
-            .join(' & ');
-
-          const expr1 = combinedSourceStr;
+          // 個々の式を翻訳
+          const formattedSources = realSourceStrs.map(s => formatForSympy(s)).map(s => `(${s})`);
+          
+          // 【修正】AND結合とOR結合の両方を作成してPythonに送る
+          const expr1_and = formattedSources.join(' & ');
+          const expr1_or = formattedSources.join(' | ');
           const expr2 = formatForSympy(targetStr);
           const domainExpr = domainStr ? formatForSympy(domainStr) : '';
 
           try {
-            // Vercel上のPython (SymPy) APIへ検証リクエストを送信
             const response = await fetch(`${sympyApiUrl}/api/verify`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ expr1, expr2, domain: domainExpr }),
+              // expr1_or を新たに追加して送信
+              body: JSON.stringify({ expr1: expr1_and, expr1_or: expr1_or, expr2, domain: domainExpr }),
             });
 
             if (response.ok) {

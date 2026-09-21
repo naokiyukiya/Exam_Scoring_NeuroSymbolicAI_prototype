@@ -9,6 +9,7 @@ app = FastAPI()
 
 class VerifyRequest(BaseModel):
     expr1: str
+    expr1_or: Optional[str] = None # ORパターンの受け皿を追加
     expr2: str
     domain: Optional[str] = None
 
@@ -21,12 +22,10 @@ def verify_expressions(req: VerifyRequest):
     try:
         transformations = standard_transformations + (implicit_multiplication_application, convert_equals_signs, rationalize)
         
-        e1 = parse_expr(req.expr1, transformations=transformations).doit()
+        e1_and = parse_expr(req.expr1, transformations=transformations).doit()
+        e1_or = parse_expr(req.expr1_or, transformations=transformations).doit() if req.expr1_or else None
         e2 = parse_expr(req.expr2, transformations=transformations).doit()
 
-        # ==========================================
-        # ステップ1: 代数検証 (分母を払った比較)
-        # ==========================================
         def get_diff(expr):
             if isinstance(expr, sympy.core.relational.Relational):
                 return expr.lhs - expr.rhs
@@ -38,24 +37,21 @@ def verify_expressions(req: VerifyRequest):
                 return None
             return expr
 
-        diff1 = get_diff(e1)
+        diff1 = get_diff(e1_and)
         diff2 = get_diff(e2)
         is_eq = False
         
+        # ステップ1: 代数検証
         if diff1 is not None and diff2 is not None:
             num1, _ = sympy.fraction(sympy.cancel(diff1))
             num2, _ = sympy.fraction(sympy.cancel(diff2))
-            
             check1 = sympy.simplify(num1 - num2)
             check2 = sympy.simplify(num1 + num2)
             if check1.is_zero or check1 == 0 or check2.is_zero or check2 == 0:
                 is_eq = True
 
-        # ==========================================
-        # ステップ2: 論理/数値テスト検証 (不等式・場合分け対策)
-        # ==========================================
+        # ステップ2: 論理/数値テスト検証
         if not is_eq:
-            # ドメイン（前提条件）がある場合はパースする
             domain_expr = None
             if req.domain:
                 try:
@@ -63,37 +59,41 @@ def verify_expressions(req: VerifyRequest):
                 except:
                     pass
 
-            vars1 = e1.free_symbols if hasattr(e1, 'free_symbols') else set()
+            vars1 = e1_and.free_symbols if hasattr(e1_and, 'free_symbols') else set()
             vars2 = e2.free_symbols if hasattr(e2, 'free_symbols') else set()
             all_vars = list(vars1.union(vars2))
             
             if all_vars:
                 x = all_vars[0]
-                # x=2 周辺など、エラーが起きやすい境界値を細かく設定
                 test_points = [-10.1, -3.0, -1.0, -0.5, 0.0, 1.0, 1.9, 2.0, 2.1, 2.5, 2.6666, 2.7, 3.0, 10.1]
-                points_matched = True
-                valid_test_count = 0
                 
-                for pt in test_points:
-                    try:
-                        # ★ドメイン(前提条件)がある場合、それを満たさない点(False)はテストから除外する！
-                        if domain_expr is not None:
-                            if not bool(domain_expr.subs(x, pt)):
-                                continue
-                                
-                        val1 = bool(e1.subs(x, pt))
-                        val2 = bool(e2.subs(x, pt))
-                        
-                        valid_test_count += 1
-                        if val1 != val2:
-                            points_matched = False
-                            break
-                    except Exception:
+                # ANDパターンとORパターンの両方をテストする
+                for e1_test in [e1_and, e1_or]:
+                    if e1_test is None:
                         continue
-                
-                # 有効なテストが1回以上行われ、すべて一致した場合のみ正解とする
-                if points_matched and valid_test_count > 0:
-                    is_eq = True
+                        
+                    points_matched = True
+                    valid_test_count = 0
+                    
+                    for pt in test_points:
+                        try:
+                            if domain_expr is not None:
+                                if not bool(domain_expr.subs(x, pt)):
+                                    continue
+                                    
+                            val1 = bool(e1_test.subs(x, pt))
+                            val2 = bool(e2.subs(x, pt))
+                            
+                            valid_test_count += 1
+                            if val1 != val2:
+                                points_matched = False
+                                break
+                        except Exception:
+                            continue
+                    
+                    if points_matched and valid_test_count > 0:
+                        is_eq = True
+                        break # どちらかで一致すれば正解！
 
         return {"is_equal": is_eq}
 
