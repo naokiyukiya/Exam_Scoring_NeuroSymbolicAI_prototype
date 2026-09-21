@@ -21,14 +21,11 @@ import {
 
 import '@xyflow/react/dist/style.css'
 
-import { findMistakes } from '../lib/findMistakes'
-
-// 💡 1. 型定義に verification_status を追加
-type GraphNode = {
-  id: string
-  label: string
-  type: 'proposition' | 'inference' | 'theorem' | 'definition'
-  verification_status?: string
+type GraphNode = { 
+  id: string; 
+  label: string; 
+  type: 'proposition' | 'inference' | 'theorem';
+  verification_status?: string; 
 }
 type GraphEdge = { from: string; to: string }
 type DagVisualizerProps = { graphData: { nodes: GraphNode[]; edges: GraphEdge[] } }
@@ -149,18 +146,15 @@ const nodeTypes = { custom: CustomNode }
 const edgeTypes = { customEdge: CustomEdgeWithLabels }
 
 export default function DagVisualizer({ graphData }: DagVisualizerProps) {
-  if (!graphData || !Array.isArray(graphData.nodes) || !Array.isArray(graphData.edges)) return <div>エラー</div>
+  if (!graphData || !Array.isArray(graphData.nodes) || !Array.isArray(graphData.edges)) {
+    return <div>エラー</div>
+  }
 
   const [selectedMode, setSelectedMode] = useState<'none' | 'node' | 'edge'>('none')
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
 
   const { nodes: rawNodes, edges: rawEdges } = graphData
-  const mistakeAnalysis = useMemo(
-  () => findMistakes(graphData),
-  [graphData]
-)
-console.log("🔎 ミス分析結果:", mistakeAnalysis)
 
   const depths = useMemo(() => {
     const dMap = new Map<string, number>()
@@ -236,7 +230,7 @@ console.log("🔎 ミス分析結果:", mistakeAnalysis)
 
     return rawNodes.map((node) => {
       const isTheorem = node.type === 'theorem'
-      const isInference = node.type === 'inference' // 💡 推論ノード判定
+      const isInference = node.type === 'inference' 
       let x = 400
       let y = 0
 
@@ -304,7 +298,6 @@ console.log("🔎 ミス分析結果:", mistakeAnalysis)
                     {isTheorem ? '定義・定理' : node.type === 'proposition' ? '命題' : '推論'}
                   </span>
                   
-                  {/* 💡 【追加】推論ノードの場合のみ「verification_status」をタグとして表示 */}
                   {isInference && node.verification_status && (
                     <span style={styles.statusBadge}>
                       {node.verification_status}
@@ -449,26 +442,7 @@ console.log("🔎 ミス分析結果:", mistakeAnalysis)
     setSelectedEdgeId(null)
   }
 
-  return(
-  <div style={styles.container}>
-
-    {/* 🔎 ミス分析デバッグ */}
-    <div
-      style={{
-        background: 'white',
-        color: 'black',
-        padding: 20,
-        marginBottom: 20,
-        maxHeight: 400,
-        overflow: 'auto',
-      }}
-    >
-      <h2>🔎 ミス分析デバッグ</h2>
-
-      <pre>
-        {JSON.stringify(mistakeAnalysis, null, 2)}
-      </pre>
-    </div>
+  return (
     <div style={styles.container}>
       <h3 style={styles.title}>論理構造 DAG モニター</h3>
       <div style={styles.canvasWrapper}>
@@ -489,6 +463,7 @@ console.log("🔎 ミス分析結果:", mistakeAnalysis)
       </div>
     </div>
   )
+}
 
 const styles = {
   container: { width: '100%', display: 'flex', flexDirection: 'column' as const },
@@ -499,8 +474,6 @@ const styles = {
   propositionBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#4D96FF', backgroundColor: '#edf4ff', padding: '1px 6px', borderRadius: '4px' },
   inferenceBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#6BCB77', backgroundColor: '#eefaf0', padding: '1px 6px', borderRadius: '4px' },
   theoremBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#ea580c', backgroundColor: '#ffedd5', padding: '1px 6px', borderRadius: '4px' },
-  
-  // 💡 【追加】検証ステータス（「検証前」など）を表示するバッジのスタイル
   statusBadge: { 
     fontSize: '9px', 
     fontWeight: 'bold' as const, 
@@ -510,7 +483,6 @@ const styles = {
     padding: '1px 5px', 
     borderRadius: '4px' 
   },
-
   nodeId: { fontSize: '10px', color: '#94a3b8', fontFamily: 'monospace' },
   nodeLabel: { fontSize: '12px', fontWeight: 500, whiteSpace: 'pre-wrap' as const, fontFamily: 'Consolas, Monaco, monospace', wordBreak: 'break-all' as const, lineHeight: 1.4 },
 }
