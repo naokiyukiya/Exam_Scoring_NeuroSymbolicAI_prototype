@@ -150,45 +150,44 @@ export async function GET(request: NextRequest) {
 あなたは高校物理の論理構造および解法プロセスの自動検証を行う厳格な物理AIエンジンです。
 
 [目的 (Purpose)]
-【問題画像】の設定前提と、【答案画像】に実際に書かれている記述ステップを抽出し、有向グラフ（DAG）を作成してください。
+【1枚目画像: 問題文】の設定前提と、【2枚目画像: 解答答案】に実際に書かれている記述ステップを正確に抽出し、有向グラフ（DAG）を作成してください。
 
 [最重要制約ルール (Strict Rules)]
 1. **【答案への完全忠実原則（ハルシネーションの絶対禁止）】**:
    - 生徒が答案に書いていない思考ステップや数式（例: 運動方程式 Ma=F など）を勝手に補完・捏造してノードに組み込まないでください。
    - 生徒が「合力 F = -Kx」から直ちに単振動と同定した場合は、「合力からの復元力定数の特定」を使用し、運動方程式のノードを作らないでください。
-2. **【Inputs / Outputs の明確な文字列バインディング】**:
-   - 推論ノード（type: "inference"）の \`inputs_used\` と \`outputs_derived\` を決して空のオブジェクト \`{}\` にしないでください。
-   - 例: 
-     \`inputs_used\`: { "fluid_density": "ρ=1", "submerged_volume": "V'=(2/3 H + x)S", "gravity_acc": "g" }
-     \`outputs_derived\`: { "buoyant_force": "F' = 1*(2/3 H + x)S*g" }
-3. **【定理ラベルの一致】**:
+2. **【Inputs / Outputs の必須バインディング】**:
+   - 推論ノード（type: "inference"）における \`inputs_used\` と \`outputs_derived\` は**絶対に使用・出力**してください。決して空のオブジェクト \`{}\` や \`null\` にしないでください。
+   - 定理の適用に使用された変数・前提式を \`inputs_used\` に、その結果導出された式・物理量を \`outputs_derived\` に必ずキーと値のペアで格納してください。
+3. **【座標軸・正の向きの一貫性】**:
+   - 問題文および答案で定義された座標軸・正の向き（例: 鉛直下向き正、右向き正）に従い、符号（+ / -）の矛盾が生じないように数式を記述してください。
+4. **【定理ラベルの一致】**:
    - 推論ノードに接続する \`theorem\` ノードの label は、必ず [利用可能な構造化定理ライブラリ] の Name と一字一句違わず一致させてください。
-4. **【全記述の日本語指定】**:
+5. **【全記述の日本語指定】**:
    - label および construction_process はすべて日本語で記述してください。
    
 [SymPy 互換数式フォーマットの厳格適用]
 1. inputs_used および outputs_derived 内の数式は、SymPy の sympy.sympify() や parse_expr() で直接パース可能な記法を用いてください。
-   - 掛け算記号 '*' を省略しないこと (例: '2*H', 'm*g', 'S*g')
+   - 掛け算記号 '*' を省略しないこと (例: '2*H', 'm*g', 'S*g', '1*(2/3*H + x)*S*g')
    - べき乗は '**' を使用すること (例: 'x**2', '(1/2)')
    - ギリシャ文字は英字表記にすること (例: 'rho', 'pi', 'omega', 'theta')
    - 平方根は 'sqrt(...)' を使用すること (例: '2*pi*sqrt((2*H)/(3*g))')
-   - 等式関係は '==' または 'E1 = E2' の形式で書くこと
-
+   - 等式関係は 'E1 == E2' または 'variable = expression' の形式で書くこと
 
 [出力形式 (Format Example)]
 {
   "graph": {
     "nodes": [
-      { "id": "p1", "label": "変位 x での水没体積 V' = ((2/3)H + x)S", "type": "proposition" },
+      { "id": "p1", "label": "変位 x での水没体積 V' = ((2/3)*H + x)*S", "type": "proposition" },
       { "id": "t1", "label": "アルキメデスの原理（浮力）", "type": "theorem" },
       {
         "id": "i1",
         "label": "変位 x での浮力 F' を計算する",
         "type": "inference",
-        "inputs_used": { "fluid_density": "1", "submerged_volume": "((2/3)H + x)S", "gravity_acc": "g" },
-        "outputs_derived": { "buoyant_force": "F' = 1 * ((2/3)H + x)S * g" }
+        "inputs_used": { "fluid_density": "1", "submerged_volume": "((2/3)*H + x)*S", "gravity_acc": "g" },
+        "outputs_derived": { "buoyant_force": "F' = 1 * ((2/3)*H + x)*S * g" }
       },
-      { "id": "p2", "label": "浮力 F' = 1 * ((2/3)H + x)S * g", "type": "proposition" }
+      { "id": "p2", "label": "浮力 F' = 1 * ((2/3)*H + x)*S * g", "type": "proposition" }
     ],
     "edges": [
       { "from": "p1", "to": "i1" },
@@ -234,15 +233,18 @@ ${theoremListString}
                     type: 'OBJECT',
                     properties: {
                       id: { type: 'STRING' },
-                      type: { type: 'STRING' },
+                      type: { 
+                        type: 'STRING',
+                        description: 'ノード種別: "proposition", "theorem", "inference" のいずれか'
+                      },
                       label: { type: 'STRING' },
                       inputs_used: { 
                         type: 'OBJECT',
-                        description: '定理に代入された実際の変数や数式（例: {"mass": "M", "gravity": "g"}）'
+                        description: '【inferenceノードで必須】定理に代入された実際の変数や数式（例: {"mass": "M", "gravity": "g"}）。空にしてはいけません。'
                       },
                       outputs_derived: { 
                         type: 'OBJECT',
-                        description: '推論によって導かれた式や物理量（例: {"buoyant_force": "F = ρVg"}）'
+                        description: '【inferenceノードで必須】推論によって導かれた式や物理量（例: {"buoyant_force": "F = rho*V*g"}）。空にしてはいけません。'
                       }
                     },
                     required: ['id', 'type', 'label']
@@ -267,13 +269,12 @@ ${theoremListString}
               items: { type: 'STRING' }
             }
           },
-          required: ['graph']
+          required: ['graph', 'construction_process']
         },
         temperature: 0.1,
         maxOutputTokens: 16384
       }
     });
-
     const rawText = response.text || '';
     let parsedData: any = null;
 
