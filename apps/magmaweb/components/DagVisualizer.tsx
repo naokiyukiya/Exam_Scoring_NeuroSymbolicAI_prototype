@@ -19,7 +19,7 @@ import {
   getStraightPath,
 } from '@xyflow/react'
 
-import '@xyflow/react/dist/style.css'
+import '../../../xyflow/react/dist/style.css'
 
 import { findMistakes } from '../lib/findMistakes'
 
@@ -498,7 +498,7 @@ const styles = {
   nodeHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   propositionBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#4D96FF', backgroundColor: '#edf4ff', padding: '1px 6px', borderRadius: '4px' },
   inferenceBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#6BCB77', backgroundColor: '#eefaf0', padding: '1px 6px', borderRadius: '4px' },
-  theoremBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#ea580c', backgroundColor: 'ffedd5', padding: '1px 6px', borderRadius: '4px' },
+  theoremBadge: { fontSize: '10px', fontWeight: 'bold' as const, color: '#ea580c', backgroundColor: '#ffedd5', padding: '1px 6px', borderRadius: '4px' },
   
   // 💡 【追加】検証ステータス（「検証前」など）を表示するバッジのスタイル
   statusBadge: { 
