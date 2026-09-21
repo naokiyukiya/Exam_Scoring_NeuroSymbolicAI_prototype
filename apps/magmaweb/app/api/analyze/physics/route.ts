@@ -83,10 +83,29 @@ export async function GET(request: NextRequest) {
 
   if (!answerId) return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
 
-  const { data: answer, error } = await supabase.from('posts').select('image_url').eq('id', answerId).single();
+  // ① 答案データ (answer) を取得（parent_id も合わせて取得）
+  const { data: answer, error: answerError } = await supabase
+    .from('posts')
+    .select('id, image_url, parent_id')
+    .eq('id', answerId)
+    .single();
 
-  if (error || !answer?.image_url) {
-    return NextResponse.json({ error: '画像URLを取得できませんでした' }, { status: 404 });
+  if (answerError || !answer?.image_url) {
+    return NextResponse.json({ error: '答案画像URLを取得できませんでした' }, { status: 404 });
+  }
+
+  // ② parent_id から親の「問題データ (problem)」を取得（親が存在しない場合は自身の答案画像をフォールバック）
+  let problemImageUrl = answer.image_url;
+  if (answer.parent_id) {
+    const { data: problem } = await supabase
+      .from('posts')
+      .select('image_url')
+      .eq('id', answer.parent_id)
+      .maybeSingle();
+
+    if (problem?.image_url) {
+      problemImageUrl = problem.image_url;
+    }
   }
 
   const physicsData: any = physicsLibrary;
@@ -125,47 +144,65 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const imageRes = await fetch(answer.image_url);
-    const arrayBuffer = await imageRes.arrayBuffer();
-    const base64Image = Buffer.from(arrayBuffer).toString('base64');
+    // ③ 問題画像と答案画像の両方を Base64 化（並列フェッチで高速化）
+    const [problemRes, answerRes] = await Promise.all([
+      fetch(problemImageUrl),
+      fetch(answer.image_url)
+    ]);
 
+    const [problemBuffer, answerBuffer] = await Promise.all([
+      problemRes.arrayBuffer(),
+      answerRes.arrayBuffer()
+    ]);
+
+    const problemBase64 = Buffer.from(problemBuffer).toString('base64');
+    const answerBase64 = Buffer.from(answerBuffer).toString('base64');
+
+    // ④ プロンプトの作成（問題条件と答案記述の照合指示を追加）
     const promptText = `
 [役割 (Persona)]
 あなたは、高校物理の論理構造および解法プロセスの自動検証を行うAI物理エンジニアです。
 
 [目的 (Purpose)]
-入力された答案・思考ノート画像を解析し、物理法則の【入力（Inputs: 前提・仮定・物理量）】から【出力（Outputs: 成り立つ等式・運動の分類）】への推論フローを有向グラフ（DAG）として抽出してください。
+入力された【問題画像】の設定・前提と、【答案画像】の記述・解法プロセスを照合解析し、物理法則の【入力（Inputs: 前提・仮定・物理量）】から【出力（Outputs: 成り立つ等式・運動の分類）】への推論フローを有向グラフ（DAG）として抽出してください。
+
+[入力画像の指示]
+- 1枚目の画像: 【問題文】(問題の前提条件、与えられた文字、初期状態)
+- 2枚目の画像: 【生徒の解答答案】(立式および計算展開プロセス)
 
 [思考ノードの種類 (Node Types)]
-- proposition (命題・状態・式ノード): 物理的な状況設定、定義された座標、立てられた方程式、得られた数値や結論（運動分類含む）。
+- proposition (命題・状態・式ノード): 問題文から与えられる初期条件や設定、座標定義、答案で立てられた方程式、得られた数値や結論（運動分類含む）。
 - inference (物理的推論ノード): 入力前提（inputs）からルールを適用して出力結論（outputs）を導く推論ステップ。
 - theorem (物理法則・定理ノード): [利用可能な構造化定理ライブラリ] に定義されている物理ルール。
 
 [制約事項 (Rules)]
 0. 【絶対言語指定】: すべての記述（label, construction_process 等）は**必ず日本語**で行ってください。
-1. フロー構造と定理の接続:
+1. 問題前提の明確な抽出:
+   - 【問題画像】に書かれている物理条件（例: 「質量 M」「液体密度 ρ」「つりあいの位置」など）を初期の proposition ノードとして抽出してください。
+2. フロー構造と定理の接続:
    - メインのフローは (命題 proposition) -> (推論 inference) -> (命題 proposition) です。
    - すべての推論ノードには、必ず1つの定理ノードを「(定理 theorem) -> (推論 inference)」の向きで接続してください。
    - 【厳守】定理の label には、必ず末尾の [利用可能な構造化定理ライブラリ] の Name と全く同じ文字列を一言一句違わず使用してください。
-2. 入出力（Inputs/Outputs）のバインディング記録:
+3. 入出力（Inputs/Outputs）のバインディング記録:
    - 推論ノード（inference）を作成する際は、適用した定理の Inputs / Outputs に従い、どのような物理量や方程式を代入・導出したかを \`inputs_used\` と \`outputs_derived\` に記録してください。
-3. 明示的抽象化:
+   - 例: inputs_used: {"mass": "M", "gravity": "g"}, outputs_derived: {"force": "M*g"}
+4. 明示的抽象化:
    - 単なる代数計算だけでなく、「ma = -Kx」などの式から「この運動は単振動である」と判定する運動同定ステップ（Outputs）を必ず抽出してください。
 
 [出力形式 (Format)]
 {
   "graph": {
     "nodes": [
-      { "id": "p1", "label": "質量 m の物体に力 F がはたらく", "type": "proposition" },
+      { "id": "p1", "label": "質量 M の物体に力 F がはたらく", "type": "proposition" },
       { "id": "t1", "label": "運動方程式", "type": "theorem" },
       {
         "id": "i1",
         "label": "運動方程式 ma = F を立式する",
         "type": "inference",
-        "inputs_used": { "mass": "m", "force": "F" },
-        "outputs_derived": { "equation": "m*a = F" }
+        "inputs_used": { "mass": "M", "force": "F" },
+        "outputs_derived": { "equation": "M*a = F" }
       },
-      { "id": "p2", "label": "m*a = F", "type": "proposition" }
+      { "id": "p2", "label": "M*a = F", "type": "proposition" }
     ],
     "edges": [
       { "from": "p1", "to": "i1" },
@@ -174,8 +211,8 @@ export async function GET(request: NextRequest) {
     ]
   },
   "construction_process": [
-    "Step 1: 注目物体の質量 m とはたらく力 F を確認。",
-    "Step 2: 運動方程式を適用し、m*a = F を立式。"
+    "Step 1: 問題文から注目物体の質量 M と力 F を確認。",
+    "Step 2: 運動方程式を適用し、M*a = F を立式。"
   ]
 }
 
@@ -183,13 +220,17 @@ export async function GET(request: NextRequest) {
 ${theoremListString}
     `.trim();
 
+    // ⑤ Gemini に 2 枚の画像とプロンプトを送信
     const response = await generateWithRetry({
       model: 'gemini-2.5-flash',
       contents: [
         {
           role: 'user',
           parts: [
-            { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
+            { text: "【1枚目画像: 問題文】" },
+            { inlineData: { mimeType: 'image/jpeg', data: problemBase64 } },
+            { text: "【2枚目画像: 解答答案】" },
+            { inlineData: { mimeType: 'image/jpeg', data: answerBase64 } },
             { text: promptText }
           ]
         }
