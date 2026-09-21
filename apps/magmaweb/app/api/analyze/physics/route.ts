@@ -5,7 +5,7 @@ import physicsLibrary from '../../../../lib/constants/physics.json';
 
 // タイムアウトとプロンプトバージョン設定
 export const maxDuration = 60;
-const PROMPT_VERSION = "2.2.0_physics";
+const PROMPT_VERSION = "2.2.1_physics";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
