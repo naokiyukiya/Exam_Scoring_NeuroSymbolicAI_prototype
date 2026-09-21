@@ -1,5 +1,5 @@
 {
-  "version": "2.4.0_sympy_complete",
+  "version": "2.4.1_sympy_complete",
   "domain": "physics_mechanics",
   "description": "高校物理・力学分野の完全構造化思考モデルライブラリ（SymPyパース対応・成立条件網羅版）",
   "theorems": [
