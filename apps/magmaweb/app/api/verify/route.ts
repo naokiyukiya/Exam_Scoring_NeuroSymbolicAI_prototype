@@ -112,13 +112,12 @@ export async function POST(req: Request) {
           let sourceStrs = sourcePropositions.map(p => p.label || p.text || '');
           const targetStr = targetPropositions[0].label || targetPropositions[0].text || '';
 
-          // 【追加】前提条件（ドメイン）の自動分離
+          // 前提条件（ドメイン）の自動分離
           let domainStr = '';
           let realSourceStrs = sourceStrs;
           
           if (sourceStrs.length > 1) {
-            // 単純な不等式 (例: x > 2, x-2 < 0, x ≠ 2) を前提条件とみなす
-            const domainRegex = /^[a-zA-Z0-9\s\-]+[<>≠]\s*-?[0-9a-zA-Z\s]+$/;
+            const domainRegex = /^[a-zA-Z0-9\s\-]+[<>≠]\s*-?[0-9a-zA-Z\s\/]+$/;
             const foundDomainIdx = sourceStrs.findIndex(s => domainRegex.test(s));
             if (foundDomainIdx !== -1) {
               domainStr = sourceStrs[foundDomainIdx];
@@ -126,9 +125,13 @@ export async function POST(req: Request) {
             }
           }
 
-          const combinedSourceStr = realSourceStrs.map(s => `(${s})`).join(' & ');
+          // 【修正ポイント】先に個々の式を formatForSympy で翻訳してから、最後にカッコで囲んで '&' で繋ぐ！
+          const combinedSourceStr = realSourceStrs
+            .map(s => formatForSympy(s))
+            .map(s => `(${s})`)
+            .join(' & ');
 
-          const expr1 = formatForSympy(combinedSourceStr);
+          const expr1 = combinedSourceStr;
           const expr2 = formatForSympy(targetStr);
           const domainExpr = domainStr ? formatForSympy(domainStr) : '';
 
@@ -137,7 +140,6 @@ export async function POST(req: Request) {
             const response = await fetch(`${sympyApiUrl}/api/verify`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              // 【変更】domainExpr (前提条件) も一緒に送る！
               body: JSON.stringify({ expr1, expr2, domain: domainExpr }),
             });
 
