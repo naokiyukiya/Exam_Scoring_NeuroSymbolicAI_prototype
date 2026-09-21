@@ -27,7 +27,7 @@ interface LogicGraph {
 }
 
 // =========================================================================
-// 2. SymPy向け 数式整形ヘルパー (高校数学フルカバー版)
+// 2. SymPy向け 数式整形ヘルパー (完全対応版)
 // =========================================================================
 function formatForSympy(str: string): string {
   if (!str) return '';
@@ -35,51 +35,40 @@ function formatForSympy(str: string): string {
   let s = str.replace(/\(\s*[①-⑳]\s*\)/g, '').replace(/[①-⑳]/g, '').replace(/[…・]/g, '').trim();
   s = s.replace(/\^/g, '**');
 
-  // 【今回追加】不等号と論理演算子のSymPy語への翻訳
+  // 不等号の変換
   s = s.replace(/≦/g, '<=').replace(/≧/g, '>=');
   s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
-  s = s.replace(/≠/g, '!=');
-  s = s.replace(/\s*または\s*/g, ' | '); // SymPyの OR
-  s = s.replace(/\s*かつ\s*/g, ' & ');  // SymPyの AND
-  s = s.replace(/，/g, ' & ').replace(/,/g, ' & ');
 
-  // 累乗
-  s = s.replace(/\^/g, '**');
+  // 【最重要1】連立不等式 (A < B < C) を (A < B) & (B < C) に分割する
+  const compRegex = /([^<>=&|]+)\s*(<=|<|>=|>)\s*([^<>=&|]+)\s*(<=|<|>=|>)\s*([^<>=&|]+)/;
+  if (compRegex.test(s)) {
+    s = s.replace(compRegex, '($1 $2 $3) & ($3 $4 $5)');
+  }
 
-  // 【1】シグマ: Σ[k=1 to n] 2k -> Sum(2k, (k, 1, n))
-  s = s.replace(/Σ\[([a-zA-Z]+)=([^\s\]]+)\s+to\s+([^\]]+)\]\s*([a-zA-Z0-9_]+|\([^)]+\))/g, 'Sum($4, ($1, $2, $3))');
+  // 【最重要2】 x ≠ 0 などを Pythonの != にするとエラーになるため、SymPy関数の Ne(x, 0) に変換する
+  const notEqRegex = /([^=<>≠]+)\s*≠\s*([^=<>≠]+)/g;
+  s = s.replace(notEqRegex, 'Ne($1, $2)');
 
-  // 【2】定積分: ∫[a to b] x^2 dx -> Integral(x**2, (x, a, b))
-  s = s.replace(/∫\[([^\]]+)\s+to\s+([^\]]+)\]\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($3, ($4, $1, $2))');
-
-  // 【3】不定積分: ∫ x^2 dx -> Integral(x**2, x)
-  s = s.replace(/∫\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($1, $2)');
-
-  // 【4】極限: lim[x->0] (x^2) -> Limit((x**2), x, 0)
-  s = s.replace(/lim\[([a-zA-Z]+)\s*(?:->|→)\s*([^\]]+)\]\s*(.+)/g, 'Limit($3, $1, $2)');
-
-  // 【5】微分: d/dx (x^2) -> Derivative(x**2, x)
-  s = s.replace(/d\/d([a-zA-Z])\s*\((.+?)\)/g, 'Derivative($2, $1)');
-
-  // --- 今回追加した高校数学対応 ---
-
-  // 【6】対数: log[a](x) -> log(x, a)
-  s = s.replace(/log\[([^\]]+)\]\((.+?)\)/g, 'log($2, $1)');
+  // 論理演算子の変換（OR は優先順位エラーを防ぐため全体をカッコで囲む）
+  s = s.replace(/\s*または\s*/g, ') | ('); 
+  s = s.replace(/\s*かつ\s*/g, ') & (');
+  s = s.replace(/，/g, ') & (').replace(/,/g, ') & (');
   
-  // 【7】自然対数: ln(x) -> log(x)
+  // または・かつ が含まれていた場合は、全体をさらにカッコで囲んで安全にする
+  if (s.includes('|') || s.includes('&')) {
+    s = `(${s})`;
+  }
+
+  s = s.replace(/Σ\[([a-zA-Z]+)=([^\s\]]+)\s+to\s+([^\]]+)\]\s*([a-zA-Z0-9_]+|\([^)]+\))/g, 'Sum($4, ($1, $2, $3))');
+  s = s.replace(/∫\[([^\]]+)\s+to\s+([^\]]+)\]\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($3, ($4, $1, $2))');
+  s = s.replace(/∫\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($1, $2)');
+  s = s.replace(/lim\[([a-zA-Z]+)\s*(?:->\vert{}→)\s*([^\]]+)\]\s*(.+)/g, 'Limit($3, $1, $2)');
+  s = s.replace(/d\/d([a-zA-Z])\s*\((.+?)\)/g, 'Derivative($2, $1)');
+  s = s.replace(/log\[([^\]]+)\]\((.+?)\)/g, 'log($2, $1)');
   s = s.replace(/ln\((.+?)\)/g, 'log($1)');
-
-  // 【8】絶対値: |x| -> Abs(x)
   s = s.replace(/\|([^|]+)\|/g, 'Abs($1)');
-
-  // 【9】組合せ (nCr): C(n, r) -> binomial(n, r)
   s = s.replace(/C\(([^,]+),\s*([^)]+)\)/g, 'binomial($1, $2)');
-
-  // 【10】順列 (nPr): P(n, r) -> (factorial(n)/factorial(n-r))
   s = s.replace(/P\(([^,]+),\s*([^)]+)\)/g, '(factorial($1)/factorial($1-$2))');
-
-  // ※平方根(sqrt)、三角関数(sin, cos, tan)、階乗(!) は、
-  // 後述するAIへの指示で直接出力させることでSymPyがそのまま理解します。
 
   return s;
 }

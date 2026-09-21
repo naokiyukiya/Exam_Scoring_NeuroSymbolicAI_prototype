@@ -324,7 +324,7 @@
         },
         {
           "id": "rule_inequality_multiply_positive",
-          "name": "両辺に正の数を掛ける",
+          "name": "不等式の両辺に正の数を掛ける",
           "level": ["middle", "high"],
           "before": ["Less", "A", "B"],
           "after": ["Less", ["Multiply", "A", "C"], ["Multiply", "B", "C"]],
@@ -333,12 +333,20 @@
         },
         {
           "id": "rule_inequality_multiply_negative",
-          "name": "両辺に負の数を掛ける（反転）",
+          "name": "不等式の両辺に負の数を掛ける（反転）",
           "level": ["middle", "high"],
           "before": ["Less", "A", "B"],
           "after": ["Greater", ["Multiply", "A", "C"], ["Multiply", "B", "C"]],
           "conditions": ["Less", "C", 0],
           "symbols": { "A": "左辺", "B": "右辺", "C": "負の数" }
+        },
+        {
+          "id": "rule_quadratic_inequality",
+          "name": "二次不等式を解く",
+          "level": ["high"],
+          "before": ["Inequality", ["Multiply", ["Add", "x", "a"], ["Add", "x", "b"]], 0],
+          "after": "solution_range",
+          "symbols": { "x": "変数", "a": "定数1", "b": "定数2", "solution_range": "解の範囲" }
         }
       ]
     },
@@ -410,6 +418,14 @@
           "before": ["Subtract", ["Power", "a", 2], ["Power", "b", 2]],
           "after": ["Multiply", ["Add", "a", "b"], ["Subtract", "a", "b"]],
           "symbols": { "a": "項1", "b": "項2" }
+        },
+        {
+          "id": "rule_factorization_quadratic",
+          "name": "二次式の因数分解",
+          "level": ["middle", "high"],
+          "before": ["Add", ["Power", "x", 2], ["Multiply", "b", "x"], "c"],
+          "after": ["Multiply", ["Add", "x", "p"], ["Add", "x", "q"]],
+          "symbols": { "x": "変数", "b": "係数", "c": "定数", "p": "因数1", "q": "因数2" }
         }
       ]
     },
