@@ -5,11 +5,11 @@ import theorems from '../../../lib/constants/mathematics.json';
 
 // ★ タイムアウトを60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.17.0"; // バージョンは1.17.0のまま維持します
+const PROMPT_VERSION = "1.18.0"; // バージョンを更新
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
-// ★ 追加: 503/429エラーが出た時に自動で再試行するヘルパー関数
+// ★ 503/429エラーが出た時に自動で再試行するヘルパー関数
 async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 4000) {
   let delay = initialDelayMs;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -106,10 +106,11 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // ★ 修正：mathematics.json の正しい階層 (data.rule_groups) からリストを抽出するように修正
   let theoremListString = "";
   try {
-    if (data?.theorems?.rule_groups) {
-      theoremListString = data.theorems.rule_groups.flatMap((g: any) => g.rules || []).map((r: any) => `- ${r.name}`).join('\n');
+    if (data?.rule_groups) {
+      theoremListString = data.rule_groups.flatMap((g: any) => g.rules || []).map((r: any) => `- ${r.name}`).join('\n');
     } else if (Array.isArray(data)) {
       theoremListString = data.map((r: any) => `- ${r.name}`).join('\n');
     }
@@ -122,7 +123,6 @@ export async function GET(request: NextRequest) {
     const arrayBuffer = await imageRes.arrayBuffer()
     const base64Image = Buffer.from(arrayBuffer).toString('base64')
 
-    // ★ 直接呼び出さず、リトライ機能付きの関数を使用 (モデルも429回避のため1.5にしています)
     const response = await generateWithRetry({
       model: 'gemini-2.5-flash', 
       contents: [
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
    - 途中で抽出を打ち切ることは絶対に許されません。答案に書かれているすべての式を命題として抽出し、必ず最後まで対応するエッジを繋ぎ切ってください。
 2. 定理ノードの完全必須化とエッジの向き（超厳守）:
    - すべての推論（inference）ノードには、必ず1つの定理（theorem）ノードを「定理から推論へ (from: theorem, to: inference)」の向きで接続してください。
-   - 【警告】定理の label は、必ず末尾の [利用可能な定理ライブラリ] の一覧から最も適切なものを一つ選び、一言一句違わず全く同じ文字列をコピーして使用してください。勝手に新規定理を作ることは一切禁止します。
+   - 【警告】定理の label は、必ず末尾の [利用可能な定理ライブラリ] の一覧から最も適切なものを一つ選び、一字一句違わず全く同じ文字列をコピーして使用してください。勝手に新規定理を作ることは一切禁止します。
 3. 【推論ノードのラベルの調整（超重要）】:
    - 推論ノードの \`label\` は、細かすぎる長文解説にせず、どのような計算・式変形を行ったのかを**簡潔**に記述してください。
    - 「右辺の項を左辺に移項する」「両辺に (x-2) を掛けて整理する」のように、何をどう変形したのかが式レベルで一目で分かる程度に、少しだけ丁寧に書いてください。
@@ -174,10 +174,13 @@ export async function GET(request: NextRequest) {
    - 平方根・累乗根: sqrt(式), root(式, n) (例: √x やルート記号は使わず sqrt(x) とする)
    - 三角関数: sin(x), cos(x), tan(x) (※必ず括弧をつけること)
    - 数学定数: 円周率は pi、自然対数の底(ネイピア数)は E、虚数単位は I (大文字のアイ) とする。
-  10.【重要】:
+10.【重要】:
    - 数式の中に「Σ（シグマ）」「∫（積分）」「lim（極限）」などが含まれている場合、その計算や変形を行うステップには、ただの「式の展開・整理」ではなく、必ず「シグマの公式」「定積分の計算」「極限の性質」といった具体的な【定理・定義ノード】を抽出して接続してください。
-  11.【絶対遵守事項】:
+11.【絶対遵守事項】:
    - Σ（シグマ）記号の計算・消去を行うステップでは、対応する定理・定義ノード（theorem）に必ず「シグマの計算」や「数列の和の公式」といった具体的な名称を付けて独立させてください。これを単なる「式の展開・整理」や「同類項の整理」としてひとまとめにすることは固く禁じます。
+12.【式の分割抽出ルール（超厳守）】:
+   - 「変形前の式 = 変形後の式」（例: \`a(b+c) = ab + ac\` や \`(1/6 + 5/6)n + Σ... = n^2\`）のように、1つの変形ステップを等号で結んで1つの命題ノードにまとめることは【絶対に禁止】です。
+   - 必ず「変形前の式 (ノードA)」と「変形後の式 (ノードB)」を別々の命題ノードとして独立させ、その間に推論ノードを挟んで抽出してください。
   
 [出力形式 (Format)]
 - 以下のJSONフォーマットに厳密に従ってください。
@@ -205,6 +208,7 @@ export async function GET(request: NextRequest) {
 }
 
 [利用可能な定理ライブラリ]
+以下のリストから最も適切な定理名を必ず選んでください。
 ${theoremListString}
               `
             }
@@ -238,7 +242,7 @@ ${theoremListString}
                     type: 'OBJECT',
                     properties: {
                       from: { type: 'STRING' },
-                      to: { type: 'STRING' }
+                      to: { type: 'STRING' },
                     },
                     required: ['from', 'to']
                   }
@@ -254,7 +258,7 @@ ${theoremListString}
           required: ['graph']
         },
         temperature: 0.0,
-        maxOutputTokens: 16384 // ★ タイムアウトを回避しつつ、以前(8192)の倍のトークン数を許可
+        maxOutputTokens: 16384
       }
     })
 
@@ -286,9 +290,7 @@ ${theoremListString}
       const edges = parsedData.graph.edges;
       let autoTheoremCount = 1;
 
-      // =================================================================================
-      // ★ セーフティネット：推論ノードに定理が繋がっていなかったら自動で作成して繋ぐ
-      // =================================================================================
+      // セーフティネット：推論ノードに定理が繋がっていなかったら自動で作成して繋ぐ
       nodes.forEach((node: any) => {
         if (node.type === 'inference') {
           const hasTheorem = edges.some((e: any) => {
@@ -313,8 +315,6 @@ ${theoremListString}
           }
         }
       });
-      
-      // ※ 孤立ノードを自動削除するロジック（ゴミ掃除機能）は撤廃しました。
     }
 
     let dbSaveError: any = null
