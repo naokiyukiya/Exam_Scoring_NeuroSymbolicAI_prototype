@@ -5,7 +5,7 @@ import theorems from '../../../lib/constants/mathematics.json';
 
 // ★ タイムアウトを60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.21.0"; // バージョンを更新
+const PROMPT_VERSION = "1.22.0"; // バージョンを更新
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -181,18 +181,22 @@ export async function GET(request: NextRequest) {
 12.【式の分割抽出ルール（超厳守）】:
    - 「変形前の式 = 変形後の式」（例: \`a(b+c) = ab + ac\` や \`(1/6 + 5/6)n + Σ... = n^2\`）のように、1つの変形ステップを等号で結んで1つの命題ノードにまとめることは【絶対に禁止】です。
    - 必ず「変形前の式 (ノードA)」と「変形後の式 (ノードB)」を別々の命題ノードとして独立させ、その間に推論ノードを挟んで抽出してください。
-  
+13.【命題ノードのデュアル構造（超重要）】:
+   - 命題ノードの 'label' には、生徒の答案に書かれている日本語のテキストを含め、**ありのまま**抽出してください。
+   - その代わり、命題ノードには必ず 'math_expr' というキーを追加し、そこには**SymPyで計算・検証するための純粋な数式のみ**を記述してください。
+   - もし 'label' が「AをBで割ると商はQ、余りはR」という日本語であった場合、'math_expr' には「A = B * Q + R」という等式に翻訳して格納してください。数式のみの命題の場合は、'label' と 'math_expr' は同じ内容で構いません。
+
 [出力形式 (Format)]
 - 以下のJSONフォーマットに厳密に従ってください。
 
 {
   "graph": {
     "nodes": [
-      { "id": "p1", "label": "x > 2", "type": "proposition" },
-      { "id": "p2", "label": "x <= 5", "type": "proposition" },
+      { "id": "p1", "label": "x > 2", "math_expr": "x > 2", "type": "proposition" },
+      { "id": "p2", "label": "x <= 5", "math_expr": "x <= 5", "type": "proposition" },
       { "id": "t1", "label": "複数の条件を組み合わせる", "type": "theorem" },
       { "id": "i1", "label": "命題p1とp2の条件を組み合わせる", "type": "inference", "verification_status": "検証前" },
-      { "id": "p3", "label": "2 < x <= 5", "type": "proposition" }
+      { "id": "p3", "label": "2 < x <= 5", "math_expr": "2 < x <= 5", "type": "proposition" }
     ],
     "edges": [
       { "from": "p1", "to": "i1" },

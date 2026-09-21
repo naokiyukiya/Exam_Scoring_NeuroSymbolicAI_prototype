@@ -27,7 +27,7 @@ interface LogicGraph {
 }
 
 // =========================================================================
-// 2. SymPy向け 数式整形ヘルパー (再帰的・完全安全版)
+// 2. SymPy向け 数式整形ヘルパー (方程式・完全安全版)
 // =========================================================================
 function formatForSympy(str: string): string {
   if (!str) return '';
@@ -38,7 +38,14 @@ function formatForSympy(str: string): string {
   s = s.replace(/≦/g, '<=').replace(/≧/g, '>=');
   s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
 
-  // 【最重要】「または」「かつ」を最優先で分割し、それぞれを再帰的に翻訳する
+  // 【追加】方程式 (A = B) を Eq(A, B) に安全に変換する (不等号の = は巻き込まない)
+  // P(x) = ... のような関数定義も Eq(P(x), ...) に変換されるため安全です
+  const eqParts = s.split(/(?<![<>=!])=(?![<>=])/);
+  if (eqParts.length === 2 && !s.includes('または') && !s.includes('かつ') && !s.includes(',')) {
+    s = `Eq(${eqParts[0].trim()}, ${eqParts[1].trim()})`;
+  }
+
+  // 「または」「かつ」を最優先で分割し、それぞれを再帰的に翻訳する
   if (s.includes('または')) {
     const parts = s.split(/\s*または\s*/);
     return `Or(${parts.map(p => formatForSympy(p)).join(', ')})`;
@@ -47,10 +54,6 @@ function formatForSympy(str: string): string {
     const parts = s.split(/\s*かつ\s*|，|,/);
     return `And(${parts.map(p => formatForSympy(p)).join(', ')})`;
   }
-
-  // ---------------------------------------------------
-  // 以下は論理記号を含まない「単一の数式」に対する処理
-  // ---------------------------------------------------
 
   // 連立不等式 (A < B < C) を And(A < B, B < C) に安全に分割
   const compRegex = /([^<>=]+)\s*(<=|<|>=|>)\s*([^<>=]+)\s*(<=|<|>=|>)\s*([^<>=]+)/;
@@ -109,8 +112,9 @@ export async function POST(req: Request) {
         // 入力と出力の命題が正しく接続されているか確認
         if (sourcePropositions.length > 0 && targetPropositions.length === 1) {
           
-          let sourceStrs = sourcePropositions.map(p => p.label || p.text || '');
-          const targetStr = targetPropositions[0].label || targetPropositions[0].text || '';
+          // ★ label ではなく、AIが作った裏側の純粋な数式 (math_expr) を最優先で使うように変更！
+          let sourceStrs = sourcePropositions.map(p => (p as any).math_expr || p.label || p.text || '');
+          const targetStr = (targetPropositions[0] as any).math_expr || targetPropositions[0].label || targetPropositions[0].text || '';
 
           // 前提条件（ドメイン）の自動分離
           let domainStr = '';
