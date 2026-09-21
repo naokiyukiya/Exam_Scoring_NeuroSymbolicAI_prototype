@@ -3,13 +3,11 @@ import { GoogleGenAI } from '@google/genai';
 import { supabase } from '../../../../lib/supabase';
 import physicsLibrary from '../../../../lib/constants/physics.json';
 
-// タイムアウトとプロンプトバージョン設定
 export const maxDuration = 60;
-const PROMPT_VERSION = "2.2.1_physics";
+const PROMPT_VERSION = "2.3.0_strict_binding";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-// 混雑・制限対策のリトライヘルパー関数
 async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 4000) {
   let delay = initialDelayMs;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -20,7 +18,7 @@ async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 4
       const isOverloaded = err?.status === 503 || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('503') || err?.status === 429 || errMsg.includes('429');
       
       if (isOverloaded && attempt < maxRetries) {
-        console.warn(`[Gemini API Overloaded] サーバー混雑または制限のため自動リトライします (${attempt}/${maxRetries}). ${delay}ms後に再試行...`);
+        console.warn(`[Gemini API Overloaded] リトライ (${attempt}/${maxRetries})... ${delay}ms待機`);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2;
       } else {
@@ -30,7 +28,6 @@ async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 4
   }
 }
 
-// 途中で途切れたJSONを復元するリカバリー関数
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
   const lastValidIndex = Math.max(
@@ -50,15 +47,9 @@ function repairTruncatedJson(jsonStr: string): string {
 
   for (let i = 0; i < cleaned.length; i++) {
     const char = cleaned[i];
-    if (escape) {
-      escape = false; continue;
-    }
-    if (char === '\\') {
-      escape = true; continue;
-    }
-    if (char === '"') {
-      inString = !inString; continue;
-    }
+    if (escape) { escape = false; continue; }
+    if (char === '\\') { escape = true; continue; }
+    if (char === '"') { inString = !inString; continue; }
     if (!inString) {
       if (char === '{' || char === '[') stack.push(char);
       else if (char === '}') {
@@ -83,7 +74,6 @@ export async function GET(request: NextRequest) {
 
   if (!answerId) return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
 
-  // ① 答案データ (answer) を取得（parent_id も合わせて取得）
   const { data: answer, error: answerError } = await supabase
     .from('posts')
     .select('id, image_url, parent_id')
@@ -94,7 +84,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '答案画像URLを取得できませんでした' }, { status: 404 });
   }
 
-  // ② parent_id から親の「問題データ (problem)」を取得（親が存在しない場合は自身の答案画像をフォールバック）
   let problemImageUrl = answer.image_url;
   if (answer.parent_id) {
     const { data: problem } = await supabase
@@ -109,7 +98,7 @@ export async function GET(request: NextRequest) {
   }
 
   const physicsData: any = physicsLibrary;
-  const theoremVersion = physicsData?.version || "2.2.0";
+  const theoremVersion = physicsData?.version || "2.3.0";
 
   // キャッシュチェック
   const { data: existingGraph } = await supabase
@@ -127,7 +116,6 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // 構造化物理ライブラリのテキスト化
   let theoremListString = "";
   try {
     if (Array.isArray(physicsData?.theorems)) {
@@ -135,7 +123,7 @@ export async function GET(request: NextRequest) {
         .map((t: any) => {
           const inputsStr = JSON.stringify(t.inputs || {});
           const outputsStr = JSON.stringify(t.outputs || {});
-          return `- ID: [${t.id}] | Name: "${t.name}"\n  Type: ${t.type}\n  Inputs(仮定/物理量): ${inputsStr}\n  Outputs(結論/等式/運動分類): ${outputsStr}`;
+          return `- ID: [${t.id}] | Name: "${t.name}"\n  Inputs: ${inputsStr}\n  Outputs: ${outputsStr}`;
         })
         .join('\n\n');
     }
@@ -144,7 +132,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // ③ 問題画像と答案画像の両方を Base64 化（並列フェッチで高速化）
     const [problemRes, answerRes] = await Promise.all([
       fetch(problemImageUrl),
       fetch(answer.image_url)
@@ -158,51 +145,50 @@ export async function GET(request: NextRequest) {
     const problemBase64 = Buffer.from(problemBuffer).toString('base64');
     const answerBase64 = Buffer.from(answerBuffer).toString('base64');
 
-    // ④ プロンプトの作成（問題条件と答案記述の照合指示を追加）
     const promptText = `
 [役割 (Persona)]
-あなたは、高校物理の論理構造および解法プロセスの自動検証を行うAI物理エンジニアです。
+あなたは高校物理の論理構造および解法プロセスの自動検証を行う厳格な物理AIエンジンです。
 
 [目的 (Purpose)]
-入力された【問題画像】の設定・前提と、【答案画像】の記述・解法プロセスを照合解析し、物理法則の【入力（Inputs: 前提・仮定・物理量）】から【出力（Outputs: 成り立つ等式・運動の分類）】への推論フローを有向グラフ（DAG）として抽出してください。
+【問題画像】の設定前提と、【答案画像】に実際に書かれている記述ステップを抽出し、有向グラフ（DAG）を作成してください。
 
-[入力画像の指示]
-- 1枚目の画像: 【問題文】(問題の前提条件、与えられた文字、初期状態)
-- 2枚目の画像: 【生徒の解答答案】(立式および計算展開プロセス)
+[最重要制約ルール (Strict Rules)]
+1. **【答案への完全忠実原則（ハルシネーションの絶対禁止）】**:
+   - 生徒が答案に書いていない思考ステップや数式（例: 運動方程式 Ma=F など）を勝手に補完・捏造してノードに組み込まないでください。
+   - 生徒が「合力 F = -Kx」から直ちに単振動と同定した場合は、「合力からの復元力定数の特定」を使用し、運動方程式のノードを作らないでください。
+2. **【Inputs / Outputs の明確な文字列バインディング】**:
+   - 推論ノード（type: "inference"）の \`inputs_used\` と \`outputs_derived\` を決して空のオブジェクト \`{}\` にしないでください。
+   - 例: 
+     \`inputs_used\`: { "fluid_density": "ρ=1", "submerged_volume": "V'=(2/3 H + x)S", "gravity_acc": "g" }
+     \`outputs_derived\`: { "buoyant_force": "F' = 1*(2/3 H + x)S*g" }
+3. **【定理ラベルの一致】**:
+   - 推論ノードに接続する \`theorem\` ノードの label は、必ず [利用可能な構造化定理ライブラリ] の Name と一字一句違わず一致させてください。
+4. **【全記述の日本語指定】**:
+   - label および construction_process はすべて日本語で記述してください。
+   
+[SymPy 互換数式フォーマットの厳格適用]
+1. inputs_used および outputs_derived 内の数式は、SymPy の sympy.sympify() や parse_expr() で直接パース可能な記法を用いてください。
+   - 掛け算記号 '*' を省略しないこと (例: '2*H', 'm*g', 'S*g')
+   - べき乗は '**' を使用すること (例: 'x**2', '(1/2)')
+   - ギリシャ文字は英字表記にすること (例: 'rho', 'pi', 'omega', 'theta')
+   - 平方根は 'sqrt(...)' を使用すること (例: '2*pi*sqrt((2*H)/(3*g))')
+   - 等式関係は '==' または 'E1 = E2' の形式で書くこと
 
-[思考ノードの種類 (Node Types)]
-- proposition (命題・状態・式ノード): 問題文から与えられる初期条件や設定、座標定義、答案で立てられた方程式、得られた数値や結論（運動分類含む）。
-- inference (物理的推論ノード): 入力前提（inputs）からルールを適用して出力結論（outputs）を導く推論ステップ。
-- theorem (物理法則・定理ノード): [利用可能な構造化定理ライブラリ] に定義されている物理ルール。
 
-[制約事項 (Rules)]
-0. 【絶対言語指定】: すべての記述（label, construction_process 等）は**必ず日本語**で行ってください。
-1. 問題前提の明確な抽出:
-   - 【問題画像】に書かれている物理条件（例: 「質量 M」「液体密度 ρ」「つりあいの位置」など）を初期の proposition ノードとして抽出してください。
-2. フロー構造と定理の接続:
-   - メインのフローは (命題 proposition) -> (推論 inference) -> (命題 proposition) です。
-   - すべての推論ノードには、必ず1つの定理ノードを「(定理 theorem) -> (推論 inference)」の向きで接続してください。
-   - 【厳守】定理の label には、必ず末尾の [利用可能な構造化定理ライブラリ] の Name と全く同じ文字列を一言一句違わず使用してください。
-3. 入出力（Inputs/Outputs）のバインディング記録:
-   - 推論ノード（inference）を作成する際は、適用した定理の Inputs / Outputs に従い、どのような物理量や方程式を代入・導出したかを \`inputs_used\` と \`outputs_derived\` に記録してください。
-   - 例: inputs_used: {"mass": "M", "gravity": "g"}, outputs_derived: {"force": "M*g"}
-4. 明示的抽象化:
-   - 単なる代数計算だけでなく、「ma = -Kx」などの式から「この運動は単振動である」と判定する運動同定ステップ（Outputs）を必ず抽出してください。
-
-[出力形式 (Format)]
+[出力形式 (Format Example)]
 {
   "graph": {
     "nodes": [
-      { "id": "p1", "label": "質量 M の物体に力 F がはたらく", "type": "proposition" },
-      { "id": "t1", "label": "運動方程式", "type": "theorem" },
+      { "id": "p1", "label": "変位 x での水没体積 V' = ((2/3)H + x)S", "type": "proposition" },
+      { "id": "t1", "label": "アルキメデスの原理（浮力）", "type": "theorem" },
       {
         "id": "i1",
-        "label": "運動方程式 ma = F を立式する",
+        "label": "変位 x での浮力 F' を計算する",
         "type": "inference",
-        "inputs_used": { "mass": "M", "force": "F" },
-        "outputs_derived": { "equation": "M*a = F" }
+        "inputs_used": { "fluid_density": "1", "submerged_volume": "((2/3)H + x)S", "gravity_acc": "g" },
+        "outputs_derived": { "buoyant_force": "F' = 1 * ((2/3)H + x)S * g" }
       },
-      { "id": "p2", "label": "M*a = F", "type": "proposition" }
+      { "id": "p2", "label": "浮力 F' = 1 * ((2/3)H + x)S * g", "type": "proposition" }
     ],
     "edges": [
       { "from": "p1", "to": "i1" },
@@ -211,8 +197,8 @@ export async function GET(request: NextRequest) {
     ]
   },
   "construction_process": [
-    "Step 1: 問題文から注目物体の質量 M と力 F を確認。",
-    "Step 2: 運動方程式を適用し、M*a = F を立式。"
+    "Step 1: 変位 x における水没体積 V' を求める。",
+    "Step 2: アルキメデスの原理より浮力 F' を導出する。"
   ]
 }
 
@@ -220,7 +206,6 @@ export async function GET(request: NextRequest) {
 ${theoremListString}
     `.trim();
 
-    // ⑤ Gemini に 2 枚の画像とプロンプトを送信
     const response = await generateWithRetry({
       model: 'gemini-2.5-flash',
       contents: [
@@ -251,8 +236,14 @@ ${theoremListString}
                       id: { type: 'STRING' },
                       type: { type: 'STRING' },
                       label: { type: 'STRING' },
-                      inputs_used: { type: 'OBJECT', properties: {} },
-                      outputs_derived: { type: 'OBJECT', properties: {} }
+                      inputs_used: { 
+                        type: 'OBJECT',
+                        description: '定理に代入された実際の変数や数式（例: {"mass": "M", "gravity": "g"}）'
+                      },
+                      outputs_derived: { 
+                        type: 'OBJECT',
+                        description: '推論によって導かれた式や物理量（例: {"buoyant_force": "F = ρVg"}）'
+                      }
                     },
                     required: ['id', 'type', 'label']
                   }
@@ -306,7 +297,7 @@ ${theoremListString}
       }
     }
 
-    // セーフティネット：定理が浮いている推論ノードへの自動補填処理
+    // 浮いている推論ノードへのセーフティ補填
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
       let nodes = parsedData.graph.nodes;
       const edges = parsedData.graph.edges;
@@ -338,7 +329,6 @@ ${theoremListString}
       });
     }
 
-    // Supabase 保存処理
     let dbSaveError: any = null;
     if (parsedData && parsedData.graph) {
       try {

@@ -1,18 +1,17 @@
 {
-  "version": "2.2.0_comprehensive_mechanics",
+  "version": "2.4.0_sympy_complete",
   "domain": "physics_mechanics",
-  "description": "高校物理・力学分野の完璧な構造化ルール・思考モデルライブラリ",
+  "description": "高校物理・力学分野の完全構造化思考モデルライブラリ（SymPyパース対応・成立条件網羅版）",
   "theorems": [
-
     {
       "id": "meta_focus_object_forces",
       "name": "注目物体とはたらく力の抽出",
       "type": "meta_focus",
       "inputs": {
-        "target_object": "質量 m の物体"
+        "target_object": "m"
       },
       "outputs": {
-        "acting_forces": ["重力 W = mg", "接触力 (場からの力・張力 N, T, f 等)", "遠心力・慣性力 (非慣性系の場合)"]
+        "acting_forces": ["m * g", "N", "T", "F_k", "F_b"]
       }
     },
     {
@@ -20,48 +19,71 @@
       "name": "座標軸・正の向きの設定",
       "type": "meta_focus",
       "inputs": {
-        "origin_definition": "原点 O (初期位置、つりあいの位置、回転中心等)",
-        "axis_direction": "x軸, y軸, または 径方向・接線方向の正の向き"
+        "origin_definition": "x_0",
+        "axis_direction": "positive_direction"
       },
       "outputs": {
-        "variables": ["位置 x, y", "変位 Δx", "速度 v", "加速度 a"]
+        "variables": ["x", "delta_x", "v", "a"]
       }
     },
     {
-      "id": "meta_focus_reference_frame",
-      "name": "観測系（慣性系/非慣性系）の設定",
+      "id": "meta_keyword_quasistatic_motion",
+      "name": "「ゆっくり動かす」条件からの力のつりあい同定（準静的過程）",
       "type": "meta_focus",
       "inputs": {
-        "observer": "静止観測者 (慣性系) または 加速度 a_0 で運動する観測者 (非慣性系)"
+        "keyword": "slowly_moved"
       },
       "outputs": {
-        "frame_type": "慣性系 (Inertial Frame) または 非慣性系 (Non-inertial Frame)"
-      }
-    },
-
-
-    {
-      "id": "kinematics_relative_velocity",
-      "name": "相対速度",
-      "type": "formula",
-      "inputs": {
-        "object_velocity": "v_A (相手の速度)",
-        "observer_velocity": "v_B (自身/基準の速度)"
-      },
-      "outputs": {
-        "relative_velocity": "v_AB = v_A - v_B"
+        "acceleration_condition": "a == 0",
+        "applied_state": "force_equilibrium"
       }
     },
     {
-      "id": "kinematics_relative_acceleration",
-      "name": "相対加速度",
-      "type": "formula",
+      "id": "geometry_volume_calculation",
+      "name": "体積の計算（直方体・柱体）",
+      "type": "math",
       "inputs": {
-        "object_acc": "a_A (相手の加速度)",
-        "observer_acc": "a_B (自身/基準の加速度)"
+        "cross_section": "S",
+        "height_or_length": "h"
       },
       "outputs": {
-        "relative_acceleration": "a_AB = a_A - a_B"
+        "volume": "V = S * h"
+      }
+    },
+    {
+      "id": "law_mass_from_density",
+      "name": "密度の定義（体積と密度からの質量計算）",
+      "type": "law",
+      "inputs": {
+        "density": "rho",
+        "volume": "V"
+      },
+      "outputs": {
+        "mass": "m = rho * V"
+      }
+    },
+    {
+      "id": "kinematics_coordinate_displacement",
+      "name": "座標軸に基づく変位・位置関係式",
+      "type": "formula",
+      "inputs": {
+        "reference_position": "x_0",
+        "current_position": "x"
+      },
+      "outputs": {
+        "displacement": "delta_x = x - x_0"
+      }
+    },
+    {
+      "id": "kinematics_calculus_relations",
+      "name": "位置・速度・加速度の微分・積分関係式",
+      "type": "formula",
+      "inputs": {
+        "position_function": "x"
+      },
+      "outputs": {
+        "velocity": "v = diff(x, t)",
+        "acceleration": "a = diff(v, t)"
       }
     },
     {
@@ -70,92 +92,37 @@
       "type": "formula",
       "inputs": {
         "initial_velocity": "v_0",
-        "acceleration": "a (一定)",
+        "acceleration": "a",
         "time": "t"
       },
       "outputs": {
         "velocity_equation": "v = v_0 + a * t",
-        "displacement_equation": "x = v_0 * t + 0.5 * a * t^2",
-        "timeless_equation": "v^2 - v_0^2 = 2 * a * x",
-        "motion_type": "等加速度直線運動"
+        "displacement_equation": "x = v_0 * t + (1/2) * a * t**2",
+        "timeless_equation": "v**2 - v_0**2 = 2 * a * x"
       }
     },
-
-
     {
-      "id": "principle_force_equilibrium",
-      "name": "力のつりあい条件（質点）",
-      "type": "principle",
+      "id": "kinematics_relative_velocity",
+      "name": "相対速度",
+      "type": "formula",
       "inputs": {
-        "acceleration": "a = 0 (静止または等速運動)",
-        "forces": ["F_1", "F_2", "...", "F_n"]
+        "object_velocity": "v_A",
+        "observer_velocity": "v_B"
       },
       "outputs": {
-        "equation": "Σ F = 0 (x方向: Σ F_x = 0, y方向: Σ F_y = 0)"
+        "relative_velocity": "v_AB = v_A - v_B"
       }
     },
     {
-      "id": "principle_equation_of_motion",
-      "name": "運動方程式",
-      "type": "principle",
+      "id": "law_gravity_force",
+      "name": "重力",
+      "type": "law",
       "inputs": {
         "mass": "m",
-        "acceleration": "a",
-        "resultant_force": "F_net"
+        "gravity_acc": "g"
       },
       "outputs": {
-        "equation": "m * a = F_net"
-      }
-    },
-    {
-      "id": "principle_inertial_force",
-      "name": "慣性力（非慣性系）",
-      "type": "law",
-      "inputs": {
-        "object_mass": "m",
-        "frame_acceleration": "a_0 (観測系の加速度)"
-      },
-      "outputs": {
-        "inertial_force": "F_inertial = -m * a_0 (観測系の加速度と逆向き)"
-      }
-    },
-
-
-    {
-      "id": "law_hooke",
-      "name": "フックの法則（ばねの弾性力）",
-      "type": "law",
-      "inputs": {
-        "spring_constant": "k",
-        "displacement_from_natural_length": "x"
-      },
-      "outputs": {
-        "elastic_force": "F_k = k * x (自然長に戻ろうとする向き)"
-      }
-    },
-    {
-      "id": "law_friction_static",
-      "name": "最大静止摩擦力",
-      "type": "law",
-      "inputs": {
-        "static_friction_coefficient": "mu",
-        "normal_force": "N"
-      },
-      "outputs": {
-        "max_static_friction": "F_max = mu * N",
-        "condition_for_slipping": "外力 F > F_max で滑り出す"
-      }
-    },
-    {
-      "id": "law_friction_kinetic",
-      "name": "動摩擦力",
-      "type": "law",
-      "inputs": {
-        "kinetic_friction_coefficient": "mu_prime",
-        "normal_force": "N"
-      },
-      "outputs": {
-        "kinetic_friction": "F_f = mu_prime * N (運動方向と逆向き)"
+        "gravity_force": "W = m * g"
       }
     },
     {
@@ -168,98 +135,94 @@
         "gravity_acc": "g"
       },
       "outputs": {
-        "buoyant_force": "F_b = rho * V * g (鉛直上向き)"
+        "buoyant_force": "F_b = rho * V * g"
       }
     },
-
-
     {
-      "id": "kinematics_circular_motion",
-      "name": "等速円運動の運動学関係式",
-      "type": "formula",
+      "id": "law_hooke",
+      "name": "フックの法則（弾性力）",
+      "type": "law",
       "inputs": {
-        "radius": "r",
-        "angular_velocity": "omega (または 周期 T, 回転速度 v)"
+        "spring_constant": "k",
+        "displacement_from_natural_length": "x"
       },
       "outputs": {
-        "velocity_relation": "v = r * omega",
-        "period_relation": "T = 2 * pi * r / v = 2 * pi / omega",
-        "centripetal_acceleration": "a_c = r * omega^2 = v^2 / r (中心向き)"
+        "elastic_force": "F_k = k * x"
       }
     },
     {
-      "id": "principle_centripetal_equation_of_motion",
-      "name": "円運動の運動方程式（慣性系）",
+      "id": "law_resultant_force_calculation",
+      "name": "合力の計算",
+      "type": "formula",
+      "inputs": {
+        "forces_list": ["F_1", "F_2"]
+      },
+      "outputs": {
+        "net_force": "F_net = F_1 + F_2"
+      }
+    },
+    {
+      "id": "principle_force_equilibrium",
+      "name": "力のつりあい条件（質点）",
+      "type": "principle",
+      "inputs": {
+        "condition": "a == 0",
+        "forces_sum": "F_net"
+      },
+      "outputs": {
+        "equation": "F_net == 0"
+      }
+    },
+    {
+      "id": "principle_equation_of_motion",
+      "name": "運動方程式",
       "type": "principle",
       "inputs": {
         "mass": "m",
-        "radius": "r",
-        "centripetal_force": "F_c (中心向きの合力)"
+        "acceleration": "a",
+        "resultant_force": "F_net"
       },
       "outputs": {
-        "equation": "m * r * omega^2 = F_c  または  m * (v^2 / r) = F_c",
-        "motion_type": "円運動 (Circular Motion)"
+        "equation": "m * a == F_net"
       }
     },
     {
-      "id": "law_centrifugal_force",
-      "name": "遠心力（回転非慣性系）",
+      "id": "def_kinetic_energy",
+      "name": "運動エネルギーの定義",
       "type": "law",
       "inputs": {
         "mass": "m",
-        "radius": "r",
-        "angular_velocity": "omega"
+        "velocity": "v"
       },
       "outputs": {
-        "centrifugal_force": "F_centrifugal = m * r * omega^2 (中心から外向き)",
-        "equilibrium_equation_in_rotating_frame": "Σ F_radial = F_c - m * r * omega^2 = 0"
-      }
-    },
-
-
-    {
-      "id": "pattern_restoring_force",
-      "name": "復元力の検出（単振動の同定）",
-      "type": "pattern",
-      "inputs": {
-        "equation_form": "m * a = -K * (x - x_c)  (ただし K > 0)",
-        "center_position": "x_c"
-      },
-      "outputs": {
-        "motion_type": "単振動 (Simple Harmonic Motion)",
-        "angular_frequency": "omega = sqrt(K / m)",
-        "vibration_center": "x = x_c (合力 F = 0 のつりあいの位置)"
+        "kinetic_energy": "K = (1/2) * m * v**2"
       }
     },
     {
-      "id": "formula_simple_harmonic_period",
-      "name": "単振動の周期の公式",
-      "type": "formula",
+      "id": "def_gravitational_potential_energy",
+      "name": "重力による位置エネルギーの定義",
+      "type": "law",
       "inputs": {
-        "angular_frequency": "omega = sqrt(K / m)"
+        "mass": "m",
+        "gravity_acc": "g",
+        "height_from_reference": "h"
       },
       "outputs": {
-        "period": "T = 2 * pi / omega = 2 * pi * sqrt(m / K)"
+        "potential_energy": "U_g = m * g * h"
       }
     },
     {
-      "id": "formula_simple_harmonic_kinematics",
-      "name": "単振動の変位・速度・加速度の式",
-      "type": "formula",
+      "id": "def_elastic_potential_energy",
+      "name": "ばねの弾性力による位置エネルギーの定義",
+      "type": "law",
       "inputs": {
-        "amplitude": "A",
-        "angular_frequency": "omega",
-        "vibration_center": "x_c",
-        "time": "t"
+        "spring_constant": "k",
+        "displacement_from_natural_length": "x"
       },
       "outputs": {
-        "displacement": "x(t) = x_c + A * sin(omega * t + phi)",
-        "velocity": "v(t) = A * omega * cos(omega * t + phi)",
-        "max_velocity": "v_max = A * omega",
-        "max_acceleration": "a_max = A * omega^2"
+        "potential_energy": "U_k = (1/2) * k * x**2"
       }
     },
-
     {
       "id": "def_work",
       "name": "仕事の定義",
@@ -267,7 +230,7 @@
       "inputs": {
         "force": "F",
         "displacement": "s",
-        "angle_between": "theta"
+        "angle": "theta"
       },
       "outputs": {
         "work": "W = F * s * cos(theta)"
@@ -278,39 +241,95 @@
       "name": "運動エネルギーと仕事の定理",
       "type": "principle",
       "inputs": {
-        "initial_kinetic_energy": "K_1 = 0.5 * m * v_1^2",
-        "final_kinetic_energy": "K_2 = 0.5 * m * v_2^2",
-        "total_work_done": "W_total"
+        "initial_state": "K_1 = (1/2) * m * v_1**2",
+        "final_state": "K_2 = (1/2) * m * v_2**2",
+        "work_done": "W_total"
       },
       "outputs": {
-        "equation": "K_2 - K_1 = W_total"
+        "equation": "K_2 - K_1 == W_total"
       }
     },
     {
-      "id": "law_mechanical_energy_conservation",
-      "name": "力学的エネルギー保存法則",
+      "id": "law_mechanical_energy_conservation_spring_natural",
+      "name": "力学的エネルギー保存法則（自然長基準＋重力）",
       "type": "law",
       "inputs": {
-        "non_conservative_work": "W_non_cons = 0 (摩擦力や外力の仕事がゼロ)",
-        "states": "状態1 (v_1, x_1, h_1) および 状態2 (v_2, x_2, h_2)"
+        "condition": "W_non_cons == 0",
+        "state_1": { "v": "v_1", "x": "x_1", "h": "h_1" },
+        "state_2": { "v": "v_2", "x": "x_2", "h": "h_2" }
       },
       "outputs": {
-        "equation": "0.5*m*v_1^2 + m*g*h_1 + 0.5*k*x_1^2 = 0.5*m*v_2^2 + m*g*h_2 + 0.5*k*x_2^2"
+        "equation": "(1/2)*m*v_1**2 + m*g*h_1 + (1/2)*k*x_1**2 == (1/2)*m*v_2**2 + m*g*h_2 + (1/2)*k*x_2**2"
       }
     },
-
-
     {
-      "id": "def_impulse_momentum_theorem",
-      "name": "運動量と力積の関係",
-      "type": "principle",
+      "id": "law_mechanical_energy_conservation_shm_equilibrium",
+      "name": "単振動のエネルギー保存法則（つりあい位置基準）",
+      "type": "law",
       "inputs": {
-        "initial_momentum": "p_1 = m * v_1",
-        "final_momentum": "p_2 = m * v_2",
-        "impulse": "I = F * Δt"
+        "condition": "W_external == 0",
+        "vibration_center": "x_c = 0",
+        "restoring_constant": "K",
+        "state_1": { "v": "v_1", "x": "x_1" },
+        "state_2": { "v": "v_2", "x": "x_2" }
       },
       "outputs": {
-        "equation": "m * v_2 - m * v_1 = I"
+        "potential_energy_shm": "U_shm = (1/2) * K * x**2",
+        "equation": "(1/2)*m*v_1**2 + (1/2)*K*x_1**2 == (1/2)*m*v_2**2 + (1/2)*K*x_2**2"
+      }
+    },
+    {
+      "id": "pattern_restoring_force_direct",
+      "name": "合力からの復元力定数の特定（単振動同定）",
+      "type": "pattern",
+      "inputs": {
+        "net_force_equation": "F_net == -K * x"
+      },
+      "outputs": {
+        "motion_type": "simple_harmonic_motion",
+        "restoring_constant": "K"
+      }
+    },
+    {
+      "id": "pattern_restoring_force",
+      "name": "復元力の検出（運動方程式による同定）",
+      "type": "pattern",
+      "inputs": {
+        "equation_form": "m * a == -K * (x - x_c)"
+      },
+      "outputs": {
+        "motion_type": "simple_harmonic_motion",
+        "angular_frequency": "omega = sqrt(K / m)",
+        "vibration_center": "x_c"
+      }
+    },
+    {
+      "id": "formula_simple_harmonic_period",
+      "name": "単振動の周期の公式",
+      "type": "formula",
+      "inputs": {
+        "mass": "m",
+        "restoring_constant": "K"
+      },
+      "outputs": {
+        "period": "T = 2 * pi * sqrt(m / K)"
+      }
+    },
+    {
+      "id": "formula_simple_harmonic_kinematics",
+      "name": "単振動の変位・速度・加速度の式",
+      "type": "formula",
+      "inputs": {
+        "amplitude": "A",
+        "angular_frequency": "omega",
+        "time": "t",
+        "initial_phase": "phi"
+      },
+      "outputs": {
+        "displacement": "x = A * sin(omega * t + phi)",
+        "velocity": "v = A * omega * cos(omega * t + phi)",
+        "max_velocity": "v_max = A * omega",
+        "max_acceleration": "a_max = A * omega**2"
       }
     },
     {
@@ -318,106 +337,23 @@
       "name": "運動量保存法則",
       "type": "law",
       "inputs": {
-        "external_force": "Σ F_ext = 0 (外力がはたらいていない、または衝突直前直後)",
-        "objects": "物体A (m_A), 物体B (m_B)"
+        "condition": "F_ext_sum == 0",
+        "objects": { "m_A": "m_A", "m_B": "m_B" },
+        "states": { "v_A": "v_A", "v_B": "v_B", "v_A_prime": "v_A_prime", "v_B_prime": "v_B_prime" }
       },
       "outputs": {
-        "equation": "m_A * v_A + m_B * v_B = m_A * v_A_prime + m_B * v_B_prime"
+        "equation": "m_A * v_A + m_B * v_B == m_A * v_A_prime + m_B * v_B_prime"
       }
     },
-    {
-      "id": "law_restitution_coefficient",
-      "name": "反発係数（跳ね返り係数）の定義",
-      "type": "law",
-      "inputs": {
-        "restitution_coefficient": "e (0 <= e <= 1)",
-        "relative_velocity_before": "v_A - v_B",
-        "relative_velocity_after": "v_A_prime - v_B_prime"
-      },
-      "outputs": {
-        "equation": "v_A_prime - v_B_prime = -e * (v_A - v_B)",
-        "collision_type": "e=1: 完全弾性衝突, 0<=e<1: 非弾性衝突, e=0: 完全非弾性衝突"
-      }
-    },
-
-    
-    {
-      "id": "def_torque_moment_of_force",
-      "name": "力のモメントの定義",
-      "type": "law",
-      "inputs": {
-        "force": "F",
-        "distance_arm": "l (回転軸から力の作用線までの距離)",
-        "rotation_direction": "反時計回りを正 (+), 時計回りを負 (-)"
-      },
-      "outputs": {
-        "torque": "M = +/- (F * l)"
-      }
-    },
-    {
-      "id": "principle_rigid_body_equilibrium",
-      "name": "剛体のつりあい条件",
-      "type": "principle",
-      "inputs": {
-        "forces": ["F_1", "...", "F_n"],
-        "center_of_rotation": "任意の点 P"
-      },
-      "outputs": {
-        "force_equilibrium": "Σ F = 0 (並進運動しない)",
-        "torque_equilibrium": "Σ M_P = 0 (回転運動しない)"
-      }
-    },
-    {
-      "id": "formula_center_of_mass",
-      "name": "重心の位置の公式",
-      "type": "formula",
-      "inputs": {
-        "masses": ["m_1", "m_2", "..."],
-        "positions": ["x_1", "x_2", "..."]
-      },
-      "outputs": {
-        "center_of_mass_x": "x_G = (m_1*x_1 + m_2*x_2 + ...) / (m_1 + m_2 + ...)"
-      }
-    },
-
-
-    {
-      "id": "law_universal_gravitation",
-      "name": "万有引力の法則",
-      "type": "law",
-      "inputs": {
-        "gravitational_constant": "G",
-        "masses": "m_1, m_2",
-        "distance": "r"
-      },
-      "outputs": {
-        "gravitational_force": "F_g = G * m_1 * m_2 / r^2 (引き合う向き)"
-      }
-    },
-    {
-      "id": "def_gravitational_potential_energy",
-      "name": "万有引力による位置エネルギー",
-      "type": "law",
-      "inputs": {
-        "gravitational_constant": "G",
-        "masses": "M, m",
-        "distance": "r (無限遠を基準 U=0 とする)"
-      },
-      "outputs": {
-        "potential_energy": "U = -G * M * m / r"
-      }
-    },
-
-
     {
       "id": "algebraic_simplification",
       "name": "代数計算・連立方程式の消去",
       "type": "math",
       "inputs": {
-        "source_equations": ["Eq_1", "Eq_2", "..."]
+        "source_equations": "equations"
       },
       "outputs": {
-        "derived_equation": "Eq_simplified (未知数を消去して求めた式)"
+        "derived_equation": "result"
       }
     }
   ]
