@@ -32,12 +32,17 @@ interface LogicGraph {
 function formatForSympy(str: string): string {
   if (!str) return '';
   
-  let s = str
-    .replace(/\(\s*[①-⑳]\s*\)/g, '')
-    .replace(/[①-⑳]/g, '')
-    .replace(/[…・]/g, '')
-    .trim();
-  
+  let s = str.replace(/\(\s*[①-⑳]\s*\)/g, '').replace(/[①-⑳]/g, '').replace(/[…・]/g, '').trim();
+  s = s.replace(/\^/g, '**');
+
+  // 【今回追加】不等号と論理演算子のSymPy語への翻訳
+  s = s.replace(/≦/g, '<=').replace(/≧/g, '>=');
+  s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
+  s = s.replace(/≠/g, '!=');
+  s = s.replace(/\s*または\s*/g, ' | '); // SymPyの OR
+  s = s.replace(/\s*かつ\s*/g, ' & ');  // SymPyの AND
+  s = s.replace(/，/g, ' & ').replace(/,/g, ' & ');
+
   // 累乗
   s = s.replace(/\^/g, '**');
 
@@ -111,8 +116,8 @@ export async function POST(req: Request) {
         // 入力と出力の命題が正しく接続されているか確認
         if (sourcePropositions.length > 0 && targetPropositions.length === 1) {
           
-          // 複数の前提条件がある場合は、メインの数式（1つ目）を対象にする
-          const sourceStr = sourcePropositions[0].label || sourcePropositions[0].text || '';
+          // 【変更】複数の前提条件（p2とp3など）がある場合、すべてを '&' で結合して1つの論理式にする
+          const sourceStr = sourcePropositions.map(p => `(${p.label || p.text || ''})`).join(' & ');
           const targetStr = targetPropositions[0].label || targetPropositions[0].text || '';
 
           const expr1 = formatForSympy(sourceStr);

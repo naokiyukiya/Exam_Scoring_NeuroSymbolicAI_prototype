@@ -38,6 +38,14 @@
           "symbols": { "f": "関数や式", "x": "変数", "a": "代入する定数または式" }
         },
         {
+          "id": "rule_denominator_not_zero",
+          "name": "分母≠0の条件",
+          "level": ["middle", "high"],
+          "before": ["Divide", "a", "b"],
+          "after": ["NotEqual", "b", 0],
+          "symbols": { "a": "分子", "b": "分母" }
+        },
+        {
           "id": "rule_add_commutative",
           "name": "加法の交換法則",
           "level": ["middle", "high"],
