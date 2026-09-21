@@ -75,7 +75,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const answerId = searchParams.get('answerId');
 
-  if (!answerId) return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
+  if (!answerId) {
+    return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
+  }
 
   const { data: answer, error: answerError } = await supabase
     .from('posts')
@@ -84,6 +86,7 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (answerError || !answer?.image_url) {
+    console.error('[API Error] 答案画像URL取得失敗:', answerError);
     return NextResponse.json({ error: '答案画像URLを取得できませんでした' }, { status: 404 });
   }
 
@@ -134,10 +137,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // 画像取得フェッチ
     const [problemRes, answerRes] = await Promise.all([
       fetch(problemImageUrl),
       fetch(answer.image_url)
     ]);
+
+    if (!problemRes.ok || !answerRes.ok) {
+      console.error('[API Error] 画像のダウンロードに失敗しました', {
+        problemStatus: problemRes.status,
+        answerStatus: answerRes.status
+      });
+      return NextResponse.json({
+        error: '画像の取得に失敗しました',
+        details: `Problem HTTP ${problemRes.status}, Answer HTTP ${answerRes.status}`
+      }, { status: 500 });
+    }
 
     const problemMimeType = problemRes.headers.get('content-type') || 'image/jpeg';
     const answerMimeType = answerRes.headers.get('content-type') || 'image/jpeg';
@@ -312,12 +327,13 @@ ${theoremListString}
           const repairedText = repairTruncatedJson(cleanText);
           parsedData = JSON.parse(repairedText);
         } catch (parseErr3) {
+          console.error('[API Error] Gemini JSON Parse 失敗:', rawText);
           return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText }, { status: 500 });
         }
       }
     }
 
-    // 浮いている推論ノードへのセーフティ補填（配列破壊を防ぐための安全なループ処理）
+    // 浮いている推論ノードへのセーフティ補填
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
       const currentNodes = [...parsedData.graph.nodes];
       const edges = parsedData.graph.edges;
@@ -389,6 +405,10 @@ ${theoremListString}
     });
 
   } catch (err: any) {
-    return NextResponse.json({ error: 'APIリクエストで致命的エラーが発生しました', details: err?.message || String(err) }, { status: 500 });
+    console.error('[API Catch Error] 致命的エラーが発生しました:', err);
+    return NextResponse.json({
+      error: 'APIリクエストで致命的エラーが発生しました',
+      details: err?.message || String(err)
+    }, { status: 500 });
   }
 }
