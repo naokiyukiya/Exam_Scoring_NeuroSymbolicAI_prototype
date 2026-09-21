@@ -19,7 +19,7 @@ import {
   getStraightPath,
 } from '@xyflow/react'
 
-import '../../../xyflow/react/dist/style.css'
+import '@xyflow/react/dist/style.css'
 
 import { findMistakes } from '../lib/findMistakes'
 
