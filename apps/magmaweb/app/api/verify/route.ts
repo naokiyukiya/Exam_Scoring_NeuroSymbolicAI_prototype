@@ -39,26 +39,26 @@ function formatForSympy(str: string): string {
   s = s.replace(/≦/g, '<=').replace(/≧/g, '>=');
   s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
 
-  // 【最重要1】連立不等式 (A < B < C) を (A < B) & (B < C) に分割する
+  // 【修正1】論理演算子を "最初" に変換する
+  s = s.replace(/\s*または\s*/g, ' | '); 
+  s = s.replace(/\s*かつ\s*/g, ' & ');
+  
+  // 【修正2】連立不等式 (A < B < C) を (A < B) & (B < C) に分割する
   const compRegex = /([^<>=&|]+)\s*(<=|<|>=|>)\s*([^<>=&|]+)\s*(<=|<|>=|>)\s*([^<>=&|]+)/;
   if (compRegex.test(s)) {
     s = s.replace(compRegex, '($1 $2 $3) & ($3 $4 $5)');
   }
 
-  // 【最重要2】 x ≠ 0 などを Pythonの != にするとエラーになるため、SymPy関数の Ne(x, 0) に変換する
-  const notEqRegex = /([^=<>≠]+)\s*≠\s*([^=<>≠]+)/g;
+  // 【修正3】ノットイコールの変換
+  const notEqRegex = /([^=<>≠&|]+)\s*≠\s*([^=<>≠&|]+)/g;
   s = s.replace(notEqRegex, 'Ne($1, $2)');
 
-  // 論理演算子の変換（OR は優先順位エラーを防ぐため全体をカッコで囲む）
-  s = s.replace(/\s*または\s*/g, ') | ('); 
-  s = s.replace(/\s*かつ\s*/g, ') & (');
-  s = s.replace(/，/g, ') & (').replace(/,/g, ') & (');
-  
-  // または・かつ が含まれていた場合は、全体をさらにカッコで囲んで安全にする
+  // または・かつ が含まれていた場合は、全体をさらにカッコで囲む
   if (s.includes('|') || s.includes('&')) {
     s = `(${s})`;
   }
 
+  // (微積・シグマなどの変換はそのまま)
   s = s.replace(/Σ\[([a-zA-Z]+)=([^\s\]]+)\s+to\s+([^\]]+)\]\s*([a-zA-Z0-9_]+|\([^)]+\))/g, 'Sum($4, ($1, $2, $3))');
   s = s.replace(/∫\[([^\]]+)\s+to\s+([^\]]+)\]\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($3, ($4, $1, $2))');
   s = s.replace(/∫\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($1, $2)');
@@ -105,19 +105,36 @@ export async function POST(req: Request) {
         // 入力と出力の命題が正しく接続されているか確認
         if (sourcePropositions.length > 0 && targetPropositions.length === 1) {
           
-          // 【変更】複数の前提条件（p2とp3など）がある場合、すべてを '&' で結合して1つの論理式にする
-          const sourceStr = sourcePropositions.map(p => `(${p.label || p.text || ''})`).join(' & ');
+          let sourceStrs = sourcePropositions.map(p => p.label || p.text || '');
           const targetStr = targetPropositions[0].label || targetPropositions[0].text || '';
 
-          const expr1 = formatForSympy(sourceStr);
+          // 【追加】前提条件（ドメイン）の自動分離
+          let domainStr = '';
+          let realSourceStrs = sourceStrs;
+          
+          if (sourceStrs.length > 1) {
+            // 単純な不等式 (例: x > 2, x-2 < 0, x ≠ 2) を前提条件とみなす
+            const domainRegex = /^[a-zA-Z0-9\s\-]+[<>≠]\s*-?[0-9a-zA-Z\s]+$/;
+            const foundDomainIdx = sourceStrs.findIndex(s => domainRegex.test(s));
+            if (foundDomainIdx !== -1) {
+              domainStr = sourceStrs[foundDomainIdx];
+              realSourceStrs = sourceStrs.filter((_, idx) => idx !== foundDomainIdx);
+            }
+          }
+
+          const combinedSourceStr = realSourceStrs.map(s => `(${s})`).join(' & ');
+
+          const expr1 = formatForSympy(combinedSourceStr);
           const expr2 = formatForSympy(targetStr);
+          const domainExpr = domainStr ? formatForSympy(domainStr) : '';
 
           try {
             // Vercel上のPython (SymPy) APIへ検証リクエストを送信
             const response = await fetch(`${sympyApiUrl}/api/verify`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ expr1, expr2 }),
+              // 【変更】domainExpr (前提条件) も一緒に送る！
+              body: JSON.stringify({ expr1, expr2, domain: domainExpr }),
             });
 
             if (response.ok) {
