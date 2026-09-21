@@ -173,8 +173,10 @@ export async function GET(request: NextRequest) {
 【1枚目画像: 問題文】の設定前提と、【2枚目画像: 解答答案】に実際に書かれている記述ステップを正確に抽出し、有向グラフ（DAG）を作成してください。
 
 [最重要制約ルール (Strict Rules)]
-1. **【答案への完全忠実原則（ハルシネーションの絶対禁止）】**:
-   - 生徒が答案に書いていない思考ステップや数式を勝手に補完・捏造してノードに組み込まないでください。
+1. **【答案への完全忠実原則（文字・概念の捏造・補完の絶対禁止）】**:
+   - 生徒が答案に明示的に書いていない思考ステップ、物理量・変数（例: 答案に書かれていない加速度 a、張力 T、未知数など）、および中間方程式（例: 答案に書かれていない運動方程式 m*a=F など）を勝手に補完・解釈してノードに組み込むことを厳禁とします。
+   - 物理的に「同等」な意味を持つ表現であっても、答案内に登場しない文字や式を推論ノードや命題ノードとして捏造してはいけません。答案の文字表現・式展開のステップをそのまま最小単位として忠実にノード化してください。
+   - 例: 生徒が合力 F = -K*x のみから結論へ飛んでおり、答案上に加速度 a や m*a = ... の記述が一切ない場合、運動方程式の推論ノード（principle_equation_of_motion等）を絶対に挟まず、合力の計算ノードから直接該当する定理・結論へ接続してください。
 2. **【Inputs / Outputs の必須バインディングと変数定義の尊重】**:
    - 推論ノード（type: "inference"）における \`inputs_used\` と \`outputs_derived\` は**絶対に使用・出力**してください。決して空のオブジェクト \`{}\` や \`null\` にしないでください。
    - [利用可能な構造化定理ライブラリ] の **Variables Definition** に記載されている物理的意味（例: "rho": "流体の密度", "V": "水没部の体積"）を踏まえ、問題文・答案内のどの文字や式が定理のどの変数に対応しているかを正しく理解した上で \`inputs_used\` に格納してください。
@@ -228,87 +230,86 @@ export async function GET(request: NextRequest) {
 
 [利用可能な構造化定理ライブラリ]
 ${theoremListString}
-    `.trim();
+`.trim();
 
-    const response = await generateWithRetry({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: "【1枚目画像: 問題文】" },
-            { inlineData: { mimeType: problemMimeType, data: problemBase64 } },
-            { text: "【2枚目画像: 解答答案】" },
-            { inlineData: { mimeType: answerMimeType, data: answerBase64 } },
-            { text: promptText }
-          ]
-        }
-      ],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
+const response = await generateWithRetry({
+  model: 'gemini-2.5-flash',
+  contents: [
+    {
+      role: 'user',
+      parts: [
+        { text: "【1枚目画像: 問題文】" },
+        { inlineData: { mimeType: problemMimeType, data: problemBase64 } },
+        { text: "【2枚目画像: 解答答案】" },
+        { inlineData: { mimeType: answerMimeType, data: answerBase64 } },
+        { text: promptText }
+      ]
+    }
+  ],
+  config: {
+    responseMimeType: 'application/json',
+    responseSchema: {
+      type: 'OBJECT',
+      properties: {
+        graph: {
           type: 'OBJECT',
           properties: {
-            graph: {
-              type: 'OBJECT',
-              properties: {
-                nodes: {
-                  type: 'ARRAY',
-                  items: {
+            nodes: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  id: { type: 'STRING' },
+                  type: { 
+                    type: 'STRING',
+                    description: 'ノード種別: "proposition", "theorem", "inference" のいずれか'
+                  },
+                  label: { type: 'STRING' },
+                  sub_question: {
+                    type: 'STRING',
+                    description: '対応する小問（例: "(1)", "(2)", "共通"）。グラフ全体の接続性は維持すること。'
+                  },
+                  is_final_answer: {
+                    type: 'BOOLEAN',
+                    description: '該当する小問の最終結果となる答えのノードである場合は true'
+                  },
+                  inputs_used: { 
                     type: 'OBJECT',
-                    properties: {
-                      id: { type: 'STRING' },
-                      type: { 
-                        type: 'STRING',
-                        description: 'ノード種別: "proposition", "theorem", "inference" のいずれか'
-                      },
-                      label: { type: 'STRING' },
-                      sub_question: {
-                        type: 'STRING',
-                        description: '対応する小問（例: "(1)", "(2)", "共通"）。グラフ全体の接続性は維持すること。'
-                      },
-                      is_final_answer: {
-                        type: 'BOOLEAN',
-                        description: '該当する小問の最終結果となる答えのノードである場合は true'
-                      },
-                      inputs_used: { 
-                        type: 'OBJECT',
-                        description: '【inferenceノードで必須】定理の変数定義(variables)に対応させた実際の変数や数式。キーと値のペア。'
-                      },
-                      outputs_derived: { 
-                        type: 'OBJECT',
-                        description: '【inferenceノードで必須】推論によって導かれた式や物理量。キーと値のペア。'
-                      }
-                    },
-                    required: ['id', 'type', 'label', 'sub_question']
+                    description: '【inferenceノードで必須】定理の変数定義(variables)に対応させた実際の変数や数式。キーと値のペア。'
+                  },
+                  outputs_derived: { 
+                    type: 'OBJECT',
+                    description: '【inferenceノードで必須】推論によって導かれた式や物理量。キーと値のペア。'
                   }
                 },
-                edges: {
-                  type: 'ARRAY',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      from: { type: 'STRING' },
-                      to: { type: 'STRING' }
-                    },
-                    required: ['from', 'to']
-                  }
-                }
-              },
-              required: ['nodes', 'edges']
+                required: ['id', 'type', 'label', 'sub_question']
+              }
             },
-            construction_process: {
+            edges: {
               type: 'ARRAY',
-              items: { type: 'STRING' }
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  from: { type: 'STRING' },
+                  to: { type: 'STRING' }
+                },
+                required: ['from', 'to']
+              }
             }
           },
-          required: ['graph', 'construction_process']
+          required: ['nodes', 'edges']
         },
-        temperature: 0.1,
-        maxOutputTokens: 16384
-      }
-    });
-
+        construction_process: {
+          type: 'ARRAY',
+          items: { type: 'STRING' }
+        }
+      },
+      required: ['graph', 'construction_process']
+    },
+    temperature: 0.1,
+    maxOutputTokens: 16384
+  }
+});
     const rawText = response.text || '';
     let parsedData: any = null;
 
