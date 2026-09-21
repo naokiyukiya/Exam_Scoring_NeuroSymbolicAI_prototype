@@ -6,6 +6,30 @@
       "name": "文字式と四則計算の基本（中1）",
       "rules": [
         {
+          "id": "rule_combine_like_terms",
+          "name": "同類項の整理",
+          "level": ["middle", "high"],
+          "before": ["Add", ["Multiply", "a", "x"], ["Multiply", "b", "x"]],
+          "after": ["Multiply", ["Add", "a", "b"], "x"],
+          "symbols": { "a": "係数1", "b": "係数2", "x": "共通の文字（変数）" }
+        },
+        {
+          "id": "rule_polynomial_addition_subtraction",
+          "name": "多項式の加法・減法",
+          "level": ["middle", "high"],
+          "before": ["Add", "poly1", "poly2"],
+          "after": "simplified_poly",
+          "symbols": { "poly1": "多項式1", "poly2": "多項式2" }
+        },
+        {
+          "id": "rule_monomial_multiplication_division",
+          "name": "単項式の乗法・除法",
+          "level": ["middle", "high"],
+          "before": ["Multiply", "mono1", "mono2"],
+          "after": "simplified_mono",
+          "symbols": { "mono1": "単項式1", "mono2": "単項式2" }
+        },
+        {
           "id": "rule_substitution_basic",
           "name": "代入",
           "level": ["middle", "high"],
