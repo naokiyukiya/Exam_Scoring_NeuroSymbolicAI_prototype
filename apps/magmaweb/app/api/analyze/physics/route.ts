@@ -4,7 +4,7 @@ import { supabase } from '../../../../lib/supabase';
 import physicsLibrary from '../../../../lib/constants/physics.json';
 
 export const maxDuration = 60;
-const PROMPT_VERSION = "2.3.0_strict_binding";
+const PROMPT_VERSION = "2.3.1_strict_binding";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
   }
 
   const physicsData: any = physicsLibrary;
-  const theoremVersion = physicsData?.version || "2.3.0";
+  const theoremVersion = physicsData?.version || "2.3.1";
 
   // キャッシュチェック
   const { data: existingGraph } = await supabase
