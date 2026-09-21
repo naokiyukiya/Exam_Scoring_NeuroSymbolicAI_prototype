@@ -27,7 +27,7 @@ interface LogicGraph {
 }
 
 // =========================================================================
-// 2. SymPy向け 数式整形ヘルパー (完全対応版)
+// 2. SymPy向け 数式整形ヘルパー (完全修正版)
 // =========================================================================
 function formatForSympy(str: string): string {
   if (!str) return '';
@@ -35,30 +35,34 @@ function formatForSympy(str: string): string {
   let s = str.replace(/\(\s*[①-⑳]\s*\)/g, '').replace(/[①-⑳]/g, '').replace(/[…・]/g, '').trim();
   s = s.replace(/\^/g, '**');
 
-  // 不等号の変換
   s = s.replace(/≦/g, '<=').replace(/≧/g, '>=');
   s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
 
-  // 【修正1】論理演算子を "最初" に変換する
-  s = s.replace(/\s*または\s*/g, ' | '); 
-  s = s.replace(/\s*かつ\s*/g, ' & ');
-  
-  // 【修正2】連立不等式 (A < B < C) を (A < B) & (B < C) に分割する
+  // 【修正1】連立不等式 (A < B < C) を And(A < B, B < C) に安全に分割
   const compRegex = /([^<>=&|]+)\s*(<=|<|>=|>)\s*([^<>=&|]+)\s*(<=|<|>=|>)\s*([^<>=&|]+)/;
   if (compRegex.test(s)) {
-    s = s.replace(compRegex, '($1 $2 $3) & ($3 $4 $5)');
+    s = s.replace(compRegex, 'And($1 $2 $3, $3 $4 $5)');
   }
 
-  // 【修正3】ノットイコールの変換
+  // 【修正2】ノットイコール ≠ を Ne(A, B) に安全に変換
   const notEqRegex = /([^=<>≠&|]+)\s*≠\s*([^=<>≠&|]+)/g;
   s = s.replace(notEqRegex, 'Ne($1, $2)');
 
-  // または・かつ が含まれていた場合は、全体をさらにカッコで囲む
-  if (s.includes('|') || s.includes('&')) {
-    s = `(${s})`;
+  // 【修正3】または・かつ を SymPy の Or(), And() に安全に変換
+  // 例: "A または B" -> "Or(A, B)"
+  if (s.includes('または')) {
+    const parts = s.split(/\s*または\s*/);
+    s = `Or(${parts.join(', ')})`;
+  }
+  
+  if (s.includes('かつ') || s.includes('，') || s.includes(',')) {
+    // Orの中身を壊さないように、またはが含まれていない場合のみAndで繋ぐ
+    if (!s.startsWith('Or(')) {
+      const parts = s.split(/\s*かつ\s*|，|,/);
+      s = `And(${parts.join(', ')})`;
+    }
   }
 
-  // (微積・シグマなどの変換はそのまま)
   s = s.replace(/Σ\[([a-zA-Z]+)=([^\s\]]+)\s+to\s+([^\]]+)\]\s*([a-zA-Z0-9_]+|\([^)]+\))/g, 'Sum($4, ($1, $2, $3))');
   s = s.replace(/∫\[([^\]]+)\s+to\s+([^\]]+)\]\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($3, ($4, $1, $2))');
   s = s.replace(/∫\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($1, $2)');
