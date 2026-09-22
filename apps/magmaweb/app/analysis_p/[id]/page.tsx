@@ -730,7 +730,12 @@ const handleStumble = async (theoremId: string) => {
                         setSelectedTheorem(currentInference.label);
                       }
                     }}
-                    style={styles.theoremButton}
+                    style={{styles.theoremButton,flex: 1,                 // ★追加：残りのスペースに収まるように自動調整
+                      minWidth: 0,             // ★追加：flex内でテキストがはみ出るのを防ぐおまじない
+                      overflow: 'hidden',      // ★追加
+                      textOverflow: 'ellipsis',// ★追加：長すぎる場合は省略記号にする
+                      whiteSpace: 'nowrap',    // ★追加：勝手に変なところで改行させない
+                      }}
                   >
                     <span>
                       {primaryTheorem
