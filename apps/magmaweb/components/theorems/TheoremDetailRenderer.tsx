@@ -18,9 +18,15 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
     return (
       <div style={styles.container}>
         {onClose && (
-          <button onClick={onClose} style={styles.closeButtonLight}>
-            <X size={20} />
-          </button>
+          <div style={styles.headerBar}>
+            <div style={styles.headerTag}>
+              <BookOpen size={15} color="#818cf8" />
+              <span style={styles.headerTagText}>PHYSICS THEOREM</span>
+            </div>
+            <button onClick={onClose} style={styles.closeButton} aria-label="閉じる">
+              <X size={18} />
+            </button>
+          </div>
         )}
         <div style={styles.notFoundBox}>
           <p style={{ margin: 0, fontSize: '14px', color: '#94a3b8' }}>
@@ -92,7 +98,8 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#0f172a', // 暗めの背景色で統一
+    maxHeight: '100%',
+    backgroundColor: '#0f172a',
     color: '#f8fafc',
     display: 'flex',
     flexDirection: 'column',
@@ -134,6 +141,7 @@ const styles: Record<string, React.CSSProperties> = {
   scrollBody: {
     padding: '18px',
     overflowY: 'auto',
+    overscrollBehavior: 'contain', // 背面画面へのスクロール伝播を防止
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
