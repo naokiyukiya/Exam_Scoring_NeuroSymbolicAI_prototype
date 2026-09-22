@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+
+// KaTeX の CSS とコンポーネントを読み込み
+import 'katex/dist/katex.min.css'
+import { InlineMath, BlockMath } from 'react-katex'
+
 import AnswerCard from '../../../components/AnswerCard'
 import DagVisualizer from '../../../components/DagVisualizer'
 import { 
@@ -20,6 +25,26 @@ import {
   FileCode,
   Compass
 } from 'lucide-react'
+
+// 数式テキスト（$...$ または $$...$$）が含まれている場合に KaTeX で表示するヘルパーコンポーネント
+function FormattedText({ text }: { text: string }) {
+  if (!text) return null;
+
+  // 簡単な LaTeX 判定・分割（インライン数式 $...$ の対応）
+  const parts = text.split(/(\$[^\$]+\$)/g);
+
+  return (
+    <span>
+      {parts.map((part, index) => {
+        if (part.startsWith('$') && part.endsWith('$') && part.length > 2) {
+          const mathContent = part.slice(1, -1);
+          return <InlineMath key={index} math={mathContent} />;
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
+}
 
 type Node = {
   id: string
@@ -347,7 +372,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                     {inputNodes.length > 0 ? (
                       inputNodes.map(node => (
                         <div key={node.id} style={styles.nodeItemText}>
-                          • {node.label}
+                          • <FormattedText text={node.label} />
                         </div>
                       ))
                     ) : (
@@ -359,7 +384,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                   <div style={styles.stepCenterBox}>
                     <span style={styles.inferenceBadge}>適用した考え方・定理</span>
                     <p style={styles.inferenceText}>
-                      {currentInference.label}
+                      <FormattedText text={currentInference.label} />
                     </p>
                   </div>
 
@@ -369,7 +394,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                     {outputNodes.length > 0 ? (
                       outputNodes.map(node => (
                         <div key={node.id} style={styles.nodeItemText}>
-                          • {node.label}
+                          • <FormattedText text={node.label} />
                         </div>
                       ))
                     ) : (
@@ -455,7 +480,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <BookOpen size={20} color="#4f46e5" />
                 <h2 style={styles.theoremModalTitle}>
-                  解説: {selectedTheorem}
+                  解説: <FormattedText text={selectedTheorem} />
                 </h2>
               </div>
               <button
@@ -473,7 +498,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                 <span>解説ノート</span>
               </div>
               <p style={styles.theoremTextBody}>
-                ここでは <strong>{selectedTheorem}</strong> についての本質的な物理的意味、よくあるミスの罠、式の導出イメージなどを解説するコンテンツを展開します。
+                ここでは <strong><FormattedText text={selectedTheorem} /></strong> についての本質的な物理的意味、よくあるミスの罠、式の導出イメージなどを解説するコンテンツを展開します。
               </p>
               <div style={styles.placeholderBox}>
                 <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
@@ -722,26 +747,22 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     maxHeight: '200px',
   },
-
-  /* ------------------------------------------------------------------------- */
-  /* モーダルスタイル修正（LayoutShellの被り解消 & コンパクト最適化）          */
-  /* ------------------------------------------------------------------------- */
   modalOverlay: {
     position: 'fixed',
     inset: 0,
     backgroundColor: 'rgba(15, 23, 42, 0.85)',
     backdropFilter: 'blur(4px)',
-    zIndex: 2000, // LayoutShell (zIndex: 1000) より前面へ
+    zIndex: 2000,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '12px 12px 80px 12px', // モバイル下部ナビゲーション分の被り対策余白
+    padding: '12px 12px 80px 12px',
     boxSizing: 'border-box',
   },
   modalContainer: {
     width: '100%',
     maxWidth: '800px',
-    maxHeight: '100%', // OverlayのPadding内に確実に収める
+    maxHeight: '100%',
     backgroundColor: '#0f172a',
     borderRadius: '16px',
     border: '1px solid #1e293b',
@@ -970,7 +991,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '4px',
     overflowX: 'auto',
     padding: '2px 0',
-    maxWidth: '45%', // モバイルでボタン類を押し出さないように制限
+    maxWidth: '45%',
     scrollbarWidth: 'none',
   },
   stepDot: {
@@ -993,10 +1014,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#ffffff',
     fontWeight: 'bold',
   },
-
-  /* ------------------------------------------------------------------------- */
-  /* 定理解説モーダル用スタイル                                                 */
-  /* ------------------------------------------------------------------------- */
   theoremModalOverlay: {
     position: 'fixed',
     inset: 0,
