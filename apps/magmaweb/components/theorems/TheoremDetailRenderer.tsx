@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import physicsData from '../../lib/constants/physics.json'; // physics.jsonのパスに合わせて調整
+import physicsData from '../../lib/constants/physics.json';
 import { theoremComponentMap } from './registry';
+import { BookOpen, X, Sparkles, Variable } from 'lucide-react';
+import FormattedText from '../FormattedText'; // 式レンダリング用（既存のものがあれば）
 
 interface Props {
   theoremId: string;
-  onClose?: () => void; // モーダル時に閉じるボタン用
+  onClose?: () => void;
 }
 
 export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
@@ -15,57 +17,193 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
 
   if (!theorem) {
     return (
-      <div className="p-8 text-white">
+      <div style={styles.container}>
         {onClose && (
-          <button onClick={onClose} className="mb-4 text-slate-400 hover:text-white">
-            ← 閉じる
+          <button onClick={onClose} style={styles.closeButtonLight}>
+            <X size={20} />
           </button>
         )}
-        <p>該当する定理データが見つかりません。 (ID: {theoremId})</p>
+        <div style={styles.notFoundBox}>
+          <p style={{ margin: 0, fontSize: '14px', color: '#94a3b8' }}>
+            該当する定理データが見つかりませんでした。(ID: {theoremId})
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto text-white p-6">
-      {/* モーダル用閉じるボタン等 */}
-      {onClose && (
-        <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
-          <span className="text-xs text-blue-400 font-mono">THEOREMS / {theorem.id}</span>
-          <button onClick={onClose} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm text-slate-300">
-            ✕ 閉じる
-          </button>
+    <div style={styles.container}>
+      {/* ヘッダーバー */}
+      <div style={styles.headerBar}>
+        <div style={styles.headerTag}>
+          <BookOpen size={15} color="#818cf8" />
+          <span style={styles.headerTagText}>PHYSICS THEOREM / {theorem.id}</span>
         </div>
-      )}
+        {onClose && (
+          <button onClick={onClose} style={styles.closeButton} aria-label="閉じる">
+            <X size={18} />
+          </button>
+        )}
+      </div>
 
-      {/* ヘッダー情報 */}
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">{theorem.name}</h1>
-        {theorem.prompt_data?.variables && (
-          <div className="bg-slate-800/80 p-4 rounded-lg border border-slate-700 mt-4">
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">登場する物理量・変数</h2>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              {Object.entries(theorem.prompt_data.variables).map(([key, val]) => (
-                <div key={key} className="flex items-center gap-2">
-                  <span className="font-mono text-cyan-400">${key}$</span>
-                  <span className="text-slate-300">: {val as string}</span>
-                </div>
-              ))}
+      <div style={styles.scrollBody}>
+        {/* タイトルセクション */}
+        <header style={styles.headerSection}>
+          <h1 style={styles.title}>{theorem.name}</h1>
+          
+          {/* 変数・物理量リスト */}
+          {theorem.prompt_data?.variables && (
+            <div style={styles.variableBox}>
+              <div style={styles.variableTitle}>
+                <Variable size={14} color="#38bdf8" />
+                <span>登場する物理量・記号</span>
+              </div>
+              <div style={styles.variableGrid}>
+                {Object.entries(theorem.prompt_data.variables).map(([key, val]) => (
+                  <div key={key} style={styles.variableItem}>
+                    <span style={styles.variableSymbol}>
+                      <span className="font-mono text-cyan-400 font-bold">{key}</span>
+                    </span>
+                    <span style={styles.variableDesc}>: {val as string}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </header>
+          )}
+        </header>
 
-      {/* 自由記述コンポーネントのレンダリング */}
-      <main className="mt-6">
-        {ContentComponent ? (
-          <ContentComponent theorem={theorem} />
-        ) : (
-          <div className="p-6 bg-slate-800/50 rounded-lg text-slate-400 border border-slate-700">
-            この定理のリッチ解説コンポーネントは準備中です。
-          </div>
-        )}
-      </main>
+        {/* 動的コンポーネント（個別の解説コンテンツ） */}
+        <main style={styles.mainContent}>
+          {ContentComponent ? (
+            <ContentComponent theorem={theorem} />
+          ) : (
+            <div style={styles.placeholderBox}>
+              <Sparkles size={18} color="#6366f1" />
+              <span>この定理のリッチ解説は現在準備中です。</span>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#0f172a', // 暗めの背景色で統一
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    borderRadius: '16px',
+    overflow: 'hidden',
+    boxSizing: 'border-box',
+  },
+  headerBar: {
+    padding: '12px 16px',
+    borderBottom: '1px solid #1e293b',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0f172a',
+    flexShrink: 0,
+  },
+  headerTag: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  headerTagText: {
+    fontSize: '11px',
+    fontWeight: 'bold',
+    color: '#818cf8',
+    letterSpacing: '0.05em',
+  },
+  closeButton: {
+    background: '#1e293b',
+    border: '1px solid #334155',
+    color: '#94a3b8',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollBody: {
+    padding: '18px',
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    flex: 1,
+  },
+  headerSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  title: {
+    fontSize: '22px',
+    fontWeight: 'bold',
+    color: '#ffffff',
+    margin: 0,
+    lineHeight: '1.3',
+  },
+  variableBox: {
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    border: '1px solid #1e293b',
+    borderRadius: '10px',
+    padding: '12px',
+  },
+  variableTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    color: '#38bdf8',
+    marginBottom: '8px',
+  },
+  variableGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: '8px',
+  },
+  variableItem: {
+    fontSize: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  variableSymbol: {
+    color: '#38bdf8',
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+  },
+  variableDesc: {
+    color: '#cbd5e1',
+  },
+  mainContent: {
+    marginTop: '4px',
+  },
+  placeholderBox: {
+    backgroundColor: '#1e293b',
+    border: '1px dashed #334155',
+    borderRadius: '10px',
+    padding: '24px',
+    textAlign: 'center',
+    color: '#94a3b8',
+    fontSize: '13px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+  },
+  notFoundBox: {
+    padding: '32px',
+    textAlign: 'center',
+  },
+};
