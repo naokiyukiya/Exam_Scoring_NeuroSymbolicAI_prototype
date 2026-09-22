@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 
 // KaTeX の CSS とコンポーネントを読み込み
@@ -10,11 +10,6 @@ import { InlineMath, BlockMath } from 'react-katex'
 
 import AnswerCard from '../../../components/AnswerCard'
 import DagVisualizer from '../../../components/DagVisualizer'
-import TheoremDetailRenderer from '../../../components/theorems/TheoremDetailRenderer'
-
-// physics.json を直接インポート（パスは配置場所に応じて変更してください）
-import physicsData from '../../../lib/constants/physics.json'
-
 import { 
   CircleArrowLeft, 
   Layers, 
@@ -35,6 +30,7 @@ import {
 function FormattedText({ text }: { text: string }) {
   if (!text) return null;
 
+  // 簡単な LaTeX 判定・分割（インライン数式 $...$ の対応）
   const parts = text.split(/(\$[^\$]+\$)/g);
 
   return (
@@ -59,6 +55,7 @@ type Node = {
   inputs_used?: Record<string, string>
   outputs_derived?: Record<string, string>
   verification_status?: string
+  math_expr?: string
 }
 
 type Edge = {
@@ -71,24 +68,8 @@ type GraphData = {
   edges: Array<Edge>
 }
 
-// physics.json からノードに該当する定義を検索する関数
-function findPhysicsTheorem(node: Node) {
-  if (!node) return null;
-  const list = Array.isArray(physicsData) ? physicsData : (physicsData as any).theorems || [];
-  
-  return list.find((t: any) => 
-    t.id === node.id || 
-    t.name === node.label || 
-    (node.label && t.name && node.label.includes(t.name)) ||
-    (node.label && t.name && t.name.includes(node.label))
-  );
-}
-
 export default function AnalysisPhysicsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const pathname = usePathname()
-
   const [answerData, setAnswerData] = useState<any>(null)
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [rawGraphData, setRawGraphData] = useState<string | null>(null)
@@ -100,8 +81,8 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const [isStepViewerOpen, setIsStepViewerOpen] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
 
-  // クエリパラメータ ?theorem=xxx から選択中の定理IDを取得
-  const selectedTheoremId = searchParams.get('theorem')
+  // 定理解説モーダル用のステート
+  const [selectedTheorem, setSelectedTheorem] = useState<string | null>(null)
 
   // デバッグ用ステート
   const [debugError, setDebugError] = useState<string | null>(null)
@@ -204,19 +185,6 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
     }
   }
 
-  // クエリ制御用関数
-  const handleOpenTheorem = (theoremId: string) => {
-    const p = new URLSearchParams(searchParams.toString())
-    p.set('theorem', theoremId)
-    router.push(`${pathname}?${p.toString()}`, { scroll: false })
-  }
-
-  const handleCloseTheorem = () => {
-    const p = new URLSearchParams(searchParams.toString())
-    p.delete('theorem')
-    router.push(`${pathname}?${p.toString()}`, { scroll: false })
-  }
-
   const inferenceNodes = graphData?.nodes.filter(n => n.type === 'inference') || []
   const currentInference = inferenceNodes[currentStepIndex]
 
@@ -226,12 +194,97 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const inputNodes = graphData?.nodes.filter(n => inputNodeIds.includes(n.id)) || []
   const outputNodes = graphData?.nodes.filter(n => outputNodeIds.includes(n.id)) || []
 
-  // 現在のステップで physics.json に登録されている定理・法則を抽出
-  const currentStepTheoremMatch = inputNodes
-    .map(node => ({ node, theorem: findPhysicsTheorem(node) }))
-    .find(item => item.theorem !== null)
+  // ------------------------------------------------------------------------
+  // 🐾 「代数計算・連立方程式の消去」を検知して自動検証を走らせる useEffect
+  // ------------------------------------------------------------------------
+  useEffect(() => {
+    if (!isStepViewerOpen || !currentInference) return;
 
-  const primaryTheorem = currentStepTheoremMatch?.theorem
+    // 「代数計算・連立方程式の消去」という定理がこの推論に繋がっているか確認
+    const hasAlgebra = inputNodes.some(n => n.label.includes('代数計算・連立方程式の消去'));
+
+    // まだ検証されていない場合のみ自動実行する
+    if (hasAlgebra && currentInference.verification_status === 'unverified') {
+      const runVerification = async () => {
+        // UIを「検証中」にする
+        setGraphData(prev => {
+          if (!prev) return prev;
+          const newNodes = prev.nodes.map(n => 
+            n.id === currentInference.id ? { ...n, verification_status: 'verifying' } : n
+          );
+          return { ...prev, nodes: newNodes };
+        });
+
+        // 記号を SymPy で解釈可能な形式に変換する関数
+        const formatForSymPy = (expr: string) => {
+          if (!expr) return '';
+          return expr
+            .replace(/≧/g, '>=')
+            .replace(/≦/g, '<=')
+            .replace(/≠/g, '!=')
+            .replace(/×/g, '*')
+            .replace(/÷/g, '/');
+        };
+
+        // 式を持つ命題ノードだけを抽出し、フォーマット変換
+        const inputProps = inputNodes
+          .filter(n => n.type === 'proposition' && n.math_expr)
+          .map(n => formatForSymPy(n.math_expr!));
+          
+        const outputProps = outputNodes
+          .filter(n => n.type === 'proposition' && n.math_expr)
+          .map(n => formatForSymPy(n.math_expr!));
+
+        // 数式が含まれていなければスキップ
+        if (inputProps.length === 0 || outputProps.length === 0) {
+          setGraphData(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              nodes: prev.nodes.map(n => n.id === currentInference.id ? { ...n, verification_status: 'skipped' } : n)
+            };
+          });
+          return;
+        }
+
+        // 複数の式がある場合は、SymPyで AND 条件として解釈されるように '&' で結合する
+        const expr1 = inputProps.join(' & ');
+        const expr2 = outputProps.join(' & ');
+
+        try {
+          const res = await fetch('/api/verify', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expr1, expr2 })
+          });
+          
+          const result = await res.json();
+          
+          // 結果に応じてステータスを更新
+          setGraphData(prev => {
+            if (!prev) return prev;
+            const newNodes = prev.nodes.map(n => {
+              if (n.id === currentInference.id) {
+                return { ...n, verification_status: (res.ok && result.is_equal) ? 'correct' : 'incorrect' };
+              }
+              return n;
+            });
+            return { ...prev, nodes: newNodes };
+          });
+        } catch (err) {
+          setGraphData(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              nodes: prev.nodes.map(n => n.id === currentInference.id ? { ...n, verification_status: 'error' } : n)
+            };
+          });
+        }
+      };
+      
+      runVerification();
+    }
+  }, [currentStepIndex, isStepViewerOpen, currentInference, inputNodes, outputNodes]);
 
   if (loading) {
     return (
@@ -342,7 +395,11 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
           )}
 
           <div style={styles.analysisBody}>
-            {graphData ? null : (
+            {graphData ? (
+              /* スマホ表示対応のため一時的に重い描画処理をコメントアウト */
+              /* <DagVisualizer graphData={graphData} /> */
+              null
+            ) : (
               <div style={styles.errorText}>
                 物理構造のグラフデータを読み込めませんでした。上のデバッグモニターを確認してください。
               </div>
@@ -406,44 +463,45 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                   <div style={styles.stepBox}>
                     <span style={styles.inputBadge}>使う前提・根拠</span>
                     {inputNodes.length > 0 ? (
-                      inputNodes.map(node => {
-                        const matched = findPhysicsTheorem(node);
-                        return (
-                          <div key={node.id} style={styles.nodeItemText}>
-                            • {matched ? (
-                              <button
-                                onClick={() => handleOpenTheorem(matched.id)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  padding: 0,
-                                  color: '#60a5fa',
-                                  textDecoration: 'underline',
-                                  textUnderlineOffset: '3px',
-                                  cursor: 'pointer',
-                                  font: 'inherit',
-                                  textAlign: 'left'
-                                }}
-                              >
-                                <FormattedText text={node.label} />
-                              </button>
-                            ) : (
-                              <FormattedText text={node.label} />
-                            )}
-                          </div>
-                        );
-                      })
+                      inputNodes.map(node => (
+                        <div key={node.id} style={styles.nodeItemText}>
+                          • <FormattedText text={node.label} />
+                        </div>
+                      ))
                     ) : (
                       <div style={styles.nodeItemTextEmpty}>（問題設定または直前の条件）</div>
                     )}
                   </div>
 
-                  {/* 変形・適用定理 */}
+                  {/* 変形・適用定理 と 自動検証ステータス表示 */}
                   <div style={styles.stepCenterBox}>
                     <span style={styles.inferenceBadge}>適用した考え方・定理</span>
                     <p style={styles.inferenceText}>
                       <FormattedText text={currentInference.label} />
                     </p>
+
+                    {/* ★ 検証ステータスバッジの表示 ★ */}
+                    {currentInference.verification_status && currentInference.verification_status !== 'unverified' && (
+                      <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold' }}>
+                        {currentInference.verification_status === 'verifying' && (
+                          <span style={{color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                            <div style={styles.spinnerMini}/> 数式検証中...
+                          </span>
+                        )}
+                        {currentInference.verification_status === 'correct' && (
+                          <span style={{color: '#4ade80'}}>✓ 正しい計算です</span>
+                        )}
+                        {currentInference.verification_status === 'incorrect' && (
+                          <span style={{color: '#f87171'}}>⚠️ 計算に誤りがあります</span>
+                        )}
+                        {currentInference.verification_status === 'error' && (
+                          <span style={{color: '#9ca3af'}}>検証エラー</span>
+                        )}
+                        {currentInference.verification_status === 'skipped' && (
+                          <span style={{color: '#9ca3af'}}>検証スキップ(純粋な数式なし)</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* 次の式（Outputs） */}
@@ -467,21 +525,14 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                 <div style={styles.theoremBannerText}>
                   <div style={styles.theoremBannerTitle}>
                     <BookOpen size={16} color="#a5b4fc" />
-                    <span>
-                      {primaryTheorem
-                        ? `「${primaryTheorem.name}」について確認`
-                        : '適用した定理・考え方について確認'}
-                    </span>
+                    <span>この思考ステップに不安はありますか？</span>
                   </div>
                   <p style={styles.theoremBannerSub}>
                     「なぜこの式変形になるのか」「なぜこの定理が使えるのか」を根底から徹底解説します。
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    const targetId = primaryTheorem ? primaryTheorem.id : currentInference.id;
-                    handleOpenTheorem(targetId);
-                  }}
+                  onClick={() => setSelectedTheorem(currentInference.label)}
                   style={styles.theoremButton}
                 >
                   <span>定理の解説を見る</span>
@@ -536,32 +587,51 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
       )}
 
       {/* ========================================================================= */}
-      {/* 📖 定理解説スライドオーバー / モーダル（共通Renderer利用） */}
+      {/* 定理解説モーダル */}
       {/* ========================================================================= */}
-      {selectedTheoremId && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 50,
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          justifyContent: 'flex-end',
-        }}>
-          <div style={{
-            width: '100%',
-            maxWidth: '672px',
-            backgroundColor: '#0f172a',
-            height: '100%',
-            overflowY: 'auto',
-            borderLeft: '1px solid #1e293b',
-            padding: '16px',
-            boxShadow: '-10px 0 25px -5px rgba(0, 0, 0, 0.5)'
-          }}>
-            <TheoremDetailRenderer 
-              theoremId={selectedTheoremId} 
-              onClose={handleCloseTheorem} 
-            />
+      {selectedTheorem && (
+        <div style={styles.theoremModalOverlay}>
+          <div style={styles.theoremModalContainer}>
+            <div style={styles.theoremModalHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <BookOpen size={20} color="#4f46e5" />
+                <h2 style={styles.theoremModalTitle}>
+                  解説: <FormattedText text={selectedTheorem} />
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedTheorem(null)}
+                style={styles.closeButtonLight}
+                aria-label="閉じる"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={styles.theoremModalBody}>
+              <div style={styles.authorMessage}>
+                <Flame size={18} color="#059669" />
+                <span>解説ノート</span>
+              </div>
+              <p style={styles.theoremTextBody}>
+                ここでは <strong><FormattedText text={selectedTheorem} /></strong> についての本質的な物理的意味、よくあるミスの罠、式の導出イメージなどを解説するコンテンツを展開します。
+              </p>
+              <div style={styles.placeholderBox}>
+                <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
+                  ※ 定理解説コンテンツは現在制作・拡充中です。お楽しみに！
+                </p>
+              </div>
+            </div>
+
+            <div style={styles.theoremModalFooter}>
+              <button
+                onClick={() => setSelectedTheorem(null)}
+                style={styles.closeModalButton}
+              >
+                <CheckCircle2 size={16} />
+                <span>理解できたのでステップに戻る</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -923,18 +993,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#64748b',
     fontStyle: 'italic',
   },
-  // Wikipedia風インライン定理リンクスタイル
-  wikiLinkButton: {
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    color: '#60a5fa',
-    textDecoration: 'underline',
-    textUnderlineOffset: '3px',
-    cursor: 'pointer',
-    font: 'inherit',
-    textAlign: 'left',
-  },
   stepCenterBox: {
     backgroundColor: 'rgba(30, 27, 75, 0.5)',
     borderRadius: '8px',
@@ -1072,28 +1130,103 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#ffffff',
     fontWeight: 'bold',
   },
-
-  // -------------------------------------------------------------------------
-  // 📖 定理解説スライドオーバー用（画面右側から出てくるデザイン）
-  // -------------------------------------------------------------------------
-  slideOverOverlay: {
+  theoremModalOverlay: {
     position: 'fixed',
     inset: 0,
-    zIndex: 3000,
     backgroundColor: 'rgba(15, 23, 42, 0.75)',
     backdropFilter: 'blur(4px)',
+    zIndex: 3000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '16px',
+  },
+  theoremModalContainer: {
+    width: '100%',
+    maxWidth: '500px',
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  theoremModalHeader: {
+    padding: '14px 16px',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  theoremModalTitle: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#0f172a',
+    margin: 0,
+  },
+  closeButtonLight: {
+    background: 'none',
+    border: 'none',
+    color: '#64748b',
+    cursor: 'pointer',
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  theoremModalBody: {
+    padding: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  authorMessage: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+  theoremTextBody: {
+    fontSize: '14px',
+    color: '#334155',
+    lineHeight: '1.6',
+    margin: 0,
+  },
+  placeholderBox: {
+    backgroundColor: '#f8fafc',
+    border: '1px dashed #cbd5e1',
+    borderRadius: '8px',
+    padding: '12px',
+    textAlign: 'center',
+  },
+  theoremModalFooter: {
+    padding: '12px 16px',
+    backgroundColor: '#f8fafc',
+    borderTop: '1px solid #f1f5f9',
     display: 'flex',
     justifyContent: 'flex-end',
   },
-  slideOverContainer: {
-    width: '100%',
-    maxWidth: '672px',
-    backgroundColor: '#0f172a',
-    height: '100%',
-    overflowY: 'auto',
-    borderLeft: '1px solid #1e293b',
-    padding: '16px',
-    boxShadow: '-10px 0 25px -5px rgba(0, 0, 0, 0.5)',
-    boxSizing: 'border-box',
+  closeModalButton: {
+    backgroundColor: '#059669',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '8px 16px',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    cursor: 'pointer',
   },
+  spinnerMini: {
+    width: '12px',
+    height: '12px',
+    border: '2px solid rgba(251, 191, 36, 0.3)',
+    borderTopColor: '#fbbf24',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+  }
 }
