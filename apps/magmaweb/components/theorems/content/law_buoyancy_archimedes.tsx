@@ -13,7 +13,7 @@ export default function LawBuoyancyArchimedes() {
           <h3 style={{ ...styles.cardTitle, color: '#38bdf8' }}>主張・物理的意義</h3>
         </div>
         <p style={styles.cardBodyText}>
-          流体中（液体や気体）にある物体は、その物体が<b>排除した流体の重さ（重量）に等しい大きさの鉛直上向きの浮力</b>を受ける。
+          流体中（液体や気体）にある物体は、その物体が<b>おしのけた流体の重量に等しい大きさの鉛直上向きの浮力</b>を受ける。
         </p>
       </section>
 
@@ -39,7 +39,7 @@ export default function LawBuoyancyArchimedes() {
           </div>
           <div style={styles.formulaItem}>
             <span style={styles.symbol}><FormattedText text="$V$" /></span>
-            <span>没入部分の体積 <small style={styles.unit}>[m³]</small></span>
+            <span>没入部の体積 <small style={styles.unit}>[m³]</small></span>
           </div>
           <div style={styles.formulaItem}>
             <span style={styles.symbol}><FormattedText text="$g$" /></span>
@@ -65,11 +65,11 @@ export default function LawBuoyancyArchimedes() {
         </div>
 
         <div style={styles.cardBodyText}>
-          <p style={{ margin: '0 0 6px 0' }}>
+          <p style={{ margin: '0 0 8px 0' }}>
             <FormattedText text="深さ $h$ における水圧は $p = p_0 + \rho g h$ です。" />
           </p>
           <p style={{ margin: 0 }}>
-            <FormattedText text="円柱の物体を水中に沈めたとき、上面を下向きに押す力 $F_1 = (p_0 + \rho g h_1)S$ と、下面を上向きに押す力 $F_2 = (p_0 + \rho g h_2)S$ の差をとると：" />
+            <FormattedText text="図のように、円柱の物体を水中に沈めた場合を考えます。上面（$P_1$）には下向きに押す力 $F_1 = (p_0 + \rho g h_1)S$ が働き、下面（$P_2$）には上向きに押す力 $F_2 = (p_0 + \rho g h_2)S$ がはたらきます。これらの合力は、鉛直上向きを正として：" />
           </p>
         </div>
         
@@ -80,7 +80,7 @@ export default function LawBuoyancyArchimedes() {
         <div style={styles.noteBox}>
           <Lightbulb size={15} color="#fbbf24" style={{ flexShrink: 0, marginTop: '2px' }} />
           <span style={styles.noteText}>
-            <b>ポイント:</b> 左右から押す水圧は打ち消し合いますが、上下では深さが異なるため <FormattedText text="**$p_2 > p_1$**" /> となり、差し引きで「上向きの力（浮力）」が生まれます。
+            <b>ポイント:</b> 左右から押す水圧は互いに打ち消し合いますが、上下では深さが異なるため <FormattedText text="$p_2 > p_1$" /> となり、この水圧差が上向きの浮力を生み出します。
           </span>
         </div>
       </section>
@@ -201,8 +201,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '8px',
-    backgroundColor: 'rgba(245, 158, 11, 0.08)',
-    border: '1px solid rgba(245, 158, 11, 0.2)',
+    backgroundColor: '#0f172a',
+    border: '1px solid #334155',
     padding: '10px 12px',
     borderRadius: '8px',
     marginTop: '4px',
