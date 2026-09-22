@@ -1,6 +1,6 @@
 import React from 'react';
 import { Info, Calculator, GitCommitVertical, Lightbulb } from 'lucide-react';
-import FormattedText from '../../FormattedText'; // ★ 共通コンポーネントからインポート
+import FormattedText from '../../FormattedText';
 
 export default function LawBuoyancyArchimedes() {
   return (
@@ -54,6 +54,16 @@ export default function LawBuoyancyArchimedes() {
           <GitCommitVertical size={15} color="#a5b4fc" />
           <h3 style={{ ...styles.cardTitle, color: '#a5b4fc' }}>導出のメカニズム（水圧の差）</h3>
         </div>
+
+        {/* Cloudinaryの図を表示 */}
+        <div style={styles.diagramContainer}>
+          <img
+            src="https://res.cloudinary.com/zmgjxdaa/image/upload/f_auto,q_auto/スクリーンショット_2026-09-23_025938"
+            alt="アルキメデスの原理の導出モデル図"
+            style={styles.diagramImage}
+          />
+        </div>
+
         <div style={styles.cardBodyText}>
           <p style={{ margin: '0 0 6px 0' }}>
             <FormattedText text="深さ $h$ における水圧は $p = p_0 + \rho g h$ です。" />
@@ -70,7 +80,7 @@ export default function LawBuoyancyArchimedes() {
         <div style={styles.noteBox}>
           <Lightbulb size={15} color="#fbbf24" style={{ flexShrink: 0, marginTop: '2px' }} />
           <span style={styles.noteText}>
-            <b>ポイント:</b> 物体の質量（物体の密度）ではなく、<b>「周囲の流体の密度 <FormattedText text="$\rho$" />」</b> を使う点につまずきやすいので注意しましょう。
+            <b>ポイント:</b> 左右から押す水圧は打ち消し合いますが、上下では深さが異なるため **$p_2 > p_1$** となり、差し引きで「上向きの力（浮力）」が生まれます。
           </span>
         </div>
       </section>
@@ -78,6 +88,7 @@ export default function LawBuoyancyArchimedes() {
     </div>
   );
 }
+
 const styles: Record<string, React.CSSProperties> = {
   cardInfo: {
     backgroundColor: '#1e293b',
@@ -144,7 +155,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #334155',
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
+    gap: '12px',
   },
   cardHeader: {
     display: 'flex',
@@ -155,6 +166,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '13px',
     fontWeight: 'bold',
     margin: 0,
+  },
+  diagramContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: '8px',
+    padding: '12px',
+    border: '1px solid #1e293b',
+  },
+  diagramImage: {
+    maxWidth: '100%',
+    maxHeight: '260px',
+    objectFit: 'contain',
+    borderRadius: '4px',
   },
   cardBodyText: {
     fontSize: '13px',
