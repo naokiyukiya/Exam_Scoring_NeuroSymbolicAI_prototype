@@ -11,8 +11,7 @@ const PROMPT_VERSION = `${theoremVersion}_sub_question_and_variables`;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-// タイムアウトを防ぐため、リトライ回数と待機時間を短縮調整
-async function generateWithRetry(params: any, maxRetries = 2, initialDelayMs = 2000) {
+async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 2000) {
   let delay = initialDelayMs;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -24,7 +23,7 @@ async function generateWithRetry(params: any, maxRetries = 2, initialDelayMs = 2
       if (isOverloaded && attempt < maxRetries) {
         console.warn(`[Gemini API Overloaded] リトライ (${attempt}/${maxRetries})... ${delay}ms待機`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 1.5;
+        delay *= 2;
       } else {
         throw err;
       }
@@ -75,77 +74,68 @@ function repairTruncatedJson(jsonStr: string): string {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const answerId = searchParams.get('answerId');
-  const forceRefresh = searchParams.get('force') === 'true'; // 再解析を強制したい場合のみ ?force=true をつける
 
   if (!answerId) {
     return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
   }
 
-  const { data: answer, error: answerError } = await supabase
-    .from('posts')
-    .select('id, image_url, parent_id')
-    .eq('id', answerId)
-    .single();
+  try {
+    const { data: answer, error: answerError } = await supabase
+      .from('posts')
+      .select('id, image_url, parent_id')
+      .eq('id', answerId)
+      .single();
 
-  if (answerError || !answer?.image_url) {
-    console.error('[API Error] 答案画像URL取得失敗:', answerError);
-    return NextResponse.json({ error: '答案画像URLを取得できませんでした' }, { status: 404 });
-  }
+    if (answerError || !answer?.image_url) {
+      console.error('[API Error] 答案画像URL取得失敗:', answerError);
+      return NextResponse.json({ error: '答案画像URLを取得できませんでした' }, { status: 404 });
+    }
 
-  // ★ キャッシュチェック: 強制リフレッシュでない限り、DB上に既存グラフがあれば最優先で返す
-  if (!forceRefresh) {
+    let problemImageUrl = answer.image_url;
+    if (answer.parent_id) {
+      const { data: problem } = await supabase
+        .from('posts')
+        .select('image_url')
+        .eq('id', answer.parent_id)
+        .maybeSingle();
+
+      if (problem?.image_url) {
+        problemImageUrl = problem.image_url;
+      }
+    }
+
+    // キャッシュチェック
     const { data: existingGraph } = await supabase
       .from('logic_graphs')
       .select('graph_data, construction_process, prompt_version, theorem_version')
       .eq('post_id', answerId)
       .maybeSingle();
 
-    if (existingGraph && existingGraph.graph_data) {
+    if (existingGraph && existingGraph.prompt_version === PROMPT_VERSION) {
       return NextResponse.json({
         imageUrl: answer.image_url,
         graph: existingGraph.graph_data,
-        constructionProcess: existingGraph.construction_process || [],
-        metadata: { 
-          promptVersion: existingGraph.prompt_version, 
-          theoremVersion: existingGraph.theorem_version, 
-          cached: true 
-        }
+        constructionProcess: existingGraph.construction_process,
+        metadata: { promptVersion: existingGraph.prompt_version, theoremVersion: existingGraph.theorem_version, cached: true }
       });
     }
-  }
 
-  let problemImageUrl = answer.image_url;
-  if (answer.parent_id) {
-    const { data: problem } = await supabase
-      .from('posts')
-      .select('image_url')
-      .eq('id', answer.parent_id)
-      .maybeSingle();
-
-    if (problem?.image_url) {
-      problemImageUrl = problem.image_url;
+    let theoremListString = "";
+    try {
+      if (Array.isArray(physicsData?.theorems)) {
+        theoremListString = physicsData.theorems
+          .map((t: any) => {
+            const inputsStr = JSON.stringify(t.inputs || {});
+            const outputsStr = JSON.stringify(t.outputs || {});
+            const varsStr = t.variables ? JSON.stringify(t.variables) : "{}";
+            return `- ID: [${t.id}] | Name: "${t.name}"\n  Variables Definition: ${varsStr}\n  Inputs: ${inputsStr}\n  Outputs: ${outputsStr}`;
+          })
+          .join('\n\n');
+      }
+    } catch (err) {
+      console.error("物理ライブラリデータの展開に失敗しました", err);
     }
-  }
 
-  // ライブラリ内の変数定義 (variables) もプロンプトに文字列化して渡す
-  let theoremListString = "";
-  try {
-    if (Array.isArray(physicsData?.theorems)) {
-      theoremListString = physicsData.theorems
-        .map((t: any) => {
-          const inputsStr = JSON.stringify(t.inputs || {});
-          const outputsStr = JSON.stringify(t.outputs || {});
-          const varsStr = t.variables ? JSON.stringify(t.variables) : "{}";
-          return `- ID: [${t.id}] | Name: "${t.name}"\n  Variables Definition: ${varsStr}\n  Inputs: ${inputsStr}\n  Outputs: ${outputsStr}`;
-        })
-        .join('\n\n');
-    }
-  } catch (err) {
-    console.error("物理ライブラリデータの展開に失敗しました", err);
-  }
-
-  try {
-    // 画像取得フェッチ
     const [problemRes, answerRes] = await Promise.all([
       fetch(problemImageUrl),
       fetch(answer.image_url)
