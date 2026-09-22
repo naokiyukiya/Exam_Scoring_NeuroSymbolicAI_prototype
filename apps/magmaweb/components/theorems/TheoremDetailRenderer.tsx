@@ -106,17 +106,31 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
           )}
         </header>
 
-        {/* 動的コンポーネント */}
-        <main style={styles.mainContent}>
-          {ContentComponent ? (
-            <ContentComponent theorem={theorem} />
-          ) : (
-            <div style={styles.placeholderBox}>
-              <Sparkles size={18} color="#6366f1" />
-              <span>この定理のリッチ解説は現在準備中です。</span>
-            </div>
-          )}
-        </main>
+{/* 動的コンポーネント（個別の解説コンテンツ） */}
+<main style={styles.mainContent}>
+  {ContentComponent ? (
+    <ContentComponent
+      theorem={theorem}
+      onOpenTheorem={(nextTheoremId: string) => {
+        // 親（page.tsxなど）の handleOpenTheorem を呼び出して次の定理に切り替える
+        if (typeof window !== 'undefined') {
+          // URLクエリの更新またはコールバックで次の定理を開く
+          const url = new URL(window.location.href);
+          url.searchParams.set('theorem', nextTheoremId);
+          window.history.pushState({}, '', url.toString());
+          
+          // カスタムイベントを発行して page.tsx 側の selectedTheoremId を更新
+          window.dispatchEvent(new Event('popstate'));
+        }
+      }}
+    />
+  ) : (
+    <div style={styles.placeholderBox}>
+      <Sparkles size={18} color="#6366f1" />
+      <span>この定理のリッチ解説は現在準備中です。</span>
+    </div>
+  )}
+</main>
       </div>
     </div>
   );
