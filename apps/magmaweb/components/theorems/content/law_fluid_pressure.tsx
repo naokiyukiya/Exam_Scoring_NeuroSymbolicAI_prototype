@@ -62,9 +62,18 @@ export default function LawFluidPressure({ onOpenTheorem }: LawFluidPressureProp
           <h3 style={{ ...styles.cardTitle, color: '#a5b4fc' }}>導出のメカニズム（力のつりあい）</h3>
         </div>
 
+        {/* 図解イメージ表示エリア */}
+        <div style={styles.imageContainer}>
+          <img
+            src="https://res.cloudinary.com/zmgjxdaa/image/upload/v1790109871/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88_2026-09-23_054326.png"
+            alt="水圧の導出モデル図"
+            style={styles.imageBox}
+          />
+        </div>
+
         <div style={styles.cardBodyText}>
           <p style={{ margin: '0 0 8px 0' }}>
-            <FormattedText text="密度 $\rho$ の静止した液体において、液面から深さ $h$ の位置にある底面積 $S$ の仮想的な液柱（直方体）を考えます。" onTheoremClick={onOpenTheorem} />
+            <FormattedText text="密度 $\rho$ の静止した液体において、液面から深さ $h$ の位置にある底面積 $S$ の仮想的な液柱（円柱・直方体）を考えます。" onTheoremClick={onOpenTheorem} />
           </p>
           <p style={{ margin: '0 0 8px 0' }}>
             <FormattedText text="この液柱にはたらく鉛直方向の力は以下の3つです：" onTheoremClick={onOpenTheorem} />
@@ -181,6 +190,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '13px',
     lineHeight: '1.6',
     color: '#e2e8f0',
+  },
+  imageContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #334155',
+  },
+  imageBox: {
+    maxWidth: '100%',
+    maxHeight: '260px',
+    objectFit: 'contain',
+    borderRadius: '4px',
   },
   equationBox: {
     backgroundColor: '#0f172a',
