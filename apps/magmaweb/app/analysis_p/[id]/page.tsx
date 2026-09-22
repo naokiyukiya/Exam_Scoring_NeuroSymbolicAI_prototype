@@ -679,83 +679,84 @@ const handleStumble = async (theoremId: string) => {
                 </div>
               </div>
 {/* 定理解説＆つまづきアクションカード */}
-<div style={styles.theoremBanner}>
-  <div style={styles.theoremBannerText}>
-    <div style={styles.theoremBannerTitle}>
-      <BookOpen size={16} color="#a5b4fc" />
-      <span>この思考ステップに不安はありますか？</span>
-    </div>
-    <p style={styles.theoremBannerSub}>
-      {primaryTheorem
-        ? `「${primaryTheorem.name}」の根拠や公式の成り立ちを確認できます。`
-        : '「なぜこの式変形になるのか」「なぜこの定理が使えるのか」を解説で確認しましょう。'}
-    </p>
-  </div>
+              <div style={styles.theoremBanner}>
+                <div style={styles.theoremBannerText}>
+                  <div style={styles.theoremBannerTitle}>
+                    <BookOpen size={16} color="#a5b4fc" />
+                    <span>この思考ステップに不安はありますか？</span>
+                  </div>
+                  <p style={styles.theoremBannerSub}>
+                    {primaryTheorem
+                      ? `「${primaryTheorem.name}」の根拠や公式の成り立ちを確認できます。`
+                      : '「なぜこの式変形になるのか」「なぜこの定理が使えるのか」を解説で確認しましょう。'}
+                  </p>
+                </div>
 
-  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', minWidth: 0, width: '100%' }}>
-    {/* ★「つまづいた！」ボタン */}
-    <button
-      disabled={isSubmittingStumble}
-      onClick={() => {
-        const targetId = primaryTheorem ? primaryTheorem.id : 'law_buoyancy_archimedes';
-        handleStumble(targetId);
-      }}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '8px 12px',
-        borderRadius: '8px',
-        border: `1px solid ${stumbledSteps[currentStepIndex] ? '#ef4444' : '#b45309'}`,
-        backgroundColor: stumbledSteps[currentStepIndex] ? 'rgba(239, 68, 68, 0.2)' : '#451a03',
-        color: stumbledSteps[currentStepIndex] ? '#f87171' : '#fbbf24',
-        fontSize: '12px',
-        fontWeight: 'bold',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        transition: 'all 0.2s ease',
-        flexShrink: 0,
-      }}
-    >
-      <AlertTriangle size={14} />
-      <span>{stumbledSteps[currentStepIndex] ? 'つまづきを記録済み' : 'つまづいた！'}</span>
-    </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', minWidth: 0, width: '100%' }}>
+                  {/* ★「つまづいた！」ボタン */}
+                  <button
+                    disabled={isSubmittingStumble}
+                    onClick={() => {
+                      const targetId = primaryTheorem ? primaryTheorem.id : 'law_buoyancy_archimedes';
+                      handleStumble(targetId);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${stumbledSteps[currentStepIndex] ? '#ef4444' : '#b45309'}`,
+                      backgroundColor: stumbledSteps[currentStepIndex] ? 'rgba(239, 68, 68, 0.2)' : '#451a03',
+                      color: stumbledSteps[currentStepIndex] ? '#f87171' : '#fbbf24',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.2s ease',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <AlertTriangle size={14} />
+                    <span>{stumbledSteps[currentStepIndex] ? 'つまづきを記録済み' : 'つまづいた！'}</span>
+                  </button>
 
-    {/* ★「定理の解説を見る」ボタン */}
-    <button
-      onClick={() => {
-        if (primaryTheorem) {
-          handleOpenTheorem(primaryTheorem.id);
-        } else {
-          setSelectedTheorem(currentInference.label);
-        }
-      }}
-      style={{
-        ...styles.theoremButton,
-        flex: 1,
-        minWidth: '140px',
-        maxWidth: '100%',
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-      }}
-    >
-      <span style={{
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        display: 'block',
-        flex: 1,
-        textAlign: 'left',
-      }}>
-        {primaryTheorem
-          ? `「${primaryTheorem.name}」を確認`
-          : '定理の解説を見る'}
-      </span>
-      <ArrowRight size={14} style={{ flexShrink: 0 }} />
-    </button>
-  </div>
-</div>
-            {/* モーダルフッター（ナビゲーション操作） */}
+                  {/* ★「定理の解説を見る」ボタン */}
+                  <button
+                    onClick={() => {
+                      if (primaryTheorem) {
+                        handleOpenTheorem(primaryTheorem.id);
+                      } else {
+                        setSelectedTheorem(currentInference.label);
+                      }
+                    }}
+                    style={{
+                      ...styles.theoremButton,
+                      flex: 1,
+                      minWidth: '140px',
+                      maxWidth: '100%',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <span style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'block',
+                      flex: 1,
+                      textAlign: 'left',
+                    }}>
+                      {primaryTheorem
+                        ? `「${primaryTheorem.name}」を確認`
+                        : '定理の解説を見る'}
+                    </span>
+                    <ArrowRight size={14} style={{ flexShrink: 0 }} />
+                  </button>
+                </div>
+              </div>
+            </div>
+                {/* モーダルフッター（ナビゲーション操作） */}
             <div style={styles.modalFooter}>
               <button
                 disabled={currentStepIndex === 0}
