@@ -80,7 +80,7 @@ export default function LawBuoyancyArchimedes() {
         <div style={styles.noteBox}>
           <Lightbulb size={15} color="#fbbf24" style={{ flexShrink: 0, marginTop: '2px' }} />
           <span style={styles.noteText}>
-            <b>ポイント:</b> 左右から押す水圧は打ち消し合いますが、上下では深さが異なるため **$p_2 > p_1$** となり、差し引きで「上向きの力（浮力）」が生まれます。
+            <b>ポイント:</b> 左右から押す水圧は打ち消し合いますが、上下では深さが異なるため <FormattedText text="**$p_2 > p_1$**" /> となり、差し引きで「上向きの力（浮力）」が生まれます。
           </span>
         </div>
       </section>
