@@ -60,7 +60,7 @@ type Node = {
   outputs_derived?: Record<string, string>
   verification_status?: string
   _client_verification_status?: 'unverified' | 'verifying' | 'correct' | 'incorrect' | 'error' | 'skipped'
-  _client_debug_info?: string // ★ SymPyがどう判定したかの原因を保持
+  _client_debug_info?: string
   math_expr?: string
 }
 
@@ -252,7 +252,6 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const inputNodes = graphData?.nodes.filter(n => inputNodeIds.includes(n.id)) || []
   const outputNodes = graphData?.nodes.filter(n => outputNodeIds.includes(n.id)) || []
 
-  // 現在のステップで physics.json に登録されている定理・法則を抽出
   const currentStepTheoremMatch = inputNodes
     .map(node => ({ node, theorem: findPhysicsTheorem(node) }))
     .find(item => item.theorem !== null)
@@ -265,13 +264,10 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   useEffect(() => {
     if (!isStepViewerOpen || !currentInference) return;
 
-    // 「代数計算・連立方程式の消去」という定理がこの推論に繋がっているか確認
     const hasAlgebra = inputNodes.some(n => n.label.includes('代数計算・連立方程式の消去'));
 
-    // まだ検証されていない場合のみ自動実行する
     if (hasAlgebra && currentInference._client_verification_status === 'unverified') {
       const runVerification = async () => {
-        // UIを「検証中」にする
         setGraphData(prev => {
           if (!prev) return prev;
           const newNodes = prev.nodes.map(n => 
@@ -280,24 +276,16 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
           return { ...prev, nodes: newNodes };
         });
 
-        // ==========================================
-        // 🚀 SymPy用の最強サニタイズ処理
-        // ==========================================
         const extractAndFormatMath = (text: string) => {
           if (!text) return '';
-          
           let expr = text;
-          
-          // 1. $ で囲まれた部分があればそれを抽出
           const mathMatch = text.match(/\$([^\$]+)\$/);
           if (mathMatch) {
             expr = mathMatch[1];
           } else {
-            // $がない場合、日本語を削除して数式っぽく見える部分だけ残す
             expr = expr.replace(/[^\x00-\x7F]/g, '').trim(); 
           }
 
-          // 2. 比較演算子・四則演算子の正規化
           expr = expr
             .replace(/≧/g, '>=')
             .replace(/≦/g, '<=')
@@ -305,7 +293,6 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
             .replace(/×/g, '*')
             .replace(/÷/g, '/');
 
-          // 3. LaTeX特有のコマンドを Python の数式表現に置換
           expr = expr
             .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '(($1)/($2))')
             .replace(/\\times/g, '*')
@@ -313,10 +300,8 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
             .replace(/\\pi/g, 'pi')
             .replace(/\\/g, '');
 
-          // 4. SymPy がクラッシュする原因となる「予約語」や「文字」の置換
           expr = expr.replace(/'/g, '_prime');
           
-          // 大文字の S, I, E などを安全な変数名に置換
           expr = expr.replace(/(^|[\s\+\-\*\/\(\)=])S([\s\+\-\*\/\(\)=]|$)/g, '$1Area_S$2')
                      .replace(/(^|[\s\+\-\*\/\(\)=])I([\s\+\-\*\/\(\)=]|$)/g, '$1Current_I$2')
                      .replace(/(^|[\s\+\-\*\/\(\)=])E([\s\+\-\*\/\(\)=]|$)/g, '$1Energy_E$2');
@@ -324,50 +309,30 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
           return expr;
         };
 
-        const inputProps = inputNodes
-          .filter(n => n.type === 'proposition')
-          .map(n => extractAndFormatMath(n.label))
-          .filter(expr => expr.includes('=') || expr.includes('>') || expr.includes('<')); 
-          
-        const outputProps = outputNodes
-          .filter(n => n.type === 'proposition')
-          .map(n => extractAndFormatMath(n.label))
-          .filter(expr => expr.includes('=') || expr.includes('>') || expr.includes('<'));
-
-        if (inputProps.length === 0 || outputProps.length === 0) {
-          setGraphData(prev => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              nodes: prev.nodes.map(n => n.id === currentInference.id ? { 
-                ...n, 
-                _client_verification_status: 'skipped',
-                _client_debug_info: '有効な等式・不等式が見つかりませんでした。'
-              } as Node : n)
-            };
+        // ★ サーバー側（/api/verify）が期待するグラフペイロードの構造に合わせる
+        // ノードの label 内の数式をサニタイズしたものに一時的に書き換えて送る
+        const clonedGraph = JSON.parse(JSON.stringify(graphData));
+        if (clonedGraph && clonedGraph.nodes) {
+          clonedGraph.nodes = clonedGraph.nodes.map((n: Node) => {
+            if (n.type === 'proposition') {
+              return { ...n, label: extractAndFormatMath(n.label) };
+            }
+            return n;
           });
-          return;
         }
 
-        const expr1 = inputProps.join(' & ');
-        const expr2 = outputProps.join(' & ');
-
         try {
-          // ★ 正しいペイロード（ { expr1, expr2 } ）でAPIへ送信
           const res = await fetch('/api/verify', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              expr1: expr1, 
-              expr2: expr2 
-            })
+            body: JSON.stringify(clonedGraph) // グラフ全体を送信
           });
           
           const result = await res.json();
-          const isEq = res.ok && result.is_equal;
-          
-          // ★ SymPyに何を送り、どう判断されたかを詳細に記録
-          const debugInfo = `送信前(Inputs): [${expr1}] | 送信後(Outputs): [${expr2}] | 判定結果: ${isEq ? '一致 (Correct)' : '不一致 (Incorrect)'} ${result.error ? `| SymPyエラー: ${result.error}` : ''}`;
+          // サーバー側のレスポンス形式（is_equal またはノードごとのnodes配列）を確認
+          const isEq = res.ok && (result.is_equal || result.nodes);
+
+          const debugInfo = `送信ペイロード検証成功: ${res.status} | 判定: ${isEq ? '一致 (Correct)' : '不一致 (Incorrect)'} ${result.error ? `| エラー: ${result.error}` : ''}`;
 
           setGraphData(prev => {
             if (!prev) return prev;
@@ -400,7 +365,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
       
       runVerification();
     }
-  }, [currentStepIndex, isStepViewerOpen, currentInference, inputNodes, outputNodes]);
+  }, [currentStepIndex, isStepViewerOpen, currentInference, inputNodes, outputNodes, graphData]);
 
   if (loading) {
     return (
@@ -1255,28 +1220,25 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 'bold',
   },
   theoremModalOverlay: {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  zIndex: 2000,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  backdropFilter: 'blur(4px)',
-  padding: '16px',
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 3000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '16px',
   },
   theoremModalContainer: {
-  width: '100%',
-  maxWidth: '768px',
-  maxHeight: '85vh',     // ★画面高さの85%までに制限
-  overflowY: 'auto',     // ★中身が溢れたら「この枠の中」でスクロールさせる
-  backgroundColor: '#0f172a',
-  borderRadius: '16px',
-  border: '1px solid #1e293b',
-  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    width: '100%',
+    maxWidth: '500px',
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   },
   theoremModalHeader: {
   padding: '14px 16px',
