@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 
 // KaTeX の CSS とコンポーネントを読み込み
@@ -10,6 +10,11 @@ import { InlineMath, BlockMath } from 'react-katex'
 
 import AnswerCard from '../../../components/AnswerCard'
 import DagVisualizer from '../../../components/DagVisualizer'
+import TheoremDetailRenderer from '../../../components/theorems/TheoremDetailRenderer'
+
+// physics.json を直接インポート（パスは配置場所に応じて適宜修正してください）
+import physicsData from '../../../lib/constants/physics.json'
+
 import { 
   CircleArrowLeft, 
   Layers, 
@@ -68,8 +73,24 @@ type GraphData = {
   edges: Array<Edge>
 }
 
+// physics.json からノードに該当する定義を検索するヘルパー関数
+function findPhysicsTheorem(node: Node) {
+  if (!node) return null;
+  const list = Array.isArray(physicsData) ? physicsData : (physicsData as any).theorems || [];
+  
+  return list.find((t: any) => 
+    t.id === node.id || 
+    t.name === node.label || 
+    (node.label && t.name && node.label.includes(t.name)) ||
+    (node.label && t.name && t.name.includes(node.label))
+  );
+}
+
 export default function AnalysisPhysicsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+
   const [answerData, setAnswerData] = useState<any>(null)
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [rawGraphData, setRawGraphData] = useState<string | null>(null)
@@ -81,8 +102,8 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const [isStepViewerOpen, setIsStepViewerOpen] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
 
-  // 定理解説モーダル用のステート
-  const [selectedTheorem, setSelectedTheorem] = useState<string | null>(null)
+  // クエリパラメータ ?theorem=xxx から選択中の定理IDを取得
+  const selectedTheoremId = searchParams.get('theorem')
 
   // デバッグ用ステート
   const [debugError, setDebugError] = useState<string | null>(null)
@@ -185,6 +206,19 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
     }
   }
 
+  // クエリ制御用関数
+  const handleOpenTheorem = (theoremId: string) => {
+    const p = new URLSearchParams(searchParams.toString())
+    p.set('theorem', theoremId)
+    router.push(`${pathname}?${p.toString()}`, { scroll: false })
+  }
+
+  const handleCloseTheorem = () => {
+    const p = new URLSearchParams(searchParams.toString())
+    p.delete('theorem')
+    router.push(`${pathname}?${p.toString()}`, { scroll: false })
+  }
+
   const inferenceNodes = graphData?.nodes.filter(n => n.type === 'inference') || []
   const currentInference = inferenceNodes[currentStepIndex]
 
@@ -193,6 +227,13 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
 
   const inputNodes = graphData?.nodes.filter(n => inputNodeIds.includes(n.id)) || []
   const outputNodes = graphData?.nodes.filter(n => outputNodeIds.includes(n.id)) || []
+
+  // 現在のステップで physics.json に登録されている定理・法則を抽出
+  const currentStepTheoremMatch = inputNodes
+    .map(node => ({ node, theorem: findPhysicsTheorem(node) }))
+    .find(item => item.theorem !== null)
+
+  const primaryTheorem = currentStepTheoremMatch?.theorem
 
   // ------------------------------------------------------------------------
   // 🐾 「代数計算・連立方程式の消去」を検知して自動検証を走らせる useEffect
@@ -463,11 +504,33 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                   <div style={styles.stepBox}>
                     <span style={styles.inputBadge}>使う前提・根拠</span>
                     {inputNodes.length > 0 ? (
-                      inputNodes.map(node => (
-                        <div key={node.id} style={styles.nodeItemText}>
-                          • <FormattedText text={node.label} />
-                        </div>
-                      ))
+                      inputNodes.map(node => {
+                        const matched = findPhysicsTheorem(node);
+                        return (
+                          <div key={node.id} style={styles.nodeItemText}>
+                            •{' '}
+                            {matched ? (
+                              <button
+                                onClick={() => handleOpenTheorem(matched.id)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#3b82f6',
+                                  textDecoration: 'underline',
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  font: 'inherit',
+                                  textAlign: 'left'
+                                }}
+                              >
+                                <FormattedText text={node.label} />
+                              </button>
+                            ) : (
+                              <FormattedText text={node.label} />
+                            )}
+                          </div>
+                        );
+                      })
                     ) : (
                       <div style={styles.nodeItemTextEmpty}>（問題設定または直前の条件）</div>
                     )}
@@ -532,10 +595,20 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                   </p>
                 </div>
                 <button
-                  onClick={() => setSelectedTheorem(currentInference.label)}
+                  onClick={() => {
+                    if (primaryTheorem) {
+                      handleOpenTheorem(primaryTheorem.id)
+                    } else {
+                      setSelectedTheorem(currentInference.label)
+                    }
+                  }}
                   style={styles.theoremButton}
                 >
-                  <span>定理の解説を見る</span>
+                  <span>
+                    {primaryTheorem
+                      ? `「${primaryTheorem.name}」について確認`
+                      : '定理の解説を見る'}
+                  </span>
                   <ArrowRight size={14} />
                 </button>
               </div>
@@ -587,51 +660,19 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
       )}
 
       {/* ========================================================================= */}
-      {/* 定理解説モーダル */}
+      {/* 定理解説モーダル (?theorem=... リンク時、または未定義時) */}
       {/* ========================================================================= */}
-      {selectedTheorem && (
+      {(selectedTheoremId || selectedTheorem) && (
         <div style={styles.theoremModalOverlay}>
           <div style={styles.theoremModalContainer}>
-            <div style={styles.theoremModalHeader}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <BookOpen size={20} color="#4f46e5" />
-                <h2 style={styles.theoremModalTitle}>
-                  解説: <FormattedText text={selectedTheorem} />
-                </h2>
-              </div>
-              <button
-                onClick={() => setSelectedTheorem(null)}
-                style={styles.closeButtonLight}
-                aria-label="閉じる"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div style={styles.theoremModalBody}>
-              <div style={styles.authorMessage}>
-                <Flame size={18} color="#059669" />
-                <span>解説ノート</span>
-              </div>
-              <p style={styles.theoremTextBody}>
-                ここでは <strong><FormattedText text={selectedTheorem} /></strong> についての本質的な物理的意味、よくあるミスの罠、式の導出イメージなどを解説するコンテンツを展開します。
-              </p>
-              <div style={styles.placeholderBox}>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
-                  ※ 定理解説コンテンツは現在制作・拡充中です。お楽しみに！
-                </p>
-              </div>
-            </div>
-
-            <div style={styles.theoremModalFooter}>
-              <button
-                onClick={() => setSelectedTheorem(null)}
-                style={styles.closeModalButton}
-              >
-                <CheckCircle2 size={16} />
-                <span>理解できたのでステップに戻る</span>
-              </button>
-            </div>
+            <TheoremDetailRenderer
+              theoremId={selectedTheoremId || undefined}
+              theoremLabel={selectedTheorem || undefined}
+              onClose={() => {
+                if (selectedTheoremId) handleCloseTheorem()
+                if (selectedTheorem) setSelectedTheorem(null)
+              }}
+            />
           </div>
         </div>
       )}
@@ -1143,7 +1184,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   theoremModalContainer: {
     width: '100%',
-    maxWidth: '500px',
+    maxWidth: '800px',
+    maxHeight: '90vh',
     backgroundColor: '#ffffff',
     borderRadius: '16px',
     boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
@@ -1179,6 +1221,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
+    overflowY: 'auto',
   },
   authorMessage: {
     display: 'flex',
