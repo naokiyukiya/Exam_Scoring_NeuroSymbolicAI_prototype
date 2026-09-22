@@ -1,767 +1,1196 @@
 {
   "version": "2.5.0_sympy_complete_mechanics",
   "domain": "physics_mechanics",
-  "description": "高校物理・力学分野の完全構造化思考モデルライブラリ（全変数定義variables追加・SymPyパース対応・軸依存結合強化版）",
+  "description": "高校物理・力学分野の完全構造化思考モデルライブラリ（3層構造分離版）",
   "theorems": [
     {
       "id": "meta_focus_object_forces",
       "name": "注目物体とはたらく力の抽出",
-      "type": "meta_focus",
-      "variables": {
-        "m": "注目する物体の質量",
-        "m * g": "注目物体にはたらく重力",
-        "N": "接触面からの垂直抗力",
-        "T": "糸やロープの張力",
-        "F_k": "動摩擦力または弾性力",
-        "F_b": "流体から受ける浮力",
-        "F_f": "静止摩擦力",
-        "F_centrifugal": "遠心力",
-        "F_inertial": "慣性力"
+      "prompt_data": {
+        "type": "meta_focus",
+        "variables": {
+          "m": "注目する物体の質量",
+          "m * g": "注目物体にはたらく重力",
+          "N": "接触面からの垂直抗力",
+          "T": "糸やロープの張力",
+          "F_k": "動摩擦力または弾性力",
+          "F_b": "流体から受ける浮力",
+          "F_f": "静止摩擦力",
+          "F_centrifugal": "遠心力",
+          "F_inertial": "慣性力"
+        },
+        "inputs": {
+          "target_object": "m"
+        },
+        "outputs": {
+          "acting_forces": ["m * g", "N", "T", "F_k", "F_b", "F_f", "F_centrifugal", "F_inertial"]
+        }
       },
-      "inputs": {
-        "target_object": "m"
+      "symbolic_verification": {
+        "sympy_equations": [],
+        "constraints": []
       },
-      "outputs": {
-        "acting_forces": ["m * g", "N", "T", "F_k", "F_b", "F_f", "F_centrifugal", "F_inertial"]
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "meta_focus_coordinate_system",
       "name": "座標軸・正の向きの設定",
-      "type": "meta_focus",
-      "variables": {
-        "x_0": "座標軸の原点（位置の基準点）",
-        "positive_direction": "設定した座標軸の正の向き",
-        "e_x": "座標軸の正方向単位ベクトル",
-        "x": "物体の位置（座標）",
-        "delta_x": "原点からの変位",
-        "v": "軸の正方向を正とする速度",
-        "a": "軸の正方向を正とする加速度",
-        "F_x": "軸の正方向を正とする力の成分"
+      "prompt_data": {
+        "type": "meta_focus",
+        "variables": {
+          "x_0": "座標軸の原点（位置の基準点）",
+          "positive_direction": "設定した座標軸の正の向き",
+          "e_x": "座標軸の正方向単位ベクトル",
+          "x": "物体の位置（座標）",
+          "delta_x": "原点からの変位",
+          "v": "軸の正方向を正とする速度",
+          "a": "軸の正方向を正とする加速度",
+          "F_x": "軸の正方向を正とする力の成分"
+        },
+        "inputs": {
+          "origin_definition": "x_0",
+          "axis_direction": "positive_direction"
+        },
+        "outputs": {
+          "origin": "x_0",
+          "positive_direction_unit": "e_x",
+          "variables": ["x", "delta_x", "v", "a", "F_x"]
+        }
       },
-      "inputs": {
-        "origin_definition": "x_0",
-        "axis_direction": "positive_direction"
+      "symbolic_verification": {
+        "sympy_equations": [],
+        "constraints": []
       },
-      "outputs": {
-        "origin": "x_0",
-        "positive_direction_unit": "e_x",
-        "variables": ["x", "delta_x", "v", "a", "F_x"]
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "meta_keyword_quasistatic_motion",
       "name": "「ゆっくり動かす」条件からの力のつりあい同定（準静的過程）",
-      "type": "meta_focus",
-      "variables": {
-        "slowly_moved": "「ゆっくり」という問題文のキーワード",
-        "a": "物体の加速度",
-        "force_equilibrium": "速度変化が無視できる（a = 0）ことによる力のつりあい状態"
+      "prompt_data": {
+        "type": "meta_focus",
+        "variables": {
+          "slowly_moved": "「ゆっくり」という問題文のキーワード",
+          "a": "物体の加速度",
+          "force_equilibrium": "速度変化が無視できる（a = 0）ことによる力のつりあい状態"
+        },
+        "inputs": {
+          "keyword": "slowly_moved"
+        },
+        "outputs": {
+          "acceleration_condition": "a == 0",
+          "applied_state": "force_equilibrium"
+        }
       },
-      "inputs": {
-        "keyword": "slowly_moved"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(a, 0)"],
+        "constraints": []
       },
-      "outputs": {
-        "acceleration_condition": "a == 0",
-        "applied_state": "force_equilibrium"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "geometry_volume_calculation",
       "name": "体積の計算（直方体・柱体）",
-      "type": "math",
-      "variables": {
-        "S": "物体の断面積（底面積）",
-        "h": "物体の高さまたは長さ",
-        "V": "物体の全体の体積"
+      "prompt_data": {
+        "type": "math",
+        "variables": {
+          "S": "物体の断面積（底面積）",
+          "h": "物体の高さまたは長さ",
+          "V": "物体の全体の体積"
+        },
+        "inputs": {
+          "cross_section": "S",
+          "height_or_length": "h"
+        },
+        "outputs": {
+          "volume": "V = S * h"
+        }
       },
-      "inputs": {
-        "cross_section": "S",
-        "height_or_length": "h"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(V, S * h)"],
+        "constraints": ["S > 0", "h > 0"]
       },
-      "outputs": {
-        "volume": "V = S * h"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_mass_from_density",
       "name": "密度の定義（体積と密度からの質量計算）",
-      "type": "law",
-      "variables": {
-        "rho": "物質の密度",
-        "V": "該当部分の体積",
-        "m": "物体の質量"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "rho": "物質の密度",
+          "V": "該当部分の体積",
+          "m": "物体の質量"
+        },
+        "inputs": {
+          "density": "rho",
+          "volume": "V"
+        },
+        "outputs": {
+          "mass": "m = rho * V"
+        }
       },
-      "inputs": {
-        "density": "rho",
-        "volume": "V"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(m, rho * V)"],
+        "constraints": ["rho > 0", "V > 0"]
       },
-      "outputs": {
-        "mass": "m = rho * V"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "kinematics_coordinate_displacement",
       "name": "座標軸に基づく変位・位置関係式",
-      "type": "formula",
-      "variables": {
-        "x_0": "変化前の初期位置（または基準位置）",
-        "x": "変化後の現在位置",
-        "delta_x": "初期位置からの変位"
+      "prompt_data": {
+        "type": "formula",
+        "variables": {
+          "x_0": "変化前の初期位置（または基準位置）",
+          "x": "変化後の現在位置",
+          "delta_x": "初期位置からの変位"
+        },
+        "inputs": {
+          "reference_position": "x_0",
+          "current_position": "x"
+        },
+        "outputs": {
+          "displacement": "delta_x = x - x_0"
+        }
       },
-      "inputs": {
-        "reference_position": "x_0",
-        "current_position": "x"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(delta_x, x - x_0)"],
+        "constraints": []
       },
-      "outputs": {
-        "displacement": "delta_x = x - x_0"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "kinematics_calculus_relations",
       "name": "位置・速度・加速度の微分・積分関係式",
-      "type": "formula",
-      "variables": {
-        "x": "時刻 t における位置（時間関数）",
-        "v": "時刻 t における瞬間の速度",
-        "a": "時刻 t における瞬間の加速度",
-        "t": "時刻（時間）"
+      "prompt_data": {
+        "type": "formula",
+        "variables": {
+          "x": "時刻 t における位置（時間関数）",
+          "v": "時刻 t における瞬間の速度",
+          "a": "時刻 t における瞬間の加速度",
+          "t": "時刻（時間）"
+        },
+        "inputs": {
+          "position_function": "x"
+        },
+        "outputs": {
+          "velocity": "v = diff(x, t)",
+          "acceleration": "a = diff(v, t)"
+        }
       },
-      "inputs": {
-        "position_function": "x"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(v, diff(x, t))", "Eq(a, diff(v, t))"],
+        "constraints": []
       },
-      "outputs": {
-        "velocity": "v = diff(x, t)",
-        "acceleration": "a = diff(v, t)"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "kinematics_uniform_accelerated_motion",
       "name": "等加速度直線運動の公式",
-      "type": "formula",
-      "variables": {
-        "v_0": "初速度（t = 0 での速度）",
-        "a": "一定の加速度",
-        "t": "経過時間",
-        "v": "時刻 t での速度",
-        "x": "時刻 t での変位（または位置）"
+      "prompt_data": {
+        "type": "formula",
+        "variables": {
+          "v_0": "初速度（t = 0 での速度）",
+          "a": "一定の加速度",
+          "t": "経過時間",
+          "v": "時刻 t での速度",
+          "x": "時刻 t での変位（または位置）"
+        },
+        "inputs": {
+          "initial_velocity": "v_0",
+          "acceleration": "a",
+          "time": "t"
+        },
+        "outputs": {
+          "velocity_equation": "v = v_0 + a * t",
+          "displacement_equation": "x = v_0 * t + (1/2) * a * t**2",
+          "timeless_equation": "v**2 - v_0**2 = 2 * a * x"
+        }
       },
-      "inputs": {
-        "initial_velocity": "v_0",
-        "acceleration": "a",
-        "time": "t"
+      "symbolic_verification": {
+        "sympy_equations": [
+          "Eq(v, v_0 + a * t)",
+          "Eq(x, v_0 * t + S(1)/2 * a * t**2)",
+          "Eq(v**2 - v_0**2, 2 * a * x)"
+        ],
+        "constraints": ["t >= 0"]
       },
-      "outputs": {
-        "velocity_equation": "v = v_0 + a * t",
-        "displacement_equation": "x = v_0 * t + (1/2) * a * t**2",
-        "timeless_equation": "v**2 - v_0**2 = 2 * a * x"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "kinematics_relative_velocity",
       "name": "相対速度",
-      "type": "formula",
-      "variables": {
-        "v_A": "相手の物体 A の速度",
-        "v_B": "観測者 B の速度",
-        "v_AB": "観測者 B から見た物体 A の相対速度"
+      "prompt_data": {
+        "type": "formula",
+        "variables": {
+          "v_A": "相手の物体 A の速度",
+          "v_B": "観測者 B の速度",
+          "v_AB": "観測者 B から見た物体 A の相対速度"
+        },
+        "inputs": {
+          "object_velocity": "v_A",
+          "observer_velocity": "v_B"
+        },
+        "outputs": {
+          "relative_velocity": "v_AB = v_A - v_B"
+        }
       },
-      "inputs": {
-        "object_velocity": "v_A",
-        "observer_velocity": "v_B"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(v_AB, v_A - v_B)"],
+        "constraints": []
       },
-      "outputs": {
-        "relative_velocity": "v_AB = v_A - v_B"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_gravity_force",
       "name": "重力",
-      "type": "law",
-      "variables": {
-        "m": "物体の質量",
-        "g": "重力加速度の大きさに対応する定数",
-        "W": "物体にはたらく重力の大きさ"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "m": "物体の質量",
+          "g": "重力加速度の大きさに対応する定数",
+          "W": "物体にはたらく重力の大きさ"
+        },
+        "inputs": {
+          "mass": "m",
+          "gravity_acc": "g"
+        },
+        "outputs": {
+          "gravity_force": "W = m * g"
+        }
       },
-      "inputs": {
-        "mass": "m",
-        "gravity_acc": "g"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(W, m * g)"],
+        "constraints": ["m > 0", "g > 0"]
       },
-      "outputs": {
-        "gravity_force": "W = m * g"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_buoyancy_archimedes",
       "name": "アルキメデスの原理（浮力）",
-      "type": "law",
-      "variables": {
-        "rho": "流体（水や空気等）の密度",
-        "V": "物体の『流体に浸かっている部分（水没部）』の体積",
-        "g": "重力加速度",
-        "F_b": "流体から受ける鉛直上向きの浮力"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "rho": "流体（水や空気等）の密度",
+          "V": "物体の『流体に浸かっている部分（水没部）』の体積",
+          "g": "重力加速度",
+          "F_b": "流体から受ける鉛直上向きの浮力"
+        },
+        "inputs": {
+          "fluid_density": "rho",
+          "submerged_volume": "V",
+          "gravity_acc": "g"
+        },
+        "outputs": {
+          "buoyant_force": "F_b = rho * V * g"
+        }
       },
-      "inputs": {
-        "fluid_density": "rho",
-        "submerged_volume": "V",
-        "gravity_acc": "g"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_b, rho * V * g)"],
+        "constraints": ["rho > 0", "V >= 0", "g > 0"]
       },
-      "outputs": {
-        "buoyant_force": "F_b = rho * V * g"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_hooke",
       "name": "フックの法則（弾性力）",
-      "type": "law",
-      "variables": {
-        "k": "ばね定数（ばねの固さ）",
-        "x": "ばねの『自然長からの伸びまたは縮み（変位の大きさ）』",
-        "F_k": "ばねが及ぼす復元力（弾性力）の大きさ"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "k": "ばね定数（ばねの固さ）",
+          "x": "ばねの『自然長からの伸びまたは縮み（変位の大きさ）』",
+          "F_k": "ばねが及ぼす復元力（弾性力）の大きさ"
+        },
+        "inputs": {
+          "spring_constant": "k",
+          "displacement_from_natural_length": "x"
+        },
+        "outputs": {
+          "elastic_force": "F_k = k * x"
+        }
       },
-      "inputs": {
-        "spring_constant": "k",
-        "displacement_from_natural_length": "x"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_k, k * x)"],
+        "constraints": ["k > 0"]
       },
-      "outputs": {
-        "elastic_force": "F_k = k * x"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_force_components",
       "name": "座標軸への力の分解（正負符号付き）",
-      "type": "math",
-      "variables": {
-        "F": "分解対象の力の大きさ",
-        "theta": "座標軸となす角度",
-        "axis_direction": "成分を取り出す対象の座標軸の向き",
-        "F_parallel": "座標軸に平行な方向の分力（符号付き）",
-        "F_perpendicular": "座標軸に垂直な方向の分力（符号付き）"
+      "prompt_data": {
+        "type": "math",
+        "variables": {
+          "F": "分解対象の力の大きさ",
+          "theta": "座標軸となす角度",
+          "axis_direction": "成分を取り出す対象の座標軸の向き",
+          "F_parallel": "座標軸に平行な方向の分力（符号付き）",
+          "F_perpendicular": "座標軸に垂直な方向の分力（符号付き）"
+        },
+        "inputs": {
+          "force_magnitude": "F",
+          "angle_to_axis": "theta",
+          "positive_direction": "axis_direction"
+        },
+        "outputs": {
+          "parallel_component": "F_parallel = F * cos(theta)",
+          "perpendicular_component": "F_perpendicular = F * sin(theta)"
+        }
       },
-      "inputs": {
-        "force_magnitude": "F",
-        "angle_to_axis": "theta",
-        "positive_direction": "axis_direction"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_parallel, F * cos(theta))", "Eq(F_perpendicular, F * sin(theta))"],
+        "constraints": []
       },
-      "outputs": {
-        "parallel_component": "F_parallel = F * cos(theta)",
-        "perpendicular_component": "F_perpendicular = F * sin(theta)"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_static_friction",
       "name": "静止摩擦力と最大静止摩擦力",
-      "type": "law",
-      "variables": {
-        "mu": "接触面間の静止摩擦係数",
-        "N": "接触面からの垂直抗力",
-        "F_ext": "面方向に滑らせようとする外力",
-        "F_max": "面の上を滑り出さずに耐えられる『最大静止摩擦力』"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "mu": "接触面間の静止摩擦係数",
+          "N": "接触面からの垂直抗力",
+          "F_ext": "面方向に滑らせようとする外力",
+          "F_max": "面の上を滑り出さずに耐えられる『最大静止摩擦力』"
+        },
+        "inputs": {
+          "static_friction_coefficient": "mu",
+          "normal_force": "N",
+          "external_force": "F_ext"
+        },
+        "outputs": {
+          "max_static_friction": "F_max = mu * N",
+          "slip_condition": "F_ext > mu * N"
+        }
       },
-      "inputs": {
-        "static_friction_coefficient": "mu",
-        "normal_force": "N",
-        "external_force": "F_ext"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_max, mu * N)"],
+        "constraints": ["mu > 0", "N >= 0"]
       },
-      "outputs": {
-        "max_static_friction": "F_max = mu * N",
-        "slip_condition": "F_ext > mu * N"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_kinetic_friction",
       "name": "動摩擦力",
-      "type": "law",
-      "variables": {
-        "mu_prime": "接触面間の動摩擦係数",
-        "N": "接触面からの垂直抗力",
-        "F_k": "面の上を滑っている運動中に運動を妨げる向きにはたらく『動摩擦力』"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "mu_prime": "接触面間の動摩擦係数",
+          "N": "接触面からの垂直抗力",
+          "F_k": "面の上を滑っている運動中に運動を妨げる向きにはたらく『動摩擦力』"
+        },
+        "inputs": {
+          "kinetic_friction_coefficient": "mu_prime",
+          "normal_force": "N"
+        },
+        "outputs": {
+          "kinetic_friction_force": "F_k = mu_prime * N"
+        }
       },
-      "inputs": {
-        "kinetic_friction_coefficient": "mu_prime",
-        "normal_force": "N"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_k, mu_prime * N)"],
+        "constraints": ["mu_prime > 0", "N >= 0"]
       },
-      "outputs": {
-        "kinetic_friction_force": "F_k = mu_prime * N"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_resultant_force_calculation",
       "name": "合力の計算",
-      "type": "formula",
-      "variables": {
-        "F_1": "対象の軸方向にはたらく力 1（正負の符号付き）",
-        "F_2": "対象の軸方向にはたらく力 2（正負の符号付き）",
-        "F_net": "対象の軸方向にはたらく合力（すべての力の総和）"
+      "prompt_data": {
+        "type": "formula",
+        "variables": {
+          "F_1": "対象の軸方向にはたらく力 1（正負の符号付き）",
+          "F_2": "対象の軸方向にはたらく力 2（正負の符号付き）",
+          "F_net": "対象の軸方向にはたらく合力（すべての力の総和）"
+        },
+        "inputs": {
+          "forces_list": ["F_1", "F_2"]
+        },
+        "outputs": {
+          "net_force": "F_net = F_1 + F_2"
+        }
       },
-      "inputs": {
-        "forces_list": ["F_1", "F_2"]
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_net, F_1 + F_2)"],
+        "constraints": []
       },
-      "outputs": {
-        "net_force": "F_net = F_1 + F_2"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "principle_force_equilibrium",
       "name": "力のつりあい条件（質点）",
-      "type": "principle",
-      "variables": {
-        "a": "物体の加速度（つりあい状態では a == 0）",
-        "F_net": "対象の軸方向にはたらく合力",
-        "equation": "合力が 0 に等しいという条件方程式（F_net == 0）"
+      "prompt_data": {
+        "type": "principle",
+        "variables": {
+          "a": "物体の加速度（つりあい状態では a == 0）",
+          "F_net": "対象の軸方向にはたらく合力",
+          "equation": "合力が 0 に等しいという条件方程式（F_net == 0）"
+        },
+        "inputs": {
+          "condition": "a == 0",
+          "forces_sum": "F_net"
+        },
+        "outputs": {
+          "equation": "F_net == 0"
+        }
       },
-      "inputs": {
-        "condition": "a == 0",
-        "forces_sum": "F_net"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_net, 0)"],
+        "constraints": []
       },
-      "outputs": {
-        "equation": "F_net == 0"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "principle_equation_of_motion",
       "name": "運動方程式",
-      "type": "principle",
-      "variables": {
-        "m": "物体の質量",
-        "a": "設定した座標軸の正の向きに沿った加速度",
-        "F_net": "設定した座標軸の正の向きに沿った合力（ベクトル和成分）"
+      "prompt_data": {
+        "type": "principle",
+        "variables": {
+          "m": "物体の質量",
+          "a": "設定した座標軸の正の向きに沿った加速度",
+          "F_net": "設定した座標軸の正の向きに沿った合力（ベクトル和成分）"
+        },
+        "inputs": {
+          "mass": "m",
+          "acceleration": "a",
+          "resultant_force": "F_net"
+        },
+        "outputs": {
+          "equation": "m * a == F_net"
+        }
       },
-      "inputs": {
-        "mass": "m",
-        "acceleration": "a",
-        "resultant_force": "F_net"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(m * a, F_net)"],
+        "constraints": ["m > 0"]
       },
-      "outputs": {
-        "equation": "m * a == F_net"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_torque_definition",
       "name": "力のモーメントの定義",
-      "type": "law",
-      "variables": {
-        "F": "作用する力の大きさ",
-        "l": "回転軸 O から力の作用線までの腕の長さ（垂直距離）",
-        "O": "モーメントの基準とする回転軸（支点）",
-        "M": "回転軸 O のまわりの力のモーメント"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "F": "作用する力の大きさ",
+          "l": "回転軸 O から力の作用線までの腕の長さ（垂直距離）",
+          "O": "モーメントの基準とする回転軸（支点）",
+          "M": "回転軸 O のまわりの力のモーメント"
+        },
+        "inputs": {
+          "force": "F",
+          "lever_arm": "l",
+          "pivot_point": "O"
+        },
+        "outputs": {
+          "torque": "M = F * l"
+        }
       },
-      "inputs": {
-        "force": "F",
-        "lever_arm": "l",
-        "pivot_point": "O"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(M, F * l)"],
+        "constraints": ["l >= 0"]
       },
-      "outputs": {
-        "torque": "M = F * l"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "principle_torque_equilibrium",
       "name": "剛体の回転のつりあい（モーメントのつりあい）",
-      "type": "principle",
-      "variables": {
-        "M_net": "任意に定めた支点 O のまわりの反時計回り・時計回りのモーメントの代数値の和",
-        "equation": "モーメントの代数和が 0 である条件（M_net == 0）"
+      "prompt_data": {
+        "type": "principle",
+        "variables": {
+          "M_net": "任意に定めた支点 O のまわりの反時計回り・時計回りのモーメントの代数値の和",
+          "equation": "モーメントの代数和が 0 である条件（M_net == 0）"
+        },
+        "inputs": {
+          "torques_sum": "M_net"
+        },
+        "outputs": {
+          "equation": "M_net == 0"
+        }
       },
-      "inputs": {
-        "torques_sum": "M_net"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(M_net, 0)"],
+        "constraints": []
       },
-      "outputs": {
-        "equation": "M_net == 0"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
-    {
+    
+    
+    
+{
       "id": "def_kinetic_energy",
       "name": "運動エネルギーの定義",
-      "type": "law",
-      "variables": {
-        "m": "物体の質量",
-        "v": "物体の速さ（または速度の大きさ）",
-        "K": "物体が持つ運動エネルギー"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "m": "物体の質量",
+          "v": "物体の速さ（または速度の大きさ）",
+          "K": "物体が持つ運動エネルギー"
+        },
+        "inputs": {
+          "mass": "m",
+          "velocity": "v"
+        },
+        "outputs": {
+          "kinetic_energy": "K = (1/2) * m * v**2"
+        }
       },
-      "inputs": {
-        "mass": "m",
-        "velocity": "v"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(K, S(1)/2 * m * v**2)"],
+        "constraints": ["m > 0", "v >= 0"]
       },
-      "outputs": {
-        "kinetic_energy": "K = (1/2) * m * v**2"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "def_gravitational_potential_energy",
       "name": "重力による位置エネルギーの定義",
-      "type": "law",
-      "variables": {
-        "m": "物体の質量",
-        "g": "重力加速度",
-        "h": "『基準面（h=0）』からの鉛直上向きの高さ（基準面より下なら負）",
-        "U_g": "重力による位置エネルギー"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "m": "物体の質量",
+          "g": "重力加速度",
+          "h": "『基準面（h=0）』からの鉛直上向きの高さ（基準面より下なら負）",
+          "U_g": "重力による位置エネルギー"
+        },
+        "inputs": {
+          "mass": "m",
+          "gravity_acc": "g",
+          "height_from_reference": "h"
+        },
+        "outputs": {
+          "potential_energy": "U_g = m * g * h"
+        }
       },
-      "inputs": {
-        "mass": "m",
-        "gravity_acc": "g",
-        "height_from_reference": "h"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(U_g, m * g * h)"],
+        "constraints": ["m > 0", "g > 0"]
       },
-      "outputs": {
-        "potential_energy": "U_g = m * g * h"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "def_elastic_potential_energy",
       "name": "ばねの弾性力による位置エネルギーの定義",
-      "type": "law",
-      "variables": {
-        "k": "ばね定数",
-        "x": "ばねの『自然長（変位基準）』からの変形量（伸びまたは縮み）",
-        "U_k": "ばねの弾性力による位置エネルギー"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "k": "ばね定数",
+          "x": "ばねの『自然長（変位基準）』からの変形量（伸びまたは縮み）",
+          "U_k": "ばねの弾性力による位置エネルギー"
+        },
+        "inputs": {
+          "spring_constant": "k",
+          "displacement_from_natural_length": "x"
+        },
+        "outputs": {
+          "potential_energy": "U_k = (1/2) * k * x**2"
+        }
       },
-      "inputs": {
-        "spring_constant": "k",
-        "displacement_from_natural_length": "x"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(U_k, S(1)/2 * k * x**2)"],
+        "constraints": ["k > 0"]
       },
-      "outputs": {
-        "potential_energy": "U_k = (1/2) * k * x**2"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "def_work",
       "name": "仕事の定義",
-      "type": "law",
-      "variables": {
-        "F": "作用する一定の力の大きさ",
-        "s": "移動した変位の大きさ（距離）",
-        "theta": "力の向きと変位の向きのなす角度",
-        "W": "その力が物体に対してなした仕事"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "F": "作用する一定の力の大きさ",
+          "s": "移動した変位の大きさ（距離）",
+          "theta": "力の向きと変位の向きのなす角度",
+          "W": "その力が物体に対してなした仕事"
+        },
+        "inputs": {
+          "force": "F",
+          "displacement": "s",
+          "angle": "theta"
+        },
+        "outputs": {
+          "work": "W = F * s * cos(theta)"
+        }
       },
-      "inputs": {
-        "force": "F",
-        "displacement": "s",
-        "angle": "theta"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(W, F * s * cos(theta))"],
+        "constraints": ["F >= 0", "s >= 0"]
       },
-      "outputs": {
-        "work": "W = F * s * cos(theta)"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "principle_work_energy_theorem",
       "name": "運動エネルギーと仕事の定理",
-      "type": "principle",
-      "variables": {
-        "K_1": "変化前の状態 1 における物体の運動エネルギー",
-        "K_2": "変化後の状態 2 における物体の運動エネルギー",
-        "W_total": "状態 1 から状態 2 の間に『すべての力（合力）』がなした仕事の総和"
+      "prompt_data": {
+        "type": "principle",
+        "variables": {
+          "K_1": "変化前の状態 1 における物体の運動エネルギー",
+          "K_2": "変化後の状態 2 における物体の運動エネルギー",
+          "W_total": "状態 1 から状態 2 の間に『すべての力（合力）』がなした仕事の総和"
+        },
+        "inputs": {
+          "initial_state": "K_1 = (1/2) * m * v_1**2",
+          "final_state": "K_2 = (1/2) * m * v_2**2",
+          "work_done": "W_total"
+        },
+        "outputs": {
+          "equation": "K_2 - K_1 == W_total"
+        }
       },
-      "inputs": {
-        "initial_state": "K_1 = (1/2) * m * v_1**2",
-        "final_state": "K_2 = (1/2) * m * v_2**2",
-        "work_done": "W_total"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(K_2 - K_1, W_total)"],
+        "constraints": []
       },
-      "outputs": {
-        "equation": "K_2 - K_1 == W_total"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_mechanical_energy_conservation_spring_natural",
       "name": "力学的エネルギー保存法則（自然長基準＋重力）",
-      "type": "law",
-      "variables": {
-        "W_non_cons": "非保存力（摩擦力や手で引っ張る外力等）がなした仕事（0の場合に保存成立）",
-        "v_1": "状態 1 での速度",
-        "x_1": "状態 1 でのばねの自然長からの変位",
-        "h_1": "状態 1 での重力基準面からの高さ",
-        "v_2": "状態 2 での速度",
-        "x_2": "状態 2 でのばねの自然長からの変位",
-        "h_2": "状態 2 での重力基準面からの高さ"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "W_non_cons": "非保存力（摩擦力や手で引っ張る外力等）がなした仕事（0の場合に保存成立）",
+          "v_1": "状態 1 での速度",
+          "x_1": "状態 1 でのばねの自然長からの変位",
+          "h_1": "状態 1 での重力基準面からの高さ",
+          "v_2": "状態 2 での速度",
+          "x_2": "状態 2 でのばねの自然長からの変位",
+          "h_2": "状態 2 での重力基準面からの高さ"
+        },
+        "inputs": {
+          "condition": "W_non_cons == 0",
+          "state_1": { "v": "v_1", "x": "x_1", "h": "h_1" },
+          "state_2": { "v": "v_2", "x": "x_2", "h": "h_2" }
+        },
+        "outputs": {
+          "equation": "(1/2)*m*v_1**2 + m*g*h_1 + (1/2)*k*x_1**2 == (1/2)*m*v_2**2 + m*g*h_2 + (1/2)*k*x_2**2"
+        }
       },
-      "inputs": {
-        "condition": "W_non_cons == 0",
-        "state_1": { "v": "v_1", "x": "x_1", "h": "h_1" },
-        "state_2": { "v": "v_2", "x": "x_2", "h": "h_2" }
+      "symbolic_verification": {
+        "sympy_equations": [
+          "Eq(S(1)/2*m*v_1**2 + m*g*h_1 + S(1)/2*k*x_1**2, S(1)/2*m*v_2**2 + m*g*h_2 + S(1)/2*k*x_2**2)"
+        ],
+        "constraints": ["m > 0", "g > 0", "k > 0"]
       },
-      "outputs": {
-        "equation": "(1/2)*m*v_1**2 + m*g*h_1 + (1/2)*k*x_1**2 == (1/2)*m*v_2**2 + m*g*h_2 + (1/2)*k*x_2**2"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_mechanical_energy_conservation_shm_equilibrium",
       "name": "単振動のエネルギー保存法則（つりあい位置基準）",
-      "type": "law",
-      "variables": {
-        "W_external": "単振動の復元力および重力以外の非保存力仕事（0の場合保存）",
-        "x_c": "力のつりあいの位置（単振動の中心。これを位置エネルギー基準点 x=0 とする）",
-        "K": "合成復元力定数（合力 F = -K*x における K）",
-        "v_1": "状態 1 での速度",
-        "x_1": "状態 1 での『つりあい位置からの変位』",
-        "v_2": "状態 2 での速度",
-        "x_2": "状態 2 での『つりあい位置からの変位』",
-        "U_shm": "つりあい位置基準で重力位置エネルギーを含めてまとめた単振動の位置エネルギー"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "W_external": "単振動の復元力および重力以外の非保存力仕事（0の場合保存）",
+          "x_c": "力のつりあいの位置（単振動の中心。これを位置エネルギー基準点 x=0 とする）",
+          "K": "合成復元力定数（合力 F = -K*x における K）",
+          "v_1": "状態 1 での速度",
+          "x_1": "状態 1 での『つりあい位置からの変位』",
+          "v_2": "状態 2 での速度",
+          "x_2": "状態 2 での『つりあい位置からの変位』",
+          "U_shm": "つりあい位置基準で重力位置エネルギーを含めてまとめた単振動の位置エネルギー"
+        },
+        "inputs": {
+          "condition": "W_external == 0",
+          "vibration_center": "x_c = 0",
+          "restoring_constant": "K",
+          "state_1": { "v": "v_1", "x": "x_1" },
+          "state_2": { "v": "v_2", "x": "x_2" }
+        },
+        "outputs": {
+          "potential_energy_shm": "U_shm = (1/2) * K * x**2",
+          "equation": "(1/2)*m*v_1**2 + (1/2)*K*x_1**2 == (1/2)*m*v_2**2 + (1/2)*K*x_2**2"
+        }
       },
-      "inputs": {
-        "condition": "W_external == 0",
-        "vibration_center": "x_c = 0",
-        "restoring_constant": "K",
-        "state_1": { "v": "v_1", "x": "x_1" },
-        "state_2": { "v": "v_2", "x": "x_2" }
+      "symbolic_verification": {
+        "sympy_equations": [
+          "Eq(U_shm, S(1)/2 * K * x**2)",
+          "Eq(S(1)/2*m*v_1**2 + S(1)/2*K*x_1**2, S(1)/2*m*v_2**2 + S(1)/2*K*x_2**2)"
+        ],
+        "constraints": ["m > 0", "K > 0"]
       },
-      "outputs": {
-        "potential_energy_shm": "U_shm = (1/2) * K * x**2",
-        "equation": "(1/2)*m*v_1**2 + (1/2)*K*x_1**2 == (1/2)*m*v_2**2 + (1/2)*K*x_2**2"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "pattern_restoring_force_direct",
       "name": "合力からの復元力定数の特定（単振動同定）",
-      "type": "pattern",
-      "variables": {
-        "F_net": "中心からの変位 x において物体にはたらく合力",
-        "x": "中心（つりあい位置）からの変位",
-        "K": "比例定数（合成復元力定数）"
+      "prompt_data": {
+        "type": "pattern",
+        "variables": {
+          "F_net": "中心からの変位 x において物体にはたらく合力",
+          "x": "中心（つりあい位置）からの変位",
+          "K": "比例定数（合成復元力定数）"
+        },
+        "inputs": {
+          "net_force_equation": "F_net == -K * x"
+        },
+        "outputs": {
+          "motion_type": "simple_harmonic_motion",
+          "restoring_constant": "K"
+        }
       },
-      "inputs": {
-        "net_force_equation": "F_net == -K * x"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_net, -K * x)"],
+        "constraints": ["K > 0"]
       },
-      "outputs": {
-        "motion_type": "simple_harmonic_motion",
-        "restoring_constant": "K"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "pattern_restoring_force",
       "name": "復元力の検出（運動方程式による同定）",
-      "type": "pattern",
-      "variables": {
-        "m": "物体の質量",
-        "a": "物体の加速度",
-        "x": "任意の座標位置",
-        "x_c": "変位がゼロ（合力がゼロ）となる『振動の中心（つりあい位置）』",
-        "K": "復元係数（正の定数）",
-        "omega": "単振動の角振動数（固有角振動数）"
+      "prompt_data": {
+        "type": "pattern",
+        "variables": {
+          "m": "物体の質量",
+          "a": "物体の加速度",
+          "x": "任意の座標位置",
+          "x_c": "変位がゼロ（合力がゼロ）となる『振動の中心（つりあい位置）』",
+          "K": "復元係数（正の定数）",
+          "omega": "単振動の角振動数（固有角振動数）"
+        },
+        "inputs": {
+          "equation_form": "m * a == -K * (x - x_c)"
+        },
+        "outputs": {
+          "motion_type": "simple_harmonic_motion",
+          "angular_frequency": "omega = sqrt(K / m)",
+          "vibration_center": "x_c"
+        }
       },
-      "inputs": {
-        "equation_form": "m * a == -K * (x - x_c)"
+      "symbolic_verification": {
+        "sympy_equations": [
+          "Eq(m * a, -K * (x - x_c))",
+          "Eq(omega, sqrt(K / m))"
+        ],
+        "constraints": ["m > 0", "K > 0"]
       },
-      "outputs": {
-        "motion_type": "simple_harmonic_motion",
-        "angular_frequency": "omega = sqrt(K / m)",
-        "vibration_center": "x_c"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "formula_simple_harmonic_period",
       "name": "単振動の周期の公式",
-      "type": "formula",
-      "variables": {
-        "m": "振動する物体の質量",
-        "K": "復元力定数（合力 F = -K*x における K）",
-        "T": "単振動が 1 往復するのにかかる周期"
+      "prompt_data": {
+        "type": "formula",
+        "variables": {
+          "m": "振動する物体の質量",
+          "K": "復元力定数（合力 F = -K*x における K）",
+          "T": "単振動が 1 往復するのにかかる周期"
+        },
+        "inputs": {
+          "mass": "m",
+          "restoring_constant": "K"
+        },
+        "outputs": {
+          "period": "T = 2 * pi * sqrt(m / K)"
+        }
       },
-      "inputs": {
-        "mass": "m",
-        "restoring_constant": "K"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(T, 2 * pi * sqrt(m / K))"],
+        "constraints": ["m > 0", "K > 0"]
       },
-      "outputs": {
-        "period": "T = 2 * pi * sqrt(m / K)"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "formula_simple_harmonic_kinematics",
       "name": "単振動の変位・速度・加速度の式",
-      "type": "formula",
-      "variables": {
-        "A": "単振動の振幅（振動中心からの最大変位）",
-        "omega": "角振動数（omega = 2*pi / T）",
-        "t": "経過時間",
-        "phi": "初期位相（t = 0 での位相角）",
-        "x": "時刻 t での振動中心からの変位",
-        "v": "時刻 t での速度",
-        "v_max": "振動中心（x = 0）を通過するときの『最大速度』",
-        "a_max": "端点（x = +-A）で生じる『最大加速度の大きさ』"
+      "prompt_data": {
+        "type": "formula",
+        "variables": {
+          "A": "単振動の振幅（振動中心からの最大変位）",
+          "omega": "角振動数（omega = 2*pi / T）",
+          "t": "経過時間",
+          "phi": "初期位相（t = 0 での位相角）",
+          "x": "時刻 t での振動中心からの変位",
+          "v": "時刻 t での速度",
+          "v_max": "振動中心（x = 0）を通過するときの『最大速度』",
+          "a_max": "端点（x = +-A）で生じる『最大加速度の大きさ』"
+        },
+        "inputs": {
+          "amplitude": "A",
+          "angular_frequency": "omega",
+          "time": "t",
+          "initial_phase": "phi"
+        },
+        "outputs": {
+          "displacement": "x = A * sin(omega * t + phi)",
+          "velocity": "v = A * omega * cos(omega * t + phi)",
+          "max_velocity": "v_max = A * omega",
+          "max_acceleration": "a_max = A * omega**2"
+        }
       },
-      "inputs": {
-        "amplitude": "A",
-        "angular_frequency": "omega",
-        "time": "t",
-        "initial_phase": "phi"
+      "symbolic_verification": {
+        "sympy_equations": [
+          "Eq(x, A * sin(omega * t + phi))",
+          "Eq(v, A * omega * cos(omega * t + phi))",
+          "Eq(v_max, A * omega)",
+          "Eq(a_max, A * omega**2)"
+        ],
+        "constraints": ["A > 0", "omega > 0"]
       },
-      "outputs": {
-        "displacement": "x = A * sin(omega * t + phi)",
-        "velocity": "v = A * omega * cos(omega * t + phi)",
-        "max_velocity": "v_max = A * omega",
-        "max_acceleration": "a_max = A * omega**2"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "def_impulse",
       "name": "力積の定義",
-      "type": "law",
-      "variables": {
-        "F": "作用する力（一定または平均の力）",
-        "delta_t": "力が作用している微小時間間隔",
-        "I": "物体が受ける力積（ベクトル量）"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "F": "作用する力（一定または平均の力）",
+          "delta_t": "力が作用している微小時間間隔",
+          "I": "物体が受ける力積（ベクトル量）"
+        },
+        "inputs": {
+          "force": "F",
+          "time_interval": "delta_t"
+        },
+        "outputs": {
+          "impulse": "I = F * delta_t"
+        }
       },
-      "inputs": {
-        "force": "F",
-        "time_interval": "delta_t"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(I, F * delta_t)"],
+        "constraints": ["delta_t > 0"]
       },
-      "outputs": {
-        "impulse": "I = F * delta_t"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "principle_momentum_impulse_theorem",
       "name": "運動量と力積の定理",
-      "type": "principle",
-      "variables": {
-        "m": "物体の質量",
-        "v_1": "力積を受ける前の初速度",
-        "v_2": "力積を受けた後の終わりの速度",
-        "I": "作用した外力の力積"
+      "prompt_data": {
+        "type": "principle",
+        "variables": {
+          "m": "物体の質量",
+          "v_1": "力積を受ける前の初速度",
+          "v_2": "力積を受けた後の終わりの速度",
+          "I": "作用した外力の力積"
+        },
+        "inputs": {
+          "mass": "m",
+          "initial_velocity": "v_1",
+          "final_velocity": "v_2",
+          "impulse": "I"
+        },
+        "outputs": {
+          "equation": "m * v_2 - m * v_1 == I"
+        }
       },
-      "inputs": {
-        "mass": "m",
-        "initial_velocity": "v_1",
-        "final_velocity": "v_2",
-        "impulse": "I"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(m * v_2 - m * v_1, I)"],
+        "constraints": ["m > 0"]
       },
-      "outputs": {
-        "equation": "m * v_2 - m * v_1 == I"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_momentum_conservation",
       "name": "運動量保存法則",
-      "type": "law",
-      "variables": {
-        "F_ext_sum": "系全体（全物体）にはたらく外力の和（0 のとき保存成立）",
-        "m_A": "物体 A の質量",
-        "m_B": "物体 B の質量",
-        "v_A": "衝突・分裂前の物体 A の速度",
-        "v_B": "衝突・分裂前の物体 B の速度",
-        "v_A_prime": "衝突・分裂後の物体 A の速度",
-        "v_B_prime": "衝突・分裂後の物体 B の速度"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "F_ext_sum": "系全体（全物体）にはたらく外力の和（0 のとき保存成立）",
+          "m_A": "物体 A の質量",
+          "m_B": "物体 B の質量",
+          "v_A": "衝突・分裂前の物体 A の速度",
+          "v_B": "衝突・分裂前の物体 B の速度",
+          "v_A_prime": "衝突・分裂後の物体 A の速度",
+          "v_B_prime": "衝突・分裂後の物体 B の速度"
+        },
+        "inputs": {
+          "condition": "F_ext_sum == 0",
+          "objects": { "m_A": "m_A", "m_B": "m_B" },
+          "states": { "v_A": "v_A", "v_B": "v_B", "v_A_prime": "v_A_prime", "v_B_prime": "v_B_prime" }
+        },
+        "outputs": {
+          "equation": "m_A * v_A + m_B * v_B == m_A * v_A_prime + m_B * v_B_prime"
+        }
       },
-      "inputs": {
-        "condition": "F_ext_sum == 0",
-        "objects": { "m_A": "m_A", "m_B": "m_B" },
-        "states": { "v_A": "v_A", "v_B": "v_B", "v_A_prime": "v_A_prime", "v_B_prime": "v_B_prime" }
+      "symbolic_verification": {
+        "sympy_equations": [
+          "Eq(m_A * v_A + m_B * v_B, m_A * v_A_prime + m_B * v_B_prime)"
+        ],
+        "constraints": ["m_A > 0", "m_B > 0"]
       },
-      "outputs": {
-        "equation": "m_A * v_A + m_B * v_B == m_A * v_A_prime + m_B * v_B_prime"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_coefficient_of_restitution",
       "name": "反発係数（跳ね返り係数）の定義",
-      "type": "law",
-      "variables": {
-        "e": "反発係数（0 <= e <= 1。1は完全弾性衝突、0は完全非弾性衝突）",
-        "v_A": "衝突前の物体 A の速度",
-        "v_B": "衝突前の物体 B の速度（壁等の固定面の場合は 0）",
-        "v_A_prime": "衝突後の物体 A の速度",
-        "v_B_prime": "衝突後の物体 B の速度"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "e": "反発係数（0 <= e <= 1。1は完全弾性衝突、0は完全非弾性衝突）",
+          "v_A": "衝突前の物体 A の速度",
+          "v_B": "衝突前の物体 B の速度（壁等の固定面の場合は 0）",
+          "v_A_prime": "衝突後の物体 A の速度",
+          "v_B_prime": "衝突後の物体 B の速度"
+        },
+        "inputs": {
+          "restitution_coefficient": "e",
+          "initial_velocities": { "v_A": "v_A", "v_B": "v_B" },
+          "final_velocities": { "v_A_prime": "v_A_prime", "v_B_prime": "v_B_prime" }
+        },
+        "outputs": {
+          "equation": "e == -(v_A_prime - v_B_prime) / (v_A - v_B)"
+        }
       },
-      "inputs": {
-        "restitution_coefficient": "e",
-        "initial_velocities": { "v_A": "v_A", "v_B": "v_B" },
-        "final_velocities": { "v_A_prime": "v_A_prime", "v_B_prime": "v_B_prime" }
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(e, -(v_A_prime - v_B_prime) / (v_A - v_B))"],
+        "constraints": ["e >= 0", "e <= 1"]
       },
-      "outputs": {
-        "equation": "e == -(v_A_prime - v_B_prime) / (v_A - v_B)"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "kinematics_circular_motion",
       "name": "等速円運動の加速度・角速度関係式",
-      "type": "formula",
-      "variables": {
-        "r": "円軌道の半径",
-        "v": "円周上の接線速度の大きさ",
-        "omega": "1秒あたりの回転角（角速度）",
-        "a_c": "円の中心に向かう向心加速度の大きさ"
+      "prompt_data": {
+        "type": "formula",
+        "variables": {
+          "r": "円軌道の半径",
+          "v": "円周上の接線速度の大きさ",
+          "omega": "1秒あたりの回転角（角速度）",
+          "a_c": "円の中心に向かう向心加速度の大きさ"
+        },
+        "inputs": {
+          "radius": "r",
+          "velocity": "v",
+          "angular_velocity": "omega"
+        },
+        "outputs": {
+          "velocity_relation": "v = r * omega",
+          "centripetal_acceleration": "a_c = v**2 / r",
+          "centripetal_acceleration_omega": "a_c = r * omega**2"
+        }
       },
-      "inputs": {
-        "radius": "r",
-        "velocity": "v",
-        "angular_velocity": "omega"
+      "symbolic_verification": {
+        "sympy_equations": [
+          "Eq(v, r * omega)",
+          "Eq(a_c, v**2 / r)",
+          "Eq(a_c, r * omega**2)"
+        ],
+        "constraints": ["r > 0"]
       },
-      "outputs": {
-        "velocity_relation": "v = r * omega",
-        "centripetal_acceleration": "a_c = v**2 / r",
-        "centripetal_acceleration_omega": "a_c = r * omega**2"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "principle_centrifugal_force",
       "name": "遠心力（回転系での慣性力）",
-      "type": "principle",
-      "variables": {
-        "m": "回転系に乗っている物体の質量",
-        "r": "回転軸からの距離（半径）",
-        "omega": "回転系の角速度",
-        "F_centrifugal": "回転軸から遠ざかる向き（半径方向外向き）にはたらく遠心力の大きさ"
+      "prompt_data": {
+        "type": "principle",
+        "variables": {
+          "m": "回転系に乗っている物体の質量",
+          "r": "回転軸からの距離（半径）",
+          "omega": "回転系の角速度",
+          "F_centrifugal": "回転軸から遠ざかる向き（半径方向外向き）にはたらく遠心力の大きさ"
+        },
+        "inputs": {
+          "mass": "m",
+          "radius": "r",
+          "angular_velocity": "omega"
+        },
+        "outputs": {
+          "centrifugal_force": "F_centrifugal = m * r * omega**2"
+        }
       },
-      "inputs": {
-        "mass": "m",
-        "radius": "r",
-        "angular_velocity": "omega"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_centrifugal, m * r * omega**2)"],
+        "constraints": ["m > 0", "r >= 0"]
       },
-      "outputs": {
-        "centrifugal_force": "F_centrifugal = m * r * omega**2"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "principle_inertial_force",
       "name": "慣性力（直線加速度運動系）",
-      "type": "principle",
-      "variables": {
-        "m": "観測系内部にある物体の質量",
-        "a_frame": "観測している非慣性系（電車やエレベーター等）自体の加速度",
-        "F_inertial": "観測系の加速度と反対向きにはたらく慣性力（ベクトル量）"
+      "prompt_data": {
+        "type": "principle",
+        "variables": {
+          "m": "観測系内部にある物体の質量",
+          "a_frame": "観測している非慣性系（電車やエレベーター等）自体の加速度",
+          "F_inertial": "観測系の加速度と反対向きにはたらく慣性力（ベクトル量）"
+        },
+        "inputs": {
+          "mass": "m",
+          "frame_acceleration": "a_frame"
+        },
+        "outputs": {
+          "inertial_force": "F_inertial = -m * a_frame"
+        }
       },
-      "inputs": {
-        "mass": "m",
-        "frame_acceleration": "a_frame"
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(F_inertial, -m * a_frame)"],
+        "constraints": ["m > 0"]
       },
-      "outputs": {
-        "inertial_force": "F_inertial = -m * a_frame"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "law_universal_gravitation",
       "name": "万有引力の法則",
-      "type": "law",
-      "variables": {
-        "G": "万有引力定数",
-        "M": "中心となる天体（地球や太陽等）の質量",
-        "m": "運動する物体・衛星の質量",
-        "r": "天体中心からの距離",
-        "F_g": "2物体間を引き寄せる万有引力の大きさ",
-        "U_G": "無限遠点を基準（U=0）とした万有引力による位置エネルギー"
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "G": "万有引力定数",
+          "M": "中心となる天体（地球や太陽等）の質量",
+          "m": "運動する物体・衛星の質量",
+          "r": "天体中心からの距離",
+          "F_g": "2物体間を引き寄せる万有引力の大きさ",
+          "U_G": "無限遠点を基準（U=0）とした万有引力による位置エネルギー"
+        },
+        "inputs": {
+          "gravitational_constant": "G",
+          "mass_1": "M",
+          "mass_2": "m",
+          "distance": "r"
+        },
+        "outputs": {
+          "gravitational_force": "F_g = G * M * m / r**2",
+          "gravitational_potential_energy": "U_G = -G * M * m / r"
+        }
       },
-      "inputs": {
-        "gravitational_constant": "G",
-        "mass_1": "M",
-        "mass_2": "m",
-        "distance": "r"
+      "symbolic_verification": {
+        "sympy_equations": [
+          "Eq(F_g, G * M * m / r**2)",
+          "Eq(U_G, -G * M * m / r)"
+        ],
+        "constraints": ["G > 0", "M > 0", "m > 0", "r > 0"]
       },
-      "outputs": {
-        "gravitational_force": "F_g = G * M * m / r**2",
-        "gravitational_potential_energy": "U_G = -G * M * m / r"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     },
     {
       "id": "algebraic_simplification",
       "name": "代数計算・連立方程式の消去",
-      "type": "math",
-      "variables": {
-        "source_equations": "導出の元となる複数の立式・方程式群",
-        "derived_equation": "不要な変数を消去・整理して得られた最終式または中間結果"
+      "prompt_data": {
+        "type": "math",
+        "variables": {
+          "source_equations": "導出の元となる複数の立式・方程式群",
+          "derived_equation": "不要な変数を消去・整理して得られた最終式または中間結果"
+        },
+        "inputs": {
+          "source_equations": "equations"
+        },
+        "outputs": {
+          "derived_equation": "result"
+        }
       },
-      "inputs": {
-        "source_equations": "equations"
+      "symbolic_verification": {
+        "sympy_equations": [],
+        "constraints": []
       },
-      "outputs": {
-        "derived_equation": "result"
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
       }
     }
   ]
