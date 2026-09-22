@@ -113,22 +113,21 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const [debugDetails, setDebugDetails] = useState<string | null>(null)
   const [debugRawText, setDebugRawText] = useState<string | null>(null)
 
-  //スクロール防止！
-  // モーダルが開いているか判定
-const isAnyModalOpen = Boolean(isStepViewerOpen || selectedTheoremId || selectedTheorem);
+  // スクロール防止！
+  const isAnyModalOpen = Boolean(isStepViewerOpen || selectedTheoremId || selectedTheorem);
 
-// モーダル表示時に背景（body）のスクロールをロック
-useEffect(() => {
-  if (isAnyModalOpen) {
-    document.body.style.overflow = 'hidden';
-  } else {
-    document.body.style.overflow = '';
-  }
+  // モーダル表示時に背景（body）のスクロールをロック
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
 
-  return () => {
-    document.body.style.overflow = '';
-  };
-}, [isAnyModalOpen]);
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isAnyModalOpen]);
 
   useEffect(() => {
     async function loadAnalysisData() {
@@ -317,11 +316,10 @@ useEffect(() => {
           // 4. SymPy がクラッシュする原因となる「予約語」や「文字」の置換
           expr = expr.replace(/'/g, '_prime');
           
-          expr = expr.replace(/\bS\b/g, 'Area_S')
-                     .replace(/\bI\b/g, 'Current_I')
-                     .replace(/\bE\b/g, 'Energy_E')
-                     .replace(/\bN\b/g, 'Normal_N')
-                     .replace(/\bO\b/g, 'Origin_O');
+          // 大文字の S, I, E などを安全な変数名に置換
+          expr = expr.replace(/(^|[\s\+\-\*\/\(\)=])S([\s\+\-\*\/\(\)=]|$)/g, '$1Area_S$2')
+                     .replace(/(^|[\s\+\-\*\/\(\)=])I([\s\+\-\*\/\(\)=]|$)/g, '$1Current_I$2')
+                     .replace(/(^|[\s\+\-\*\/\(\)=])E([\s\+\-\*\/\(\)=]|$)/g, '$1Energy_E$2');
 
           return expr;
         };
@@ -344,7 +342,7 @@ useEffect(() => {
               nodes: prev.nodes.map(n => n.id === currentInference.id ? { 
                 ...n, 
                 _client_verification_status: 'skipped',
-                _client_debug_info: '有効な等式・不等式が見つかりませんでした（前提または結果に数式が含まれていません）。'
+                _client_debug_info: '有効な等式・不等式が見つかりませんでした。'
               } as Node : n)
             };
           });
@@ -355,10 +353,14 @@ useEffect(() => {
         const expr2 = outputProps.join(' & ');
 
         try {
+          // ★ 正しいペイロード（ { expr1, expr2 } ）でAPIへ送信
           const res = await fetch('/api/verify', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ expr1, expr2 })
+            body: JSON.stringify({ 
+              expr1: expr1, 
+              expr2: expr2 
+            })
           });
           
           const result = await res.json();
@@ -1253,7 +1255,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 'bold',
   },
   theoremModalOverlay: {
-position: 'fixed',
+  position: 'fixed',
   top: 0,
   left: 0,
   right: 0,
@@ -1266,7 +1268,7 @@ position: 'fixed',
   backdropFilter: 'blur(4px)',
   padding: '16px',
   },
-theoremModalContainer: {
+  theoremModalContainer: {
   width: '100%',
   maxWidth: '768px',
   maxHeight: '85vh',     // ★画面高さの85%までに制限
@@ -1275,94 +1277,94 @@ theoremModalContainer: {
   borderRadius: '16px',
   border: '1px solid #1e293b',
   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-},
+  },
   theoremModalHeader: {
-    padding: '14px 16px',
-    borderBottom: '1px solid #f1f5f9',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  padding: '14px 16px',
+  borderBottom: '1px solid #f1f5f9',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
   },
   theoremModalTitle: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#0f172a',
-    margin: 0,
+  fontSize: '16px',
+  fontWeight: 'bold',
+  color: '#0f172a',
+  margin: 0,
   },
   closeButtonLight: {
-    background: 'none',
-    border: 'none',
-    color: '#64748b',
-    cursor: 'pointer',
-    padding: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+  background: 'none',
+  border: 'none',
+  color: '#64748b',
+  cursor: 'pointer',
+  padding: '4px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   },
   theoremModalBody: {
-    padding: '16px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-    overflowY: 'auto',
+  padding: '16px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+  overflowY: 'auto',
   },
   authorMessage: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '13px',
-    fontWeight: 'bold',
-    color: '#059669',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  fontSize: '13px',
+  fontWeight: 'bold',
+  color: '#059669',
   },
   theoremTextBody: {
-    fontSize: '14px',
-    color: '#334155',
-    lineHeight: '1.6',
-    margin: 0,
+  fontSize: '14px',
+  color: '#334155',
+  lineHeight: '1.6',
+  margin: 0,
   },
   placeholderBox: {
-    backgroundColor: '#f8fafc',
-    border: '1px dashed #cbd5e1',
-    borderRadius: '8px',
-    padding: '12px',
-    textAlign: 'center',
+  backgroundColor: '#f8fafc',
+  border: '1px dashed #cbd5e1',
+  borderRadius: '8px',
+  padding: '12px',
+  textAlign: 'center',
   },
   theoremModalFooter: {
-    padding: '12px 16px',
-    backgroundColor: '#f8fafc',
-    borderTop: '1px solid #f1f5f9',
-    display: 'flex',
-    justifyContent: 'flex-end',
+  padding: '12px 16px',
+  backgroundColor: '#f8fafc',
+  borderTop: '1px solid #f1f5f9',
+  display: 'flex',
+  justifyContent: 'flex-end',
   },
   closeModalButton: {
-    backgroundColor: '#059669',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '8px 16px',
-    fontSize: '13px',
-    fontWeight: 'bold',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    cursor: 'pointer',
+  backgroundColor: '#059669',
+  color: '#ffffff',
+  border: 'none',
+  borderRadius: '8px',
+  padding: '8px 16px',
+  fontSize: '13px',
+  fontWeight: 'bold',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  cursor: 'pointer',
   },
   spinnerMini: {
-    width: '12px',
-    height: '12px',
-    border: '2px solid rgba(251, 191, 36, 0.3)',
-    borderTopColor: '#fbbf24',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
+  width: '12px',
+  height: '12px',
+  border: '2px solid rgba(251, 191, 36, 0.3)',
+  borderTopColor: '#fbbf24',
+  borderRadius: '50%',
+  animation: 'spin 1s linear infinite',
   },
   debugInfoBox: {
-    backgroundColor: '#1e1b4b',
-    border: '1px solid #7f1d1d',
-    borderRadius: '6px',
-    padding: '6px',
-    marginTop: '6px',
-    textAlign: 'left',
-    width: '100%',
-    boxSizing: 'border-box'
+  backgroundColor: '#1e1b4b',
+  border: '1px solid #7f1d1d',
+  borderRadius: '6px',
+  padding: '6px',
+  marginTop: '6px',
+  textAlign: 'left',
+  width: '100%',
+  boxSizing: 'border-box'
   }
 }
