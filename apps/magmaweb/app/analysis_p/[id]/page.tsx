@@ -456,7 +456,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
               <div style={styles.stepLauncherTextGroup}>
                 <div style={styles.stepLauncherTitle}>
                   <Sparkles size={16} color="#6366f1" />
-                  <span>思考の変形プロセスを1ステップずつ追う</span>
+                  <span>考え方を1ステップずつ追う</span>
                 </div>
                 <p style={styles.stepLauncherSub}>
                   自分がどこでつまずいたのか、式変形と適用定理を順番に確認してみよう！
@@ -470,7 +470,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                 style={styles.stepLauncherButton}
               >
                 <Footprints size={16} />
-                <span>一歩ごとの解説モードをスタート</span>
+                <span>スタート</span>
               </button>
             </div>
           )}
@@ -512,7 +512,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
             <div style={styles.modalHeader}>
               <div style={styles.modalHeaderTitleGroup}>
                 <Footprints size={18} color="#818cf8" />
-                <span style={styles.modalHeaderTitle}>一歩ごとの論理検証モード</span>
+                <span style={styles.modalHeaderTitle}>ステップごとの確認</span>
                 <span style={styles.stepBadge}>
                   Step {currentStepIndex + 1} / {inferenceNodes.length}
                 </span>
