@@ -168,7 +168,7 @@ export default function MePage() {
                   src={a.image_url ?? ''}
                   alt="answer"
                   style={styles.thumb}
-                  onClick={() => router.push(`/analysis/${a.id}`)}
+                  onClick={() => router.push(`/analysis_p/${a.id}`)}
                 />
               ))
             )}
