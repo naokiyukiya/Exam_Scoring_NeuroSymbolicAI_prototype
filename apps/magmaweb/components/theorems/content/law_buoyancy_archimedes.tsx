@@ -15,7 +15,7 @@ export default function LawBuoyancyArchimedes({ onOpenTheorem }: LawBuoyancyArch
       <section style={styles.cardInfo}>
         <div style={styles.cardHeader}>
           <Info size={15} color="#38bdf8" />
-          <h3 style={{ ...styles.cardTitle, color: '#38bdf8' }}>主張・物理的意義</h3>
+          <h3 style={{ ...styles.cardTitle, color: '#38bdf8' }}>概要</h3>
         </div>
         <p style={styles.cardBodyText}>
           流体中（液体や気体）にある物体は、その物体が<b>おしのけた流体の重量に等しい大きさの鉛直上向きの浮力</b>を受ける。
