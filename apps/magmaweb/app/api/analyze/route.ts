@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
     const base64Image = Buffer.from(arrayBuffer).toString('base64')
 
     const response = await generateWithRetry({
-      model: 'gemini-3.6-flash-8b',
+      model: 'gemini-3.6-flash',
       contents: [
         {
           role: 'user',
