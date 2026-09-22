@@ -4,7 +4,6 @@ import React from 'react';
 import physicsData from '../../lib/constants/physics.json';
 import { theoremComponentMap } from './registry';
 import { BookOpen, X, Sparkles, Variable } from 'lucide-react';
-import FormattedText from '../FormattedText'; // 式レンダリング用（既存のものがあれば）
 
 interface Props {
   theoremId: string;
