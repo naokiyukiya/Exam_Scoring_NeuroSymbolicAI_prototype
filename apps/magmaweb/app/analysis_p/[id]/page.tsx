@@ -279,7 +279,9 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
 
           <div style={styles.analysisBody}>
             {graphData ? (
-              <DagVisualizer graphData={graphData} />
+              /* スマホ表示対応のため一時的に重い描画処理をコメントアウト */
+              /* <DagVisualizer graphData={graphData} /> */
+              null
             ) : (
               <div style={styles.errorText}>
                 物理構造のグラフデータを読み込めませんでした。上のデバッグモニターを確認してください。
