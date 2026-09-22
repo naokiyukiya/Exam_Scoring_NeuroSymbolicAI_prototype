@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import physicsData from '@/lib/constants/physics.json'; // physics.jsonのパスに合わせて調整
+import physicsData from '../../lib/constants/physics.json'; // physics.jsonのパスに合わせて調整
 import { theoremComponentMap } from './registry';
 
 interface Props {

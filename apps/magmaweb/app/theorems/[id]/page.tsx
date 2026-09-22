@@ -1,5 +1,5 @@
 import React from 'react';
-import TheoremDetailRenderer from '@/components/theorems/TheoremDetailRenderer';
+import TheoremDetailRenderer from '../../../components/theorems/TheoremDetailRenderer';
 
 export default function TheoremStandalonePage({ params }: { params: { id: string } }) {
   return (
