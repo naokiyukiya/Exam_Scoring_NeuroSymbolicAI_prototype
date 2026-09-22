@@ -231,7 +231,7 @@ ${theoremListString}
 `.trim();
 
     const response = await generateWithRetry({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: [
         {
           role: 'user',
