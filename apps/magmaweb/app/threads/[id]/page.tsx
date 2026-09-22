@@ -18,54 +18,30 @@ export default function ThreadPage({
 }) {
   const [problem, setProblem] = useState<any>(null)
   const [answers, setAnswers] = useState<any[]>([])
-  const [canViewAnswers, setCanViewAnswers] = useState(false)
-  const [randomMessage, setRandomMessage] = useState('') // メッセージ用ステート
   const router = useRouter()
-
-  const promptMessages = [
-    "答えにたどり着いていなくても大丈夫！上のボタンからアイデアを投稿して、他の人の考え方も見てみよう！",
-    "「ここまでは分かった」という途中経過も大歓迎！みんなの知恵を借りる一歩を踏み出して！",
-    "正解することより、考える過程が宝物。あなたのユニークな発想をぜひシェアしよう！",
-    "まだ誰も気づいていないヒントがあなたの手元にあるかも。匿名でも投稿できる！",
-    "あなたの「分からない」が、他の誰かの「分かった」につながる。まずは一枚、送ってみよう！",
-    "完璧な答案じゃなくていいんです。間違いこそが宝物！"
-  ]
 
   useEffect(() => {
     async function load() {
-      // 読み込み時にメッセージをランダム選択
-      const msg = promptMessages[Math.floor(Math.random() * promptMessages.length)]
-      setRandomMessage(msg)
-
       try {
-        // ★ getCurrentUser()に.catch(() => null)を入れることで、未ログイン時のエラー落ちを防ぐ
+        // 未ログイン時のエラー落ちを防ぐため .catch(() => null) を指定
         const [p, a, user] = await Promise.all([
           getProblemById(params.id),
           getAnswersByProblemId(params.id),
           getCurrentUser().catch(() => null),
         ])
 
-        setProblem(p)
-        setAnswers(a)
-
-        // ★ 未ログイン時は、現在の投稿URLを保持してログイン画面へ強制リダイレクト
+        // 未ログイン時はログイン画面へリダイレクト
         if (!user) {
-          setCanViewAnswers(false)
           const currentPath = window.location.pathname
           router.push(`/login?next=${encodeURIComponent(currentPath)}`)
           return
         }
 
-        const isProblemOwner = p.user_id === user.id
-        const hasPostedAnswer = a.some(
-          (ans) => ans.user_id === user.id
-        )
-
-        setCanViewAnswers(isProblemOwner || hasPostedAnswer)
+        setProblem(p)
+        setAnswers(a)
 
       } catch (error) {
         console.error("データ読み込み中にエラーが発生しました:", error)
-        // 万が一postsデータの取得エラーなどが起きた場合も、Loadingで固まるのを防ぐためログインかトップへ逃がす
         const currentPath = window.location.pathname
         router.push(`/login?next=${encodeURIComponent(currentPath)}`)
       }
@@ -114,7 +90,7 @@ export default function ThreadPage({
         <ProblemCard
           image={problem.image_url}
           problemId={problem.id}
-          username={problem.profiles.handle}
+          username={problem.profiles?.handle}
           label={problem.label}
           createdAt={problem.created_at}
         />
@@ -138,7 +114,7 @@ export default function ThreadPage({
             gap: 16,
           }}
         >
-          {canViewAnswers ? (
+          {answers.length > 0 ? (
             answers.map((a) => (
               <div
                 key={a.id}
@@ -151,27 +127,25 @@ export default function ThreadPage({
                   image={a.image_url}
                   answerId={a.id}
                   rootId={problem.id}
-                  username={a.profiles.handle}
+                  username={a.profiles?.handle}
                   createdAt={a.created_at}
-                  anonymous = {a.anonymous}
+                  anonymous={a.anonymous}
                 />
               </div>
             ))
           ) : (
             <div
               style={{
-                marginTop: 40,
+                marginTop: 20,
                 padding: '32px 16px',
                 textAlign: 'center',
-                color: '#555',
+                color: '#777',
                 background: 'rgba(255,255,255,0.6)',
                 borderRadius: 12,
-                fontSize: 15,
-                lineHeight: 1.6,
+                fontSize: 14,
               }}
             >
-              {randomMessage}
-              （１件以上投稿すると他の人の考えが見れるようになります）
+              まだ解答が投稿されていません。
             </div>
           )}
         </div>
