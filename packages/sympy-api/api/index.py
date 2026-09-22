@@ -50,7 +50,9 @@ def verify_expressions(req: VerifyRequest):
             if check1.is_zero or check1 == 0 or check2.is_zero or check2 == 0:
                 is_eq = True
 
-        # ステップ2: 論理/数値テスト検証
+        # ==========================================
+        # ステップ2: 論理/数値テスト検証 (不等式・場合分け・複数変数対策)
+        # ==========================================
         if not is_eq:
             domain_expr = None
             if req.domain:
@@ -61,10 +63,14 @@ def verify_expressions(req: VerifyRequest):
 
             vars1 = e1_and.free_symbols if hasattr(e1_and, 'free_symbols') else set()
             vars2 = e2.free_symbols if hasattr(e2, 'free_symbols') else set()
+            # e1_or がある場合はその変数も追加
+            if e1_or:
+                vars_or = e1_or.free_symbols if hasattr(e1_or, 'free_symbols') else set()
+                vars1 = vars1.union(vars_or)
+                
             all_vars = list(vars1.union(vars2))
             
             if all_vars:
-                x = all_vars[0]
                 test_points = [-10.1, -3.0, -1.0, -0.5, 0.0, 1.0, 1.9, 2.0, 2.1, 2.5, 2.6666, 2.7, 3.0, 10.1]
                 
                 # ANDパターンとORパターンの両方をテストする
@@ -77,23 +83,28 @@ def verify_expressions(req: VerifyRequest):
                     
                     for pt in test_points:
                         try:
+                            # 【超重要】P や x など、複数の文字が存在する場合、すべてに別々の数値を代入してエラーを防ぐ
+                            subs_dict = {v: pt + 0.1 * i for i, v in enumerate(all_vars)}
+                            
                             if domain_expr is not None:
-                                if not bool(domain_expr.subs(x, pt)):
+                                if not bool(domain_expr.subs(subs_dict)):
                                     continue
                                     
-                            val1 = bool(e1_test.subs(x, pt))
-                            val2 = bool(e2.subs(x, pt))
+                            val1 = bool(e1_test.subs(subs_dict))
+                            val2 = bool(e2.subs(subs_dict))
                             
                             valid_test_count += 1
                             if val1 != val2:
                                 points_matched = False
                                 break
                         except Exception:
+                            # 計算不能な点（0割りなど）はスキップ
                             continue
                     
+                    # 有効なテストが1回以上行われ、すべて一致した場合のみ正解
                     if points_matched and valid_test_count > 0:
                         is_eq = True
-                        break # どちらかで一致すれば正解！
+                        break
 
         return {"is_equal": is_eq}
 

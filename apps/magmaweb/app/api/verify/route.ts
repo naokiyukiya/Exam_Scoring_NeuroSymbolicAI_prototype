@@ -33,6 +33,12 @@ function formatForSympy(str: string): string {
   if (!str) return '';
   
   let s = str.replace(/\(\s*[①-⑳]\s*\)/g, '').replace(/[①-⑳]/g, '').replace(/[…・]/g, '').trim();
+
+  // 【追加】AIがうっかり出力したLaTeX表記 (\sqrt{...} や \sqrt) を強制的に無効化する
+  s = s.replace(/\\sqrt\{([^}]+)\}/g, 'sqrt($1)');
+  s = s.replace(/\\sqrt/g, 'sqrt');
+  s = s.replace(/\\/g, ''); // 残ったバックスラッシュをすべて削除
+
   s = s.replace(/\^/g, '**');
 
   s = s.replace(/≦/g, '<=').replace(/≧/g, '>=');
