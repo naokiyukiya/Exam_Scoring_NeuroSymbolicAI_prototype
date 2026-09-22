@@ -105,6 +105,8 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   // クエリパラメータ ?theorem=xxx から選択中の定理IDを取得
   const selectedTheoremId = searchParams.get('theorem')
 
+  const [selectedTheorem, setSelectedTheorem] = useState<string | null>(null)
+
   // デバッグ用ステート
   const [debugError, setDebugError] = useState<string | null>(null)
   const [debugDetails, setDebugDetails] = useState<string | null>(null)
