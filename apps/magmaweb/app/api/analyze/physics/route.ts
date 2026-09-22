@@ -6,9 +6,9 @@ import physicsLibrary from '../../../../lib/constants/physics.json';
 export const maxDuration = 60;
 
 const physicsData: any = physicsLibrary;
-const theoremVersion = physicsData?.version || "2.4.2";
+const theoremVersion = physicsData?.version || "2.5.0";
 // 出力例を追加し、math_exprとverification_statusの出力を強制した新しいプロンプトバージョン
-const PROMPT_VERSION = `${theoremVersion}_with_fewshot_v5`;
+const PROMPT_VERSION = `${theoremVersion}_with_fewshot_v4`;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
