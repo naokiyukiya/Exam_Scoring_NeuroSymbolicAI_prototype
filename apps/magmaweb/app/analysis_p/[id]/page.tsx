@@ -12,7 +12,7 @@ import AnswerCard from '../../../components/AnswerCard'
 import DagVisualizer from '../../../components/DagVisualizer'
 import TheoremDetailRenderer from '../../../components/theorems/TheoremDetailRenderer'
 
-// physics.json を直接インポート（パスは配置場所に応じて適宜修正してください）
+// physics.json を直接インポート
 import physicsData from '../../../lib/constants/physics.json'
 
 import { 
@@ -35,7 +35,6 @@ import {
 function FormattedText({ text }: { text: string }) {
   if (!text) return null;
 
-  // 簡単な LaTeX 判定・分割（インライン数式 $...$ の対応）
   const parts = text.split(/(\$[^\$]+\$)/g);
 
   return (
@@ -59,8 +58,9 @@ type Node = {
   is_final_answer?: boolean
   inputs_used?: Record<string, string>
   outputs_derived?: Record<string, string>
-  // フロントエンド側で検証状態を保持するためのプロパティ（APIからは来ない）
+  verification_status?: string
   _client_verification_status?: 'unverified' | 'verifying' | 'correct' | 'incorrect' | 'error' | 'skipped'
+  _client_debug_info?: string // ★ SymPyがどう判定したかの原因を保持
   math_expr?: string
 }
 
@@ -158,7 +158,6 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
         }
         
         if (json.graph) {
-          // 初期ロード時に、すべてのinferenceノードにフロントエンド用のステータスを付与
           const nodesWithClientStatus = json.graph.nodes.map((n: Node) => 
             n.type === 'inference' ? { ...n, _client_verification_status: 'unverified' } : n
           );
@@ -266,7 +265,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
         });
 
         // ==========================================
-        // 🚀 SymPy用の最強サニタイズ処理 (APIを変更しないための工夫)
+        // 🚀 SymPy用の最強サニタイズ処理
         // ==========================================
         const extractAndFormatMath = (text: string) => {
           if (!text) return '';
@@ -292,17 +291,15 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
 
           // 3. LaTeX特有のコマンドを Python の数式表現に置換
           expr = expr
-            .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '(($1)/($2))') // 簡単な \frac{a}{b} -> ((a)/(b))
+            .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '(($1)/($2))')
             .replace(/\\times/g, '*')
             .replace(/\\div/g, '/')
             .replace(/\\pi/g, 'pi')
-            .replace(/\\/g, ''); // その他のバックスラッシュを除去
+            .replace(/\\/g, '');
 
           // 4. SymPy がクラッシュする原因となる「予約語」や「文字」の置換
-          // V' や F' のようなプライム（'）は、SymPyが文字列と勘違いするので _prime に置換
           expr = expr.replace(/'/g, '_prime');
           
-          // SymPy の SingletonRegistry と衝突する大文字の S, I, E などを安全な変数名に置換
           expr = expr.replace(/\bS\b/g, 'Area_S')
                      .replace(/\bI\b/g, 'Current_I')
                      .replace(/\bE\b/g, 'Energy_E')
@@ -322,19 +319,21 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
           .map(n => extractAndFormatMath(n.label))
           .filter(expr => expr.includes('=') || expr.includes('>') || expr.includes('<'));
 
-        // 有効な数式が見つからなければスキップ
         if (inputProps.length === 0 || outputProps.length === 0) {
           setGraphData(prev => {
             if (!prev) return prev;
             return {
               ...prev,
-              nodes: prev.nodes.map(n => n.id === currentInference.id ? { ...n, _client_verification_status: 'skipped' } as Node : n)
+              nodes: prev.nodes.map(n => n.id === currentInference.id ? { 
+                ...n, 
+                _client_verification_status: 'skipped',
+                _client_debug_info: '有効な等式・不等式が見つかりませんでした（前提または結果に数式が含まれていません）。'
+              } as Node : n)
             };
           });
           return;
         }
 
-        // 複数の式がある場合は、SymPyで AND 条件として解釈されるように '&' で結合する
         const expr1 = inputProps.join(' & ');
         const expr2 = outputProps.join(' & ');
 
@@ -346,24 +345,35 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
           });
           
           const result = await res.json();
+          const isEq = res.ok && result.is_equal;
           
-          // 結果に応じてステータスを更新
+          // ★ SymPyに何を送り、どう判断されたかを詳細に記録
+          const debugInfo = `送信前(Inputs): [${expr1}] | 送信後(Outputs): [${expr2}] | 判定結果: ${isEq ? '一致 (Correct)' : '不一致 (Incorrect)'} ${result.error ? `| SymPyエラー: ${result.error}` : ''}`;
+
           setGraphData(prev => {
             if (!prev) return prev;
             const newNodes = prev.nodes.map(n => {
               if (n.id === currentInference.id) {
-                return { ...n, _client_verification_status: (res.ok && result.is_equal) ? 'correct' : 'incorrect' } as Node;
+                return { 
+                  ...n, 
+                  _client_verification_status: isEq ? 'correct' : 'incorrect',
+                  _client_debug_info: debugInfo
+                } as Node;
               }
               return n;
             });
             return { ...prev, nodes: newNodes };
           });
-        } catch (err) {
+        } catch (err: any) {
           setGraphData(prev => {
             if (!prev) return prev;
             return {
               ...prev,
-              nodes: prev.nodes.map(n => n.id === currentInference.id ? { ...n, _client_verification_status: 'error' } as Node : n)
+              nodes: prev.nodes.map(n => n.id === currentInference.id ? { 
+                ...n, 
+                _client_verification_status: 'error',
+                _client_debug_info: `通信例外エラー: ${err?.message || String(err)}`
+              } as Node : n)
             };
           });
         }
@@ -582,7 +592,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                     )}
                   </div>
 
-                  {/* 変形・適用定理 と ★自動検証ステータス表示★ */}
+                  {/* 変形・適用定理 と ★自動検証ステータス・原因表示★ */}
                   <div style={styles.stepCenterBox}>
                     <span style={styles.inferenceBadge}>適用した考え方・定理</span>
                     <p style={styles.inferenceText}>
@@ -590,9 +600,9 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                     </p>
 
                     {currentInference._client_verification_status && currentInference._client_verification_status !== 'unverified' && (
-                      <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold' }}>
+                      <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold', width: '100%' }}>
                         {currentInference._client_verification_status === 'verifying' && (
-                          <span style={{color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                          <span style={{color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'}}>
                             <div style={styles.spinnerMini}/> 数式検証中...
                           </span>
                         )}
@@ -600,7 +610,17 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                           <span style={{color: '#4ade80'}}>✓ 正しい計算です</span>
                         )}
                         {currentInference._client_verification_status === 'incorrect' && (
-                          <span style={{color: '#f87171'}}>⚠️ 計算に誤りがあります</span>
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                            <span style={{color: '#f87171'}}>⚠️ 計算に誤りがあります</span>
+                            {currentInference._client_debug_info && (
+                              <div style={styles.debugInfoBox}>
+                                <span style={{fontSize: '10px', color: '#cbd5e1'}}>【SymPy検証・原因解析】</span>
+                                <div style={{fontSize: '11px', color: '#fca5a5', wordBreak: 'break-all', fontFamily: 'monospace'}}>
+                                  {currentInference._client_debug_info}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
                         {currentInference._client_verification_status === 'error' && (
                           <span style={{color: '#9ca3af'}}>検証エラー</span>
@@ -1200,7 +1220,7 @@ const styles: Record<string, React.CSSProperties> = {
     height: '24px',
     borderRadius: '12px',
     border: '1px solid #334155',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1e1b4b',
     color: '#94a3b8',
     fontSize: '11px',
     display: 'flex',
@@ -1315,4 +1335,14 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
   },
+  debugInfoBox: {
+    backgroundColor: '#1e1b4b',
+    border: '1px solid #7f1d1d',
+    borderRadius: '6px',
+    padding: '6px',
+    marginTop: '6px',
+    textAlign: 'left',
+    width: '100%',
+    boxSizing: 'border-box'
+  }
 }
