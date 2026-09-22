@@ -1,11 +1,12 @@
 import React from 'react';
 import { Info, Calculator, GitCommitVertical, Lightbulb } from 'lucide-react';
+import FormattedText from '../../FormattedText'; // ★ 共通コンポーネントからインポート
 
 export default function LawBuoyancyArchimedes() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', color: '#f8fafc' }}>
       
-      {/* 1. 主張・定義カード */}
+      {/* 1. 主張・定義 */}
       <section style={styles.cardInfo}>
         <div style={styles.cardHeader}>
           <Info size={15} color="#38bdf8" />
@@ -16,7 +17,7 @@ export default function LawBuoyancyArchimedes() {
         </p>
       </section>
 
-      {/* 2. 公式メインカード */}
+      {/* 2. 公式メイン */}
       <section style={styles.cardFormula}>
         <div style={styles.formulaBadge}>
           <Calculator size={12} color="#818cf8" />
@@ -24,24 +25,24 @@ export default function LawBuoyancyArchimedes() {
         </div>
         
         <div style={styles.formulaDisplay}>
-          F = ρ V g
+          <FormattedText text="$F = \rho V g$" />
         </div>
 
         <div style={styles.formulaGrid}>
           <div style={styles.formulaItem}>
-            <span style={styles.symbol}>F</span>
+            <span style={styles.symbol}><FormattedText text="$F$" /></span>
             <span>浮力の大きさ <small style={styles.unit}>[N]</small></span>
           </div>
           <div style={styles.formulaItem}>
-            <span style={styles.symbol}>ρ</span>
+            <span style={styles.symbol}><FormattedText text="$\rho$" /></span>
             <span>流体の密度 <small style={styles.unit}>[kg/m³]</small></span>
           </div>
           <div style={styles.formulaItem}>
-            <span style={styles.symbol}>V</span>
+            <span style={styles.symbol}><FormattedText text="$V$" /></span>
             <span>没入部分の体積 <small style={styles.unit}>[m³]</small></span>
           </div>
           <div style={styles.formulaItem}>
-            <span style={styles.symbol}>g</span>
+            <span style={styles.symbol}><FormattedText text="$g$" /></span>
             <span>重力加速度 <small style={styles.unit}>[m/s²]</small></span>
           </div>
         </div>
@@ -53,19 +54,23 @@ export default function LawBuoyancyArchimedes() {
           <GitCommitVertical size={15} color="#a5b4fc" />
           <h3 style={{ ...styles.cardTitle, color: '#a5b4fc' }}>導出のメカニズム（水圧の差）</h3>
         </div>
-        <p style={styles.cardBodyText}>
-          深さ <code style={styles.codeText}>h</code> における水圧は <code style={styles.codeText}>p = p₀ + ρgh</code> です。<br />
-          円柱の物体を水中に沈めたとき、上面を下向きに押す力 $F_1 = (p_0 + \rho g h_1)S$ と、下面を上向きに押す力 $F_2 = (p_0 + \rho g h_2)S$ の差をとると：
-        </p>
+        <div style={styles.cardBodyText}>
+          <p style={{ margin: '0 0 6px 0' }}>
+            <FormattedText text="深さ $h$ における水圧は $p = p_0 + \rho g h$ です。" />
+          </p>
+          <p style={{ margin: 0 }}>
+            <FormattedText text="円柱の物体を水中に沈めたとき、上面を下向きに押す力 $F_1 = (p_0 + \rho g h_1)S$ と、下面を上向きに押す力 $F_2 = (p_0 + \rho g h_2)S$ の差をとると：" />
+          </p>
+        </div>
         
         <div style={styles.equationBox}>
-          F_浮力 = F₂ - F₁ = ρg(h₂ - h₁)S = ρVg
+          <FormattedText text="$$F_{\text{浮力}} = F_2 - F_1 = \rho g (h_2 - h_1)S = \rho V g$$" />
         </div>
 
         <div style={styles.noteBox}>
           <Lightbulb size={15} color="#fbbf24" style={{ flexShrink: 0, marginTop: '2px' }} />
           <span style={styles.noteText}>
-            <b>ポイント:</b> 物体の質量（物体の密度）ではなく、<b>「周囲の流体の密度 ρ」</b> を使う点につまずきやすいので注意しましょう。
+            <b>ポイント:</b> 物体の質量（物体の密度）ではなく、<b>「周囲の流体の密度 <FormattedText text="$\rho$" />」</b> を使う点につまずきやすいので注意しましょう。
           </span>
         </div>
       </section>
@@ -73,7 +78,6 @@ export default function LawBuoyancyArchimedes() {
     </div>
   );
 }
-
 const styles: Record<string, React.CSSProperties> = {
   cardInfo: {
     backgroundColor: '#1e293b',
@@ -105,12 +109,11 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #312e81',
   },
   formulaDisplay: {
-    fontSize: '24px',
+    fontSize: '22px',
     fontWeight: 'bold',
-    fontFamily: 'monospace',
     color: '#4ade80',
     margin: '8px 0 4px',
-    letterSpacing: '0.05em',
+    textAlign: 'center',
   },
   formulaGrid: {
     width: '100%',
@@ -130,7 +133,6 @@ const styles: Record<string, React.CSSProperties> = {
   symbol: {
     color: '#38bdf8',
     fontWeight: 'bold',
-    fontFamily: 'monospace',
   },
   unit: {
     color: '#64748b',
@@ -158,25 +160,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '13px',
     lineHeight: '1.6',
     color: '#e2e8f0',
-    margin: 0,
-  },
-  codeText: {
-    color: '#38bdf8',
-    backgroundColor: '#0f172a',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    fontFamily: 'monospace',
   },
   equationBox: {
     backgroundColor: '#0f172a',
-    padding: '10px',
+    padding: '12px 10px',
     borderRadius: '6px',
     border: '1px solid #1e293b',
     textAlign: 'center',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
+    fontSize: '15px',
     color: '#4ade80',
+    overflowX: 'auto',
   },
   noteBox: {
     display: 'flex',
