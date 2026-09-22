@@ -147,15 +147,6 @@ scrollBody: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scrollBody: {
-    padding: '18px',
-    overflowY: 'auto',
-    overscrollBehavior: 'contain', // 背面画面へのスクロール伝播を防止
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    flex: 1,
-  },
   headerSection: {
     display: 'flex',
     flexDirection: 'column',
