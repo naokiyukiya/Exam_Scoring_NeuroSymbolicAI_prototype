@@ -296,6 +296,37 @@
       }
     },
     {
+      "id": "law_fluid_pressure",
+      "name": "水圧（静止流体の圧力）",
+      "prompt_data": {
+        "type": "law",
+        "variables": {
+          "p": "深さ h における流体中の圧力（水圧）",
+          "p_0": "大気圧（液面の圧力）",
+          "rho": "流体の密度",
+          "g": "重力加速度",
+          "h": "液面からの深さ"
+        },
+        "inputs": {
+          "atmospheric_pressure": "p_0",
+          "fluid_density": "rho",
+          "gravity_acc": "g",
+          "depth": "h"
+        },
+        "outputs": {
+          "fluid_pressure": "p = p_0 + rho * g * h"
+        }
+      },
+      "symbolic_verification": {
+        "sympy_equations": ["Eq(p, p_0 + rho * g * h)"],
+        "constraints": ["rho > 0", "g > 0", "h >= 0"]
+      },
+      "ui_data": {
+        "explanation_html": "",
+        "render_script": ""
+      }
+    },
+    {
       "id": "law_buoyancy_archimedes",
       "name": "アルキメデスの原理（浮力）",
       "prompt_data": {
