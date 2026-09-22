@@ -5,7 +5,7 @@ import theorems from '../../../lib/constants/mathematics.json';
 
 // ★ タイムアウトを60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.23.0"; // バージョンを更新
+const PROMPT_VERSION = "1.24.0"; // バージョンを更新
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
@@ -185,7 +185,10 @@ export async function GET(request: NextRequest) {
    - 命題ノードの 'label' には、生徒の答案に書かれている日本語のテキストを含め、**ありのまま**抽出してください。
    - その代わり、命題ノードには必ず 'math_expr' というキーを追加し、そこには**SymPyで計算・検証するための純粋な数式のみ**を記述してください。
    - もし 'label' が「AをBで割ると商はQ、余りはR」という日本語であった場合、'math_expr' には「A = B * Q + R」という等式に翻訳して格納してください。数式のみの命題の場合は、'label' と 'math_expr' は同じ内容で構いません。
-
+14. 【解の範囲の表現（カンマ禁止）】:
+   - 解の範囲や複数の条件を列挙する際、「x <= -1, 8/3 <= x」のようにカンマ「,」を使って区切ることは【絶対禁止】です。
+   - 必ず文脈に合わせて「x <= -1 または 8/3 <= x」や「x > 0 かつ x != 1」のように、「または」「かつ」という論理記号を日本語で明記してください。
+   
 [出力形式 (Format)]
 - 以下のJSONフォーマットに厳密に従ってください。
 

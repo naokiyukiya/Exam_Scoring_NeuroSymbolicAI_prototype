@@ -71,7 +71,14 @@ def verify_expressions(req: VerifyRequest):
             all_vars = list(vars1.union(vars2))
             
             if all_vars:
-                test_points = [-10.1, -3.0, -1.0, -0.5, 0.0, 1.0, 1.9, 2.0, 2.1, 2.5, 2.6666, 2.7, 3.0, 10.1]
+                # 【修正1】エラーの起きる小数(float)を禁止し、すべて完璧に計算できる分数(Rational)に置き換える
+                test_points = [
+                    sympy.Rational(-101, 10), sympy.Rational(-3, 1), sympy.Rational(-1, 1),
+                    sympy.Rational(-1, 2), sympy.Rational(0, 1), sympy.Rational(1, 1),
+                    sympy.Rational(19, 10), sympy.Rational(2, 1), sympy.Rational(21, 10),
+                    sympy.Rational(5, 2), sympy.Rational(8, 3), sympy.Rational(27, 10),
+                    sympy.Rational(3, 1), sympy.Rational(101, 10)
+                ]
                 
                 # ANDパターンとORパターンの両方をテストする
                 for e1_test in [e1_and, e1_or]:
@@ -83,13 +90,14 @@ def verify_expressions(req: VerifyRequest):
                     
                     for pt in test_points:
                         try:
-                            # 【超重要】P や x など、複数の文字が存在する場合、すべてに別々の数値を代入してエラーを防ぐ
-                            subs_dict = {v: pt + 0.1 * i for i, v in enumerate(all_vars)}
+                            # 【修正2】複数変数の場合も、ズレ幅を分数(Rational)で足すようにする
+                            subs_dict = {v: pt + sympy.Rational(i, 10) for i, v in enumerate(all_vars)}
                             
                             if domain_expr is not None:
                                 if not bool(domain_expr.subs(subs_dict)):
                                     continue
                                     
+                            # 分数なので、SymPyは確実に True/False のブール値を返してくれる（エラーにならない）
                             val1 = bool(e1_test.subs(subs_dict))
                             val2 = bool(e2.subs(subs_dict))
                             
@@ -98,10 +106,8 @@ def verify_expressions(req: VerifyRequest):
                                 points_matched = False
                                 break
                         except Exception:
-                            # 計算不能な点（0割りなど）はスキップ
                             continue
                     
-                    # 有効なテストが1回以上行われ、すべて一致した場合のみ正解
                     if points_matched and valid_test_count > 0:
                         is_eq = True
                         break

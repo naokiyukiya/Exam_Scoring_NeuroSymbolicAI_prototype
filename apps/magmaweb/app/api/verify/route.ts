@@ -67,8 +67,8 @@ function formatForSympy(str: string): string {
     s = s.replace(compRegex, 'And($1 $2 $3, $3 $4 $5)');
   }
 
-  // ノットイコール ≠ を Ne(A, B) に安全に変換
-  const notEqRegex = /([^=<>≠]+)\s*≠\s*([^=<>≠]+)/g;
+  // ノットイコール ≠ および != を Ne(A, B) に安全に変換
+  const notEqRegex = /([^=<>≠!]+)\s*(?:≠|!=)\s*([^=<>≠!]+)/g;
   s = s.replace(notEqRegex, 'Ne($1, $2)');
 
   // 微積・シグマ・対数などの変換
