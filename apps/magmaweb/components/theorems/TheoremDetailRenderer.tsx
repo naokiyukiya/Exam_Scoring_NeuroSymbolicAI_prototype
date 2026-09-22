@@ -3,7 +3,8 @@
 import React from 'react';
 import physicsData from '../../lib/constants/physics.json';
 import { theoremComponentMap } from './registry';
-import { BookOpen, X, Sparkles, Variable } from 'lucide-react';
+import { X, Sparkles, Atom } from 'lucide-react';
+import FormattedText from '../FormattedText'; // ★ FormattedText をインポート
 
 interface Props {
   theoremId: string;
@@ -18,11 +19,7 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
     return (
       <div style={styles.container}>
         {onClose && (
-          <div style={styles.headerBar}>
-            <div style={styles.headerTag}>
-              <BookOpen size={15} color="#818cf8" />
-              <span style={styles.headerTagText}>PHYSICS THEOREM</span>
-            </div>
+          <div style={{ ...styles.headerBar, justifyContent: 'flex-end' }}>
             <button onClick={onClose} style={styles.closeButton} aria-label="閉じる">
               <X size={18} />
             </button>
@@ -39,12 +36,9 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
 
   return (
     <div style={styles.container}>
-      {/* ヘッダーバー */}
+      {/* 1. ヘッダーバー（タグ文字を消して閉じるボタンのみ、右寄せに配置） */}
       <div style={styles.headerBar}>
-        <div style={styles.headerTag}>
-          <BookOpen size={15} color="#818cf8" />
-          <span style={styles.headerTagText}>PHYSICS THEOREM / {theorem.id}</span>
-        </div>
+        <div /> {/* 空のdivで右寄せを維持 */}
         {onClose && (
           <button onClick={onClose} style={styles.closeButton} aria-label="閉じる">
             <X size={18} />
@@ -57,18 +51,20 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
         <header style={styles.headerSection}>
           <h1 style={styles.title}>{theorem.name}</h1>
           
-          {/* 変数・物理量リスト */}
+          {/* 2. 変数・物理量リスト */}
           {theorem.prompt_data?.variables && (
             <div style={styles.variableBox}>
               <div style={styles.variableTitle}>
-                <Variable size={14} color="#38bdf8" />
+                {/* 物理量に合ったAtomアイコンに変更 */}
+                <Atom size={15} color="#38bdf8" />
                 <span>登場する物理量・記号</span>
               </div>
               <div style={styles.variableGrid}>
                 {Object.entries(theorem.prompt_data.variables).map(([key, val]) => (
                   <div key={key} style={styles.variableItem}>
+                    {/* 3. 記号（key）を FormattedText に渡して LaTeX 化 ($rho$ -> ρ) */}
                     <span style={styles.variableSymbol}>
-                      <span className="font-mono text-cyan-400 font-bold">{key}</span>
+                      <FormattedText text={`$${key}$`} />
                     </span>
                     <span style={styles.variableDesc}>: {val as string}</span>
                   </div>
@@ -95,46 +91,26 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-// TheoremDetailRenderer.tsx 内の styles
-container: {
-  width: '100%',
-  height: '100%',
-  maxHeight: '100%',
-  backgroundColor: '#0f172a',
-  color: '#f8fafc',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden', // 全体の溢れをカット
-},
-headerBar: {
-  padding: '12px 16px',
-  borderBottom: '1px solid #1e293b',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  backgroundColor: '#0f172a',
-  flexShrink: 0, // ヘッダーは縮ませない
-},
-scrollBody: {
-  padding: '18px',
-  overflowY: 'auto',              // ★ここで縦スクロールを発生させる
-  overscrollBehavior: 'contain',  // 背面へのスクロール伝播を防止
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '16px',
-  flex: 1,                       // ★残りの高さをすべて伸ばして使う
-  minHeight: 0,                  // ★Flexbox内でスクロールさせるための重要プロパティ！
-},
-  headerTag: {
+  container: {
+    width: '100%',
+    height: '100%',
+    maxHeight: '100%',
+    backgroundColor: '#0f172a',
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    borderRadius: '16px',
+    overflow: 'hidden',
+    boxSizing: 'border-box',
+  },
+  headerBar: {
+    padding: '12px 16px',
+    borderBottom: '1px solid #1e293b',
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-  },
-  headerTagText: {
-    fontSize: '11px',
-    fontWeight: 'bold',
-    color: '#818cf8',
-    letterSpacing: '0.05em',
+    justifyContent: 'space-between',
+    backgroundColor: '#0f172a',
+    flexShrink: 0,
   },
   closeButton: {
     background: '#1e293b',
@@ -146,6 +122,16 @@ scrollBody: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  scrollBody: {
+    padding: '18px',
+    overflowY: 'auto',
+    overscrollBehavior: 'contain',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    flex: 1,
+    minHeight: 0,
   },
   headerSection: {
     display: 'flex',
@@ -188,7 +174,6 @@ scrollBody: {
   variableSymbol: {
     color: '#38bdf8',
     fontWeight: 'bold',
-    fontFamily: 'monospace',
   },
   variableDesc: {
     color: '#cbd5e1',
