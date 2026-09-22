@@ -4,11 +4,44 @@ import React from 'react';
 import physicsData from '../../lib/constants/physics.json';
 import { theoremComponentMap } from './registry';
 import { X, Sparkles, Atom } from 'lucide-react';
-import FormattedText from '../FormattedText'; // ★ FormattedText をインポート
+import FormattedText from '../FormattedText';
 
 interface Props {
   theoremId: string;
   onClose?: () => void;
+}
+
+// キー文字列（例: "rho", "F_b", "p_0"）を正しい LaTeX コマンドに整形する関数
+function formatSymbolKey(key: string): string {
+  // よく使われるギリシャ文字の変換マップ
+  const greekMap: Record<string, string> = {
+    rho: '\\rho',
+    theta: '\\theta',
+    alpha: '\\alpha',
+    beta: '\\beta',
+    gamma: '\\gamma',
+    omega: '\\omega',
+    mu: '\\mu',
+    lambda: '\\lambda',
+    pi: '\\pi',
+    sigma: '\\sigma',
+    phi: '\\phi',
+    epsilon: '\\epsilon',
+    delta: '\\delta',
+  };
+
+  let formatted = key;
+
+  // 1. ギリシャ文字の置換 (単語境界で置換)
+  Object.entries(greekMap).forEach(([raw, latex]) => {
+    const regex = new RegExp(`\\b${raw}\\b`, 'g');
+    formatted = formatted.replace(regex, latex);
+  });
+
+  // 2. 下付き文字 (例: F_b -> F_{b})
+  formatted = formatted.replace(/_([a-zA-Z0-9]+)/g, '_{$1}');
+
+  return `$${formatted}$`;
 }
 
 export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
@@ -36,9 +69,9 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
 
   return (
     <div style={styles.container}>
-      {/* 1. ヘッダーバー（タグ文字を消して閉じるボタンのみ、右寄せに配置） */}
+      {/* ヘッダーバー */}
       <div style={styles.headerBar}>
-        <div /> {/* 空のdivで右寄せを維持 */}
+        <div />
         {onClose && (
           <button onClick={onClose} style={styles.closeButton} aria-label="閉じる">
             <X size={18} />
@@ -51,20 +84,19 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
         <header style={styles.headerSection}>
           <h1 style={styles.title}>{theorem.name}</h1>
           
-          {/* 2. 変数・物理量リスト */}
+          {/* 変数・物理量リスト */}
           {theorem.prompt_data?.variables && (
             <div style={styles.variableBox}>
               <div style={styles.variableTitle}>
-                {/* 物理量に合ったAtomアイコンに変更 */}
                 <Atom size={15} color="#38bdf8" />
                 <span>登場する物理量・記号</span>
               </div>
               <div style={styles.variableGrid}>
                 {Object.entries(theorem.prompt_data.variables).map(([key, val]) => (
                   <div key={key} style={styles.variableItem}>
-                    {/* 3. 記号（key）を FormattedText に渡して LaTeX 化 ($rho$ -> ρ) */}
+                    {/* ★ formatSymbolKey 関数を通して LaTeX 記法に自動整形！ */}
                     <span style={styles.variableSymbol}>
-                      <FormattedText text={`$${key}$`} />
+                      <FormattedText text={formatSymbolKey(key)} />
                     </span>
                     <span style={styles.variableDesc}>: {val as string}</span>
                   </div>
@@ -74,7 +106,7 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
           )}
         </header>
 
-        {/* 動的コンポーネント（個別の解説コンテンツ） */}
+        {/* 動的コンポーネント */}
         <main style={styles.mainContent}>
           {ContentComponent ? (
             <ContentComponent theorem={theorem} />
