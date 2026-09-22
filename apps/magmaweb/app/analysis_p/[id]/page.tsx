@@ -113,6 +113,23 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const [debugDetails, setDebugDetails] = useState<string | null>(null)
   const [debugRawText, setDebugRawText] = useState<string | null>(null)
 
+  //スクロール防止！
+  // モーダルが開いているか判定
+const isAnyModalOpen = Boolean(isStepViewerOpen || selectedTheoremId || selectedTheorem);
+
+// モーダル表示時に背景（body）のスクロールをロック
+useEffect(() => {
+  if (isAnyModalOpen) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+
+  return () => {
+    document.body.style.overflow = '';
+  };
+}, [isAnyModalOpen]);
+
   useEffect(() => {
     async function loadAnalysisData() {
       try {
@@ -1236,26 +1253,29 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 'bold',
   },
   theoremModalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    backdropFilter: 'blur(4px)',
-    zIndex: 3000,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '16px',
+position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 2000,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  backdropFilter: 'blur(4px)',
+  padding: '16px',
   },
-  theoremModalContainer: {
-    width: '100%',
-    maxWidth: '500px',
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-  },
+theoremModalContainer: {
+  width: '100%',
+  maxWidth: '768px',
+  maxHeight: '85vh',     // ★画面高さの85%までに制限
+  overflowY: 'auto',     // ★中身が溢れたら「この枠の中」でスクロールさせる
+  backgroundColor: '#0f172a',
+  borderRadius: '16px',
+  border: '1px solid #1e293b',
+  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+},
   theoremModalHeader: {
     padding: '14px 16px',
     borderBottom: '1px solid #f1f5f9',
