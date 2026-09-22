@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import AnswerCard from '../../../components/AnswerCard'
-import DagVisualizer from '../../../components/DagVisualizer'
+// import DagVisualizer from '../../../components/DagVisualizer'
 import { 
   CircleArrowLeft, 
   Layers, 
@@ -17,7 +17,6 @@ import {
   Sparkles 
 } from 'lucide-react'
 
-// 研究用グラフデータの型宣言
 type Node = {
   id: string
   label: string
@@ -42,24 +41,16 @@ type GraphData = {
 export default function AnalysisPhysicsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [answerData, setAnswerData] = useState<any>(null)
-  
-  // 厳密な構造化DAGデータをステートで持つ
   const [graphData, setGraphData] = useState<GraphData | null>(null)
-  
-  // AIが生成したグラフ構築用プログラム（JSON文字列）をそのまま保持するステート
   const [rawGraphData, setRawGraphData] = useState<string | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [isVerifying, setIsVerifying] = useState(false)
 
-  // 一歩ごとの解説モード用のステート
   const [isStepViewerOpen, setIsStepViewerOpen] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
-
-  // 定理解説モーダル用のステート
   const [selectedTheorem, setSelectedTheorem] = useState<string | null>(null)
 
-  // デバッグ用ステート
   const [debugError, setDebugError] = useState<string | null>(null)
   const [debugDetails, setDebugDetails] = useState<string | null>(null)
   const [debugRawText, setDebugRawText] = useState<string | null>(null)
@@ -72,7 +63,6 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
 
-        // ① posts から該当の答案データを取得
         const { data: post, error: pError } = await supabase
           .from('posts')
           .select(`
@@ -91,28 +81,24 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
         if (pError) throw pError
         setAnswerData(post)
 
-        // ② ★物理用API (/api/analyze/physics) を呼び出す
         const res = await fetch(`/api/analyze/physics?answerId=${params.id}`, {
           method: 'GET',
         })
 
         const json = await res.json()
 
-        // HTTPステータスが200以外のエラーだった場合
         if (!res.ok) {
-          setDebugError(`APIがエラーステータス ${res.status} を返しました`)
+          setDebugError(`APIエラー (${res.status})`)
           setDebugDetails(json.error + (json.details ? `\n${json.details}` : ''))
           return
         }
 
-        // 200が戻ってきたが、APIの内部パースエラーなどで error フラグが入っている場合
         if (json.error) {
           setDebugError(json.error)
           if (json.rawText) setDebugRawText(json.rawText)
           return
         }
         
-        // APIから戻ってきた { imageUrl, graph } の構造から graph を抽出
         if (json.graph) {
           setGraphData(json.graph)
           
@@ -125,7 +111,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
 
       } catch (e: any) {
         console.error('物理診断書データ同期エラー:', e)
-        setDebugError('フロントエンドの処理中に例外が発生しました')
+        setDebugError('例外が発生しました')
         setDebugDetails(e?.message || String(e))
       } finally {
         setLoading(false)
@@ -135,7 +121,6 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
     loadAnalysisData()
   }, [params.id])
 
-  // ★ 物理用論理・数式検証ボタンの処理 ( /api/verify または SymPy検証用 )
   const handleVerify = async () => {
     if (!graphData) return
     setIsVerifying(true)
@@ -148,7 +133,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
 
       const json = await res.json()
       if (!res.ok) {
-        throw new Error(json.error || '検証に失敗しました')
+        throw new Error(json.error || '検証エラー')
       }
 
       if (json.nodes) {
@@ -166,11 +151,9 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
     }
   }
 
-  // --- 一歩ごとの解説モード関連の計算 ---
   const inferenceNodes = graphData?.nodes.filter(n => n.type === 'inference') || []
   const currentInference = inferenceNodes[currentStepIndex]
 
-  // 現在注目している推論ノードの入力（前段）ノードと出力（後段）ノードを取得
   const inputNodeIds = graphData?.edges.filter(e => e.to === currentInference?.id).map(e => e.from) || []
   const outputNodeIds = graphData?.edges.filter(e => e.from === currentInference?.id).map(e => e.to) || []
 
@@ -178,40 +161,38 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const outputNodes = graphData?.nodes.filter(n => outputNodeIds.includes(n.id)) || []
 
   if (loading) {
-    return <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>物理構造の解析中…</div>
+    return <div style={{ padding: 20, textAlign: 'center', color: '#666', fontSize: '14px' }}>解析中...</div>
   }
 
   if (!answerData) {
-    return <div style={{ padding: 20, textAlign: 'center', color: '#666' }}>答案が見つかりませんでした</div>
+    return <div style={{ padding: 20, textAlign: 'center', color: '#666', fontSize: '14px' }}>答案が見つかりませんでした</div>
   }
 
   return (
     <div style={styles.container}>
-      {/* ヘッダーエリア */}
+      {/* ヘッダー */}
       <div style={styles.header}>
         <button onClick={() => router.back()} style={styles.backButton}>
-          <CircleArrowLeft size={30} />
+          <CircleArrowLeft size={24} />
         </button>
-        <h1 style={styles.title}>物理構造・推論 診断書</h1>
+        <h1 style={styles.title}>物理推論 診断書</h1>
       </div>
 
       {/* デバッグモニター */}
       {(debugError || debugDetails || debugRawText) && (
         <div style={styles.debugBox}>
           <div style={styles.debugHeader}>
-            <AlertTriangle size={20} color="#ff4d4d" />
-            <span style={styles.debugTitle}>デバッグモニター (データ未着の原因)</span>
+            <AlertTriangle size={18} color="#dc2626" />
+            <span style={styles.debugTitle}>デバッグモニター</span>
           </div>
           {debugError && <p style={styles.debugItem}><strong>Error:</strong> {debugError}</p>}
           {debugDetails && (
             <div style={styles.debugItem}>
-              <strong>Details:</strong>
               <pre style={styles.debugPre}>{debugDetails}</pre>
             </div>
           )}
           {debugRawText && (
             <div style={styles.debugItem}>
-              <strong>Geminiが返してきた生のテキストデータ:</strong>
               <pre style={styles.debugRawPre}>{debugRawText}</pre>
             </div>
           )}
@@ -219,7 +200,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
       )}
 
       <div style={styles.mainGrid}>
-        {/* 左側：答案カード */}
+        {/* 答案カード */}
         <div style={styles.cardSection}>
           <AnswerCard
             image={answerData.image_url}
@@ -231,33 +212,30 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
           />
         </div>
 
-        {/* 右側：解析された物理DAG構造可視化エリア */}
+        {/* 物理推論エリア */}
         <div style={styles.analysisSection}>
           <div style={styles.analysisHeaderRow}>
             <div style={styles.analysisHeader}>
-              <Layers size={20} color="#4D96FF" />
-              <span style={styles.analysisTitle}>解析された物理推論のDAG構造</span>
+              <Layers size={18} color="#2563eb" />
+              <span style={styles.analysisTitle}>物理推論構造</span>
             </div>
             <button 
               onClick={handleVerify} 
               disabled={isVerifying || !graphData}
               style={styles.verifyButton}
             >
-              {isVerifying ? '検証中...' : '物理推論を検証する'}
+              {isVerifying ? '検証中' : '検証'}
             </button>
           </div>
 
-          {/* ★ 一歩ごとの解説モード起動アクションエリア */}
+          {/* 解説モード起動ボタン */}
           {graphData && inferenceNodes.length > 0 && (
             <div style={styles.stepLauncherBanner}>
               <div style={styles.stepLauncherTextGroup}>
                 <div style={styles.stepLauncherTitle}>
-                  <Sparkles size={18} color="#6366f1" />
-                  <span>思考の変形プロセスを1ステップずつ追う</span>
+                  <Sparkles size={16} color="#4f46e5" />
+                  <span>ステップ別の推論確認</span>
                 </div>
-                <p style={styles.stepLauncherSub}>
-                  自分がどこでつまずいたのか、式変形と適用定理を順番に確認してみよう！
-                </p>
               </div>
               <button
                 onClick={() => {
@@ -266,26 +244,25 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                 }}
                 style={styles.stepLauncherButton}
               >
-                <Footprints size={18} />
-                一歩ごとの解説モードをスタート
+                <Footprints size={16} />
+                順にたどる
               </button>
             </div>
           )}
 
           <div style={styles.analysisBody}>
-            {graphData ? (
+            {/* ★ グラフ描画はスマホクラッシュ防止のため一時停止中 */}
+            {/* {graphData ? (
               <DagVisualizer graphData={graphData} />
             ) : (
-              <div style={styles.errorText}>
-                物理構造のグラフデータを読み込めませんでした。上のデバッグモニターを確認してください。
-              </div>
-            )}
+              <div style={styles.errorText}>グラフデータを読み込めませんでした</div>
+            )} */}
           </div>
 
-          {/* グラフ構造プログラム（JSON）表示エリア */}
+          {/* JSON表示エリア */}
           {rawGraphData && (
             <div style={styles.codeContainer}>
-              <h3 style={styles.codeTitle}>📝 物理グラフ構築プログラム (JSONデータ)</h3>
+              <h3 style={styles.codeTitle}>グラフJSON</h3>
               <pre style={styles.codeBlock}>
                 {rawGraphData}
               </pre>
@@ -294,19 +271,16 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 🐾 一歩ごとの解説モード（Step-by-Step Viewer モーダル） */}
-      {/* ========================================================================= */}
+      {/* ステップ別確認モーダル */}
       {isStepViewerOpen && currentInference && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContainer}>
-            {/* モーダルヘッダー */}
             <div style={styles.modalHeader}>
               <div style={styles.modalHeaderTitleGroup}>
-                <Footprints size={22} color="#6366f1" />
-                <span style={styles.modalHeaderTitle}>一歩ごとの論理検証モード</span>
+                <Footprints size={18} color="#4f46e5" />
+                <span style={styles.modalHeaderTitle}>ステップ確認</span>
                 <span style={styles.stepBadge}>
-                  Step {currentStepIndex + 1} / {inferenceNodes.length}
+                  {currentStepIndex + 1} / {inferenceNodes.length}
                 </span>
                 {currentInference.sub_question && (
                   <span style={styles.subQuestionBadge}>
@@ -318,20 +292,16 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                 onClick={() => setIsStepViewerOpen(false)}
                 style={styles.closeButton}
               >
-                <X size={22} />
+                <X size={20} />
               </button>
             </div>
 
-            {/* モーダルメイン表示部 */}
             <div style={styles.modalBody}>
-              {/* ステップカード */}
               <div style={styles.stepCard}>
-                <h3 style={styles.stepCardTitle}>【このステップで行われている変形・推論】</h3>
-                
                 <div style={styles.stepGrid}>
-                  {/* 前の式（Inputs） */}
+                  {/* Inputs */}
                   <div style={styles.stepBox}>
-                    <span style={styles.inputBadge}>【使う前提・根拠】</span>
+                    <span style={styles.inputBadge}>前提</span>
                     {inputNodes.length > 0 ? (
                       inputNodes.map(node => (
                         <div key={node.id} style={styles.nodeItemText}>
@@ -339,21 +309,21 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                         </div>
                       ))
                     ) : (
-                      <div style={styles.nodeItemTextEmpty}>（問題設定または直前の条件）</div>
+                      <div style={styles.nodeItemTextEmpty}>-</div>
                     )}
                   </div>
 
-                  {/* 変形・適用定理 */}
+                  {/* Inference */}
                   <div style={styles.stepCenterBox}>
-                    <span style={styles.inferenceBadge}>【適用した考え方・定理】</span>
+                    <span style={styles.inferenceBadge}>適用定理</span>
                     <p style={styles.inferenceText}>
                       {currentInference.label}
                     </p>
                   </div>
 
-                  {/* 次の式（Outputs） */}
+                  {/* Outputs */}
                   <div style={styles.stepBox}>
-                    <span style={styles.outputBadge}>【導かれる結果】</span>
+                    <span style={styles.outputBadge}>導出結果</span>
                     {outputNodes.length > 0 ? (
                       outputNodes.map(node => (
                         <div key={node.id} style={styles.nodeItemText}>
@@ -361,33 +331,30 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                         </div>
                       ))
                     ) : (
-                      <div style={styles.nodeItemTextEmpty}>（次の結論へ接続）</div>
+                      <div style={styles.nodeItemTextEmpty}>-</div>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* 熱い定理解説への導線カード💪 */}
+              {/* 定理解説への導線 */}
               <div style={styles.theoremBanner}>
                 <div style={styles.theoremBannerText}>
                   <div style={styles.theoremBannerTitle}>
-                    <BookOpen size={20} color="#818cf8" />
-                    <span>この思考ステップに不安はありますか？</span>
+                    <BookOpen size={16} color="#6366f1" />
+                    <span>定理の理解を深める</span>
                   </div>
-                  <p style={styles.theoremBannerSub}>
-                    「なぜこの式変形になるのか」「なぜこの定理が使えるのか」を根底から徹底解説！
-                  </p>
                 </div>
                 <button
                   onClick={() => setSelectedTheorem(currentInference.label)}
                   style={styles.theoremButton}
                 >
-                  💪 定理の解説ページを見る
+                  解説を見る
                 </button>
               </div>
             </div>
 
-            {/* モーダルフッター（ナビゲーション操作） */}
+            {/* ナビゲーション */}
             <div style={styles.modalFooter}>
               <button
                 disabled={currentStepIndex === 0}
@@ -397,10 +364,9 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                   ...(currentStepIndex === 0 ? styles.navButtonDisabled : {})
                 }}
               >
-                <ArrowLeft size={16} /> 前のステップ
+                <ArrowLeft size={14} /> 前へ
               </button>
 
-              {/* ドット/番号インジケーター */}
               <div style={styles.stepIndicatorList}>
                 {inferenceNodes.map((_, idx) => (
                   <button
@@ -424,44 +390,39 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                   ...(currentStepIndex === inferenceNodes.length - 1 ? styles.navButtonDisabled : {})
                 }}
               >
-                次のステップ <ArrowRight size={16} />
+                次へ <ArrowRight size={14} />
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* 💪 俺が書く定理解説モーダル */}
-      {/* ========================================================================= */}
+      {/* 定理解説モーダル */}
       {selectedTheorem && (
         <div style={styles.theoremModalOverlay}>
           <div style={styles.theoremModalContainer}>
             <div style={styles.theoremModalHeader}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BookOpen size={22} color="#6366f1" />
-                <h2 style={{ fontSize: 18, fontWeight: 'bold', margin: 0, color: '#1e293b' }}>
-                  【執筆中解説】{selectedTheorem}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <BookOpen size={18} color="#2563eb" />
+                <h2 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: '#0f172a' }}>
+                  {selectedTheorem}
                 </h2>
               </div>
               <button
                 onClick={() => setSelectedTheorem(null)}
                 style={styles.closeButton}
               >
-                <X size={22} />
+                <X size={20} />
               </button>
             </div>
             
             <div style={styles.theoremModalBody}>
-              <div style={styles.authorMessage}>
-                💪 <strong>熱血定理解説ノート</strong>
-              </div>
-              <p style={{ lineHeight: 1.7, color: '#334155', fontSize: 15 }}>
-                ここに <strong>{selectedTheorem}</strong> についての本質的な物理的意味、よくあるミスの罠、式の導出イメージなどを解説するオリジナルコンテンツが入ります！
+              <p style={{ lineHeight: 1.6, color: '#334155', fontSize: '14px', margin: 0 }}>
+                {selectedTheorem} に関する本質的解説ページです。
               </p>
               <div style={styles.placeholderBox}>
-                <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>
-                  ※ 定理解説コンテンツは現在制作・拡充中です。お楽しみに！
+                <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
+                  解説コンテンツ準備中
                 </p>
               </div>
             </div>
@@ -471,7 +432,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                 onClick={() => setSelectedTheorem(null)}
                 style={styles.closeModalButton}
               >
-                理解できた！ステップに戻る
+                閉じる
               </button>
             </div>
           </div>
@@ -483,394 +444,362 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
 
 const styles = {
   container: {
-    maxWidth: '800px',
+    maxWidth: '640px',
     margin: '0 auto',
-    padding: '16px 8px 48px',
-    backgroundColor: '#fff',
+    padding: '12px 12px 32px',
+    backgroundColor: '#ffffff',
     minHeight: '100vh',
+    boxSizing: 'border-box' as const,
   },
   header: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: 16,
   },
   backButton: {
     background: 'none',
     border: 'none',
-    color: '#333',
+    color: '#0f172a',
     cursor: 'pointer',
+    padding: 0,
     display: 'flex',
     alignItems: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#222',
+    fontSize: '18px',
+    fontWeight: 'bold' as const,
+    color: '#0f172a',
+    margin: 0,
   },
   mainGrid: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: 20,
+    gap: 16,
   },
   cardSection: {
     width: '100%',
-    filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.05))',
   },
   analysisSection: {
-    background: '#f9f9fb',
-    border: '1px solid #f0f0f4',
-    borderRadius: '20px',
-    padding: '20px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.01)',
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    padding: '12px',
   },
   analysisHeaderRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottom: '1px solid #eee',
-    paddingBottom: 10,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   analysisHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   analysisTitle: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#333',
+    fontWeight: 'bold' as const,
+    fontSize: '14px',
+    color: '#0f172a',
   },
   verifyButton: {
     backgroundColor: '#2563eb',
-    color: '#fff',
+    color: '#ffffff',
     border: 'none',
-    padding: '6px 14px',
-    borderRadius: '8px',
+    padding: '4px 12px',
+    borderRadius: '6px',
     fontWeight: 'bold' as const,
-    fontSize: '13px',
+    fontSize: '12px',
     cursor: 'pointer',
   },
 
-  // ★ 一歩ごとの解説モード起動バナー
   stepLauncherBanner: {
     display: 'flex',
-    flexDirection: 'row' as const,
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-    backgroundColor: '#eef2ff',
-    border: '1px solid #c7d2fe',
-    borderRadius: '12px',
-    padding: '12px 16px',
-    marginBottom: '16px',
-    flexWrap: 'wrap' as const,
+    gap: 8,
+    backgroundColor: '#eff6ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '8px',
+    padding: '8px 12px',
+    marginBottom: '12px',
   },
   stepLauncherTextGroup: {
     display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 2,
+    alignItems: 'center',
   },
   stepLauncherTitle: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     fontWeight: 'bold' as const,
-    fontSize: '15px',
-    color: '#312e81',
-  },
-  stepLauncherSub: {
-    margin: 0,
-    fontSize: '12px',
-    color: '#4338ca',
+    fontSize: '13px',
+    color: '#1e40af',
   },
   stepLauncherButton: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#4f46e5',
+    gap: 4,
+    backgroundColor: '#2563eb',
     color: '#ffffff',
     border: 'none',
-    padding: '10px 18px',
-    borderRadius: '10px',
+    padding: '6px 12px',
+    borderRadius: '6px',
     fontWeight: 'bold' as const,
-    fontSize: '14px',
+    fontSize: '12px',
     cursor: 'pointer',
-    boxShadow: '0 4px 10px rgba(79, 70, 229, 0.25)',
-    transition: 'all 0.2s',
+    whiteSpace: 'nowrap' as const,
   },
 
   analysisBody: {
     width: '100%',
   },
   errorText: {
-    color: '#ff6b6b',
-    fontSize: '14px',
+    color: '#ef4444',
+    fontSize: '12px',
     textAlign: 'center' as const,
-    padding: '20px 0',
+    padding: '12px 0',
   },
   debugBox: {
-    backgroundColor: '#fff5f5',
-    border: '2px solid #ffcccc',
-    borderRadius: '16px',
-    padding: '16px',
-    marginBottom: '20px',
+    backgroundColor: '#fef2f2',
+    border: '1px solid #fecaca',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '16px',
   },
-  debugHeader: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: '12px' },
-  debugTitle: { fontWeight: 'bold' as const, color: '#e53e3e', fontSize: '15px' },
-  debugItem: { fontSize: '13px', color: '#2d3748', marginBottom: '8px' },
-  debugPre: { backgroundColor: '#edf2f7', padding: '8px', borderRadius: '6px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace' },
-  debugRawPre: { backgroundColor: '#1a202c', color: '#aeebd0', padding: '12px', borderRadius: '8px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.4 },
+  debugHeader: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: '8px' },
+  debugTitle: { fontWeight: 'bold' as const, color: '#dc2626', fontSize: '13px' },
+  debugItem: { fontSize: '12px', color: '#334155', marginBottom: '6px' },
+  debugPre: { backgroundColor: '#f1f5f9', padding: '6px', borderRadius: '4px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '11px' },
+  debugRawPre: { backgroundColor: '#0f172a', color: '#38bdf8', padding: '8px', borderRadius: '6px', overflowX: 'auto' as const, marginTop: '4px', fontFamily: 'monospace', fontSize: '11px', lineHeight: 1.3 },
 
   codeContainer: {
-    marginTop: '24px',
-    padding: '16px',
-    backgroundColor: '#1e293b',
-    borderRadius: '12px',
-    border: '1px solid #334155',
+    marginTop: '12px',
+    padding: '12px',
+    backgroundColor: '#0f172a',
+    borderRadius: '8px',
   },
   codeTitle: {
-    fontSize: '15px',
+    fontSize: '12px',
     fontWeight: 'bold' as const,
     color: '#f8fafc',
-    marginBottom: '12px',
+    marginBottom: '8px',
     marginTop: 0,
   },
   codeBlock: {
-    color: '#e2e8f0',
+    color: '#38bdf8',
     fontFamily: 'Consolas, Monaco, monospace',
-    fontSize: '13px',
+    fontSize: '11px',
     whiteSpace: 'pre-wrap' as const,
     wordBreak: 'break-all' as const,
-    maxHeight: '500px',
+    maxHeight: '300px',
     overflowY: 'auto' as const,
     margin: 0,
   },
 
-  // モーダル全般のスタイル
   modalOverlay: {
     position: 'fixed' as const,
     inset: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    backdropFilter: 'blur(8px)',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backdropFilter: 'blur(4px)',
     zIndex: 1000,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '16px',
+    padding: '12px',
   },
   modalContainer: {
     width: '100%',
-    maxWidth: '850px',
-    backgroundColor: '#0f172a',
-    borderRadius: '20px',
-    border: '1px solid #334155',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+    maxWidth: '520px',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    border: '1px solid #cbd5e1',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
     display: 'flex',
     flexDirection: 'column' as const,
     maxHeight: '90vh',
     overflow: 'hidden',
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   modalHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '16px 24px',
-    borderBottom: '1px solid #1e293b',
+    padding: '12px 16px',
+    borderBottom: '1px solid #e2e8f0',
   },
   modalHeaderTitleGroup: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
   modalHeaderTitle: {
-    fontSize: '16px',
+    fontSize: '14px',
     fontWeight: 'bold' as const,
-    color: '#f8fafc',
+    color: '#0f172a',
   },
   stepBadge: {
-    backgroundColor: '#312e81',
-    color: '#a5b4fc',
-    fontSize: '12px',
+    backgroundColor: '#eff6ff',
+    color: '#2563eb',
+    fontSize: '11px',
     fontWeight: 'bold' as const,
-    padding: '2px 10px',
-    borderRadius: '20px',
-    border: '1px solid #4338ca',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    border: '1px solid #bfdbfe',
   },
   subQuestionBadge: {
-    backgroundColor: '#1e293b',
-    color: '#cbd5e1',
-    fontSize: '12px',
-    padding: '2px 8px',
-    borderRadius: '6px',
-    border: '1px solid #334155',
+    backgroundColor: '#f1f5f9',
+    color: '#475569',
+    fontSize: '11px',
+    padding: '2px 6px',
+    borderRadius: '4px',
   },
   closeButton: {
     background: 'none',
     border: 'none',
-    color: '#94a3b8',
+    color: '#64748b',
     cursor: 'pointer',
-    padding: 4,
+    padding: 0,
     display: 'flex',
     alignItems: 'center',
   },
   modalBody: {
-    padding: '24px',
+    padding: '16px',
     overflowY: 'auto' as const,
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '20px',
+    gap: '12px',
   },
   stepCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: '16px',
-    padding: '20px',
-    border: '1px solid #334155',
-  },
-  stepCardTitle: {
-    fontSize: '13px',
-    fontWeight: 'bold' as const,
-    color: '#94a3b8',
-    marginTop: 0,
-    marginBottom: '16px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    padding: '12px',
+    border: '1px solid #e2e8f0',
   },
   stepGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: '12px',
-    alignItems: 'stretch',
-  },
-  stepBox: {
-    backgroundColor: '#0f172a',
-    borderRadius: '12px',
-    padding: '14px',
-    border: '1px solid #334155',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '8px',
   },
+  stepBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: '6px',
+    padding: '10px',
+    border: '1px solid #e2e8f0',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+  },
   stepCenterBox: {
-    backgroundColor: 'rgba(49, 46, 129, 0.4)',
-    borderRadius: '12px',
-    padding: '14px',
-    border: '1px solid rgba(99, 102, 241, 0.4)',
+    backgroundColor: '#eff6ff',
+    borderRadius: '6px',
+    padding: '10px',
+    border: '1px solid #bfdbfe',
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
-    justifyContent: 'center',
     textAlign: 'center' as const,
   },
   inputBadge: {
     fontSize: '11px',
     fontWeight: 'bold' as const,
-    color: '#60a5fa',
+    color: '#2563eb',
   },
   outputBadge: {
     fontSize: '11px',
     fontWeight: 'bold' as const,
-    color: '#4ade80',
+    color: '#16a34a',
   },
   inferenceBadge: {
     fontSize: '11px',
     fontWeight: 'bold' as const,
-    color: '#a5b4fc',
-    marginBottom: '6px',
+    color: '#4f46e5',
+    marginBottom: '2px',
   },
   nodeItemText: {
-    fontSize: '13px',
-    color: '#e2e8f0',
+    fontSize: '12px',
+    color: '#1e293b',
     fontFamily: 'monospace',
-    lineHeight: 1.4,
+    wordBreak: 'break-all' as const,
+    lineHeight: 1.3,
   },
   nodeItemTextEmpty: {
-    fontSize: '12px',
-    color: '#64748b',
-    fontStyle: 'italic',
+    fontSize: '11px',
+    color: '#94a3b8',
   },
   inferenceText: {
-    fontSize: '15px',
+    fontSize: '13px',
     fontWeight: 'bold' as const,
-    color: '#e0e7ff',
+    color: '#1e1b4b',
     margin: 0,
-    lineHeight: 1.4,
+    lineHeight: 1.3,
   },
 
   theoremBanner: {
-    background: 'linear-gradient(135deg, rgba(49, 46, 129, 0.6) 0%, rgba(88, 28, 135, 0.6) 100%)',
-    borderRadius: '16px',
-    padding: '20px',
-    border: '1px solid rgba(129, 140, 248, 0.3)',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    padding: '10px 12px',
+    border: '1px solid #e2e8f0',
     display: 'flex',
-    flexDirection: 'row' as const,
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '16px',
-    flexWrap: 'wrap' as const,
+    gap: '8px',
   },
   theoremBannerText: {
     display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
+    alignItems: 'center',
   },
   theoremBannerTitle: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    fontSize: '15px',
+    gap: '6px',
+    fontSize: '12px',
     fontWeight: 'bold' as const,
-    color: '#ffffff',
-  },
-  theoremBannerSub: {
-    margin: 0,
-    fontSize: '13px',
-    color: '#cbd5e1',
+    color: '#0f172a',
   },
   theoremButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2563eb',
     color: '#ffffff',
     border: 'none',
-    padding: '12px 20px',
-    borderRadius: '10px',
+    padding: '6px 12px',
+    borderRadius: '6px',
     fontWeight: 'bold' as const,
-    fontSize: '14px',
+    fontSize: '12px',
     cursor: 'pointer',
-    boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
     whiteSpace: 'nowrap' as const,
   },
 
   modalFooter: {
-    padding: '16px 24px',
-    borderTop: '1px solid #1e293b',
+    padding: '12px 16px',
+    borderTop: '1px solid #e2e8f0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
   },
   navButton: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    backgroundColor: '#1e293b',
-    color: '#f8fafc',
-    border: '1px solid #334155',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    fontSize: '13px',
+    gap: '4px',
+    backgroundColor: '#f1f5f9',
+    color: '#0f172a',
+    border: '1px solid #cbd5e1',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: '12px',
     fontWeight: 'bold' as const,
     cursor: 'pointer',
   },
   navButtonPrimary: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    backgroundColor: '#6366f1',
+    gap: '4px',
+    backgroundColor: '#2563eb',
     color: '#ffffff',
     border: 'none',
-    padding: '8px 16px',
-    borderRadius: '8px',
-    fontSize: '13px',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    fontSize: '12px',
     fontWeight: 'bold' as const,
     cursor: 'pointer',
   },
@@ -880,16 +809,16 @@ const styles = {
   },
   stepIndicatorList: {
     display: 'flex',
-    gap: '6px',
+    gap: '4px',
   },
   stepDot: {
-    width: '28px',
-    height: '28px',
+    width: '24px',
+    height: '24px',
     borderRadius: '50%',
     border: 'none',
-    backgroundColor: '#1e293b',
-    color: '#94a3b8',
-    fontSize: '12px',
+    backgroundColor: '#f1f5f9',
+    color: '#64748b',
+    fontSize: '11px',
     fontWeight: 'bold' as const,
     cursor: 'pointer',
     display: 'flex',
@@ -897,73 +826,62 @@ const styles = {
     justifyContent: 'center',
   },
   stepDotActive: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2563eb',
     color: '#ffffff',
-    boxShadow: '0 0 0 2px #a5b4fc',
   },
 
-  // 定理解説モーダル専用
   theoremModalOverlay: {
     position: 'fixed' as const,
     inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(2px)',
     zIndex: 1100,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '16px',
+    padding: '12px',
   },
   theoremModalContainer: {
     width: '100%',
-    maxWidth: '600px',
+    maxWidth: '480px',
     backgroundColor: '#ffffff',
-    borderRadius: '20px',
-    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+    borderRadius: '12px',
+    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
     overflow: 'hidden',
   },
   theoremModalHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '18px 24px',
-    borderBottom: '1px solid #f1f5f9',
+    padding: '12px 16px',
+    borderBottom: '1px solid #e2e8f0',
   },
   theoremModalBody: {
-    padding: '24px',
-  },
-  authorMessage: {
-    backgroundColor: '#f0fdf4',
-    border: '1px solid #bbf7d0',
-    color: '#166534',
-    padding: '10px 14px',
-    borderRadius: '8px',
-    fontSize: '14px',
-    marginBottom: '16px',
+    padding: '16px',
   },
   placeholderBox: {
-    marginTop: '20px',
-    padding: '16px',
+    marginTop: '12px',
+    padding: '12px',
     backgroundColor: '#f8fafc',
-    borderRadius: '10px',
+    borderRadius: '6px',
     border: '1px dashed #cbd5e1',
     textAlign: 'center' as const,
   },
   theoremModalFooter: {
-    padding: '16px 24px',
+    padding: '12px 16px',
     backgroundColor: '#f8fafc',
-    borderTop: '1px solid #f1f5f9',
+    borderTop: '1px solid #e2e8f0',
     display: 'flex',
     justifyContent: 'flex-end',
   },
   closeModalButton: {
-    backgroundColor: '#2563eb',
-    color: '#fff',
+    backgroundColor: '#0f172a',
+    color: '#ffffff',
     border: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
+    padding: '6px 14px',
+    borderRadius: '6px',
     fontWeight: 'bold' as const,
-    fontSize: '14px',
+    fontSize: '12px',
     cursor: 'pointer',
   }
 }
