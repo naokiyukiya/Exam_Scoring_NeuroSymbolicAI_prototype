@@ -59,7 +59,8 @@ type Node = {
   is_final_answer?: boolean
   inputs_used?: Record<string, string>
   outputs_derived?: Record<string, string>
-  verification_status?: string
+  // フロントエンド側で検証状態を保持するためのプロパティ（APIからは来ない）
+  _client_verification_status?: 'unverified' | 'verifying' | 'correct' | 'incorrect' | 'error' | 'skipped'
   math_expr?: string
 }
 
@@ -157,10 +158,16 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
         }
         
         if (json.graph) {
-          setGraphData(json.graph)
+          // 初期ロード時に、すべてのinferenceノードにフロントエンド用のステータスを付与
+          const nodesWithClientStatus = json.graph.nodes.map((n: Node) => 
+            n.type === 'inference' ? { ...n, _client_verification_status: 'unverified' } : n
+          );
+          const newGraph = { ...json.graph, nodes: nodesWithClientStatus };
+
+          setGraphData(newGraph)
           
           const formattedJson = JSON.stringify({
-            graph: json.graph,
+            graph: newGraph,
             new_theorems: json.newTheorems || []
           }, null, 2)
           setRawGraphData(formattedJson)
@@ -247,44 +254,81 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
     const hasAlgebra = inputNodes.some(n => n.label.includes('代数計算・連立方程式の消去'));
 
     // まだ検証されていない場合のみ自動実行する
-    if (hasAlgebra && currentInference.verification_status === 'unverified') {
+    if (hasAlgebra && currentInference._client_verification_status === 'unverified') {
       const runVerification = async () => {
         // UIを「検証中」にする
         setGraphData(prev => {
           if (!prev) return prev;
           const newNodes = prev.nodes.map(n => 
-            n.id === currentInference.id ? { ...n, verification_status: 'verifying' } : n
+            n.id === currentInference.id ? { ...n, _client_verification_status: 'verifying' } as Node : n
           );
           return { ...prev, nodes: newNodes };
         });
 
-        // 記号を SymPy で解釈可能な形式に変換する関数
-        const formatForSymPy = (expr: string) => {
-          if (!expr) return '';
-          return expr
+        // ==========================================
+        // 🚀 SymPy用の最強サニタイズ処理 (APIを変更しないための工夫)
+        // ==========================================
+        const extractAndFormatMath = (text: string) => {
+          if (!text) return '';
+          
+          let expr = text;
+          
+          // 1. $ で囲まれた部分があればそれを抽出
+          const mathMatch = text.match(/\$([^\$]+)\$/);
+          if (mathMatch) {
+            expr = mathMatch[1];
+          } else {
+            // $がない場合、日本語を削除して数式っぽく見える部分だけ残す
+            expr = expr.replace(/[^\x00-\x7F]/g, '').trim(); 
+          }
+
+          // 2. 比較演算子・四則演算子の正規化
+          expr = expr
             .replace(/≧/g, '>=')
             .replace(/≦/g, '<=')
             .replace(/≠/g, '!=')
             .replace(/×/g, '*')
             .replace(/÷/g, '/');
+
+          // 3. LaTeX特有のコマンドを Python の数式表現に置換
+          expr = expr
+            .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '(($1)/($2))') // 簡単な \frac{a}{b} -> ((a)/(b))
+            .replace(/\\times/g, '*')
+            .replace(/\\div/g, '/')
+            .replace(/\\pi/g, 'pi')
+            .replace(/\\/g, ''); // その他のバックスラッシュを除去
+
+          // 4. SymPy がクラッシュする原因となる「予約語」や「文字」の置換
+          // V' や F' のようなプライム（'）は、SymPyが文字列と勘違いするので _prime に置換
+          expr = expr.replace(/'/g, '_prime');
+          
+          // SymPy の SingletonRegistry と衝突する大文字の S, I, E などを安全な変数名に置換
+          expr = expr.replace(/\bS\b/g, 'Area_S')
+                     .replace(/\bI\b/g, 'Current_I')
+                     .replace(/\bE\b/g, 'Energy_E')
+                     .replace(/\bN\b/g, 'Normal_N')
+                     .replace(/\bO\b/g, 'Origin_O');
+
+          return expr;
         };
 
-        // 式を持つ命題ノードだけを抽出し、フォーマット変換
         const inputProps = inputNodes
-          .filter(n => n.type === 'proposition' && n.math_expr)
-          .map(n => formatForSymPy(n.math_expr!));
+          .filter(n => n.type === 'proposition')
+          .map(n => extractAndFormatMath(n.label))
+          .filter(expr => expr.includes('=') || expr.includes('>') || expr.includes('<')); 
           
         const outputProps = outputNodes
-          .filter(n => n.type === 'proposition' && n.math_expr)
-          .map(n => formatForSymPy(n.math_expr!));
+          .filter(n => n.type === 'proposition')
+          .map(n => extractAndFormatMath(n.label))
+          .filter(expr => expr.includes('=') || expr.includes('>') || expr.includes('<'));
 
-        // 数式が含まれていなければスキップ
+        // 有効な数式が見つからなければスキップ
         if (inputProps.length === 0 || outputProps.length === 0) {
           setGraphData(prev => {
             if (!prev) return prev;
             return {
               ...prev,
-              nodes: prev.nodes.map(n => n.id === currentInference.id ? { ...n, verification_status: 'skipped' } : n)
+              nodes: prev.nodes.map(n => n.id === currentInference.id ? { ...n, _client_verification_status: 'skipped' } as Node : n)
             };
           });
           return;
@@ -308,7 +352,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
             if (!prev) return prev;
             const newNodes = prev.nodes.map(n => {
               if (n.id === currentInference.id) {
-                return { ...n, verification_status: (res.ok && result.is_equal) ? 'correct' : 'incorrect' };
+                return { ...n, _client_verification_status: (res.ok && result.is_equal) ? 'correct' : 'incorrect' } as Node;
               }
               return n;
             });
@@ -319,7 +363,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
             if (!prev) return prev;
             return {
               ...prev,
-              nodes: prev.nodes.map(n => n.id === currentInference.id ? { ...n, verification_status: 'error' } : n)
+              nodes: prev.nodes.map(n => n.id === currentInference.id ? { ...n, _client_verification_status: 'error' } as Node : n)
             };
           });
         }
@@ -538,31 +582,30 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                     )}
                   </div>
 
-                  {/* 変形・適用定理 と 自動検証ステータス表示 */}
+                  {/* 変形・適用定理 と ★自動検証ステータス表示★ */}
                   <div style={styles.stepCenterBox}>
                     <span style={styles.inferenceBadge}>適用した考え方・定理</span>
                     <p style={styles.inferenceText}>
                       <FormattedText text={currentInference.label} />
                     </p>
 
-                    {/* ★ 検証ステータスバッジの表示 ★ */}
-                    {currentInference.verification_status && currentInference.verification_status !== 'unverified' && (
+                    {currentInference._client_verification_status && currentInference._client_verification_status !== 'unverified' && (
                       <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold' }}>
-                        {currentInference.verification_status === 'verifying' && (
+                        {currentInference._client_verification_status === 'verifying' && (
                           <span style={{color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px'}}>
                             <div style={styles.spinnerMini}/> 数式検証中...
                           </span>
                         )}
-                        {currentInference.verification_status === 'correct' && (
+                        {currentInference._client_verification_status === 'correct' && (
                           <span style={{color: '#4ade80'}}>✓ 正しい計算です</span>
                         )}
-                        {currentInference.verification_status === 'incorrect' && (
+                        {currentInference._client_verification_status === 'incorrect' && (
                           <span style={{color: '#f87171'}}>⚠️ 計算に誤りがあります</span>
                         )}
-                        {currentInference.verification_status === 'error' && (
+                        {currentInference._client_verification_status === 'error' && (
                           <span style={{color: '#9ca3af'}}>検証エラー</span>
                         )}
-                        {currentInference.verification_status === 'skipped' && (
+                        {currentInference._client_verification_status === 'skipped' && (
                           <span style={{color: '#9ca3af'}}>検証スキップ(純粋な数式なし)</span>
                         )}
                       </div>
@@ -668,12 +711,12 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
         <div style={styles.theoremModalOverlay}>
           <div style={styles.theoremModalContainer}>
             <TheoremDetailRenderer
-  theoremId={(selectedTheoremId || selectedTheorem) ?? ''}
-  onClose={() => {
-    if (selectedTheoremId) handleCloseTheorem()
-    if (selectedTheorem) setSelectedTheorem(null)
-  }}
-/>
+              theoremId={(selectedTheoremId || selectedTheorem) ?? ''}
+              onClose={() => {
+                if (selectedTheoremId) handleCloseTheorem()
+                if (selectedTheorem) setSelectedTheorem(null)
+              }}
+            />
           </div>
         </div>
       )}
@@ -1185,8 +1228,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   theoremModalContainer: {
     width: '100%',
-    maxWidth: '800px',
-    maxHeight: '90vh',
+    maxWidth: '500px',
     backgroundColor: '#ffffff',
     borderRadius: '16px',
     boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
@@ -1272,5 +1314,5 @@ const styles: Record<string, React.CSSProperties> = {
     borderTopColor: '#fbbf24',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
-  }
+  },
 }

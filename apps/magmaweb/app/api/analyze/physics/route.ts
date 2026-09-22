@@ -6,8 +6,8 @@ import physicsLibrary from '../../../../lib/constants/physics.json';
 export const maxDuration = 60;
 
 const physicsData: any = physicsLibrary;
-const theoremVersion = physicsData?.version || "2.5.0";
-// 出力例を追加し、math_exprとverification_statusの出力を強制した新しいプロンプトバージョン
+const theoremVersion = physicsData?.version || "2.4.2";
+// 出力例を追加した新しいプロンプトバージョン
 const PROMPT_VERSION = `${theoremVersion}_with_fewshot_v4`;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
@@ -185,19 +185,11 @@ export async function GET(request: NextRequest) {
    - 推論ノード（type: "inference"）を作成する際は、必ずその推論ステップで「使われた式/変数 (inputs_used)」と「新たに得られた式/変数 (outputs_derived)」を明示してください。
 
 4. **【LaTeX表現と小問の一貫性】**:
-   - \`label\` に含まれる数式はすべて LaTeX（例: $E = \\frac{1}{2}m v^2$）で記述してください。
+   - 数式はすべて LaTeX（例: $E = \\frac{1}{2}m v^2$）で記述してください。
    - 小問 (1), (2) などがあっても全体のグラフ（DAG）は1つにつなげ、各ノードに sub_question（例: "(1)", "(2)"）を設定してください。最終答えには is_final_answer: true を付与してください。
 
 5. **【定理ラベルの一致】**:
    - 定理ノード（type: "theorem"）の label は、必ず [利用可能な構造化定理ライブラリ] の「定理名」と一字一句違わず一致させてください。
-
-6. **【命題ノードのデュアル構造（超重要）】**:
-   - 命題ノードの 'label' には、生徒の答案に書かれているテキストをありのまま抽出してください。
-   - 同時に、命題ノードには必ず 'math_expr' というキーを追加し、そこには **SymPyで計算・検証するための純粋なプレーン数式のみ** を記述してください（例: "F = 1 * S * g", "x >= 0"）。
-   - 等式は "="、不等式は ">", "<", ">=", "<="、ノットイコールは "!=" を使用し、LaTeXの特殊な記号（\\fracや\\timesなど）は使わずにプレーンな文字列数式で表現してください。日本語などは含めないでください。
-
-7. **【推論ノードの検証ステータス】**:
-   - "verification_status" は、**種類が「推論（inference）」であるノードにのみ**必ず追加し、初期値として "unverified" を設定してください。
 
 [出力形式 (Format Example)]
 {
@@ -206,7 +198,6 @@ export async function GET(request: NextRequest) {
       {
         "id": "p1",
         "label": "変位 x での水没体積 V' = ((2/3)*H + x)*S",
-        "math_expr": "V' = (2/3 * H + x) * S",
         "type": "proposition",
         "sub_question": "(1)",
         "is_final_answer": false
@@ -224,14 +215,12 @@ export async function GET(request: NextRequest) {
         "type": "inference",
         "sub_question": "(1)",
         "is_final_answer": false,
-        "verification_status": "unverified",
         "inputs_used": { "fluid_density": "1", "submerged_volume": "((2/3)*H + x)*S", "gravity_acc": "g" },
         "outputs_derived": { "buoyant_force": "F' = 1 * ((2/3)*H + x)*S * g" }
       },
       {
         "id": "p2",
         "label": "浮力 F' = 1 * ((2/3)*H + x)*S * g",
-        "math_expr": "F' = 1 * ((2/3)*H + x) * S * g",
         "type": "proposition",
         "sub_question": "(1)",
         "is_final_answer": true
@@ -288,14 +277,6 @@ ${theoremListString}
                       label: { type: 'STRING' },
                       sub_question: { type: 'STRING' },
                       is_final_answer: { type: 'BOOLEAN' },
-                      math_expr: { 
-                        type: 'STRING',
-                        nullable: true
-                      },
-                      verification_status: { 
-                        type: 'STRING',
-                        nullable: true
-                      },
                       inputs_used: { 
                         type: 'OBJECT',
                         nullable: true
