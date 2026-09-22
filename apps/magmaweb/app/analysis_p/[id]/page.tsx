@@ -31,6 +31,11 @@ import {
   Compass
 } from 'lucide-react'
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
 // 数式テキスト（$...$ または $$...$$）が含まれている場合に KaTeX で表示するヘルパーコンポーネント
 function FormattedText({ text }: { text: string }) {
   if (!text) return null;
