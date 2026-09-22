@@ -283,7 +283,7 @@ const handleStumble = async (theoremId: string) => {
     if (user) {
       await supabase.from('stumbles').insert({
         user_id: user.id,
-        post_id: params.id
+        post_id: params.id,
         theorem_id: theoremId,
         step_index: currentStepIndex + 1,
         // 三つの重要な情報を明示して保存
