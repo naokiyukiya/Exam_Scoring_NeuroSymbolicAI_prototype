@@ -11,7 +11,8 @@ const PROMPT_VERSION = `${theoremVersion}_sub_question_and_variables`;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 4000) {
+// タイムアウトを防ぐため、リトライ回数と待機時間を短縮調整
+async function generateWithRetry(params: any, maxRetries = 2, initialDelayMs = 2000) {
   let delay = initialDelayMs;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -23,7 +24,7 @@ async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 4
       if (isOverloaded && attempt < maxRetries) {
         console.warn(`[Gemini API Overloaded] リトライ (${attempt}/${maxRetries})... ${delay}ms待機`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2;
+        delay *= 1.5;
       } else {
         throw err;
       }
@@ -74,6 +75,7 @@ function repairTruncatedJson(jsonStr: string): string {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const answerId = searchParams.get('answerId');
+  const forceRefresh = searchParams.get('force') === 'true'; // 再解析を強制したい場合のみ ?force=true をつける
 
   if (!answerId) {
     return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
@@ -90,6 +92,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '答案画像URLを取得できませんでした' }, { status: 404 });
   }
 
+  // ★ キャッシュチェック: 強制リフレッシュでない限り、DB上に既存グラフがあれば最優先で返す
+  if (!forceRefresh) {
+    const { data: existingGraph } = await supabase
+      .from('logic_graphs')
+      .select('graph_data, construction_process, prompt_version, theorem_version')
+      .eq('post_id', answerId)
+      .maybeSingle();
+
+    if (existingGraph && existingGraph.graph_data) {
+      return NextResponse.json({
+        imageUrl: answer.image_url,
+        graph: existingGraph.graph_data,
+        constructionProcess: existingGraph.construction_process || [],
+        metadata: { 
+          promptVersion: existingGraph.prompt_version, 
+          theoremVersion: existingGraph.theorem_version, 
+          cached: true 
+        }
+      });
+    }
+  }
+
   let problemImageUrl = answer.image_url;
   if (answer.parent_id) {
     const { data: problem } = await supabase
@@ -101,22 +125,6 @@ export async function GET(request: NextRequest) {
     if (problem?.image_url) {
       problemImageUrl = problem.image_url;
     }
-  }
-
-  // キャッシュチェック
-  const { data: existingGraph } = await supabase
-    .from('logic_graphs')
-    .select('graph_data, construction_process, prompt_version, theorem_version')
-    .eq('post_id', answerId)
-    .maybeSingle();
-
-  if (existingGraph && existingGraph.prompt_version === PROMPT_VERSION) {
-    return NextResponse.json({
-      imageUrl: answer.image_url,
-      graph: existingGraph.graph_data,
-      constructionProcess: existingGraph.construction_process,
-      metadata: { promptVersion: existingGraph.prompt_version, theoremVersion: existingGraph.theorem_version, cached: true }
-    });
   }
 
   // ライブラリ内の変数定義 (variables) もプロンプトに文字列化して渡す
@@ -232,84 +240,85 @@ export async function GET(request: NextRequest) {
 ${theoremListString}
 `.trim();
 
-const response = await generateWithRetry({
-  model: 'gemini-2.5-flash',
-  contents: [
-    {
-      role: 'user',
-      parts: [
-        { text: "【1枚目画像: 問題文】" },
-        { inlineData: { mimeType: problemMimeType, data: problemBase64 } },
-        { text: "【2枚目画像: 解答答案】" },
-        { inlineData: { mimeType: answerMimeType, data: answerBase64 } },
-        { text: promptText }
-      ]
-    }
-  ],
-  config: {
-    responseMimeType: 'application/json',
-    responseSchema: {
-      type: 'OBJECT',
-      properties: {
-        graph: {
+    const response = await generateWithRetry({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: "【1枚目画像: 問題文】" },
+            { inlineData: { mimeType: problemMimeType, data: problemBase64 } },
+            { text: "【2枚目画像: 解答答案】" },
+            { inlineData: { mimeType: answerMimeType, data: answerBase64 } },
+            { text: promptText }
+          ]
+        }
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
           type: 'OBJECT',
           properties: {
-            nodes: {
-              type: 'ARRAY',
-              items: {
-                type: 'OBJECT',
-                properties: {
-                  id: { type: 'STRING' },
-                  type: { 
-                    type: 'STRING',
-                    description: 'ノード種別: "proposition", "theorem", "inference" のいずれか'
-                  },
-                  label: { type: 'STRING' },
-                  sub_question: {
-                    type: 'STRING',
-                    description: '対応する小問（例: "(1)", "(2)", "共通"）。グラフ全体の接続性は維持すること。'
-                  },
-                  is_final_answer: {
-                    type: 'BOOLEAN',
-                    description: '該当する小問の最終結果となる答えのノードである場合は true'
-                  },
-                  inputs_used: { 
+            graph: {
+              type: 'OBJECT',
+              properties: {
+                nodes: {
+                  type: 'ARRAY',
+                  items: {
                     type: 'OBJECT',
-                    description: '【inferenceノードで必須】定理の変数定義(variables)に対応させた実際の変数や数式。キーと値のペア。'
-                  },
-                  outputs_derived: { 
-                    type: 'OBJECT',
-                    description: '【inferenceノードで必須】推論によって導かれた式や物理量。キーと値のペア。'
+                    properties: {
+                      id: { type: 'STRING' },
+                      type: { 
+                        type: 'STRING',
+                        description: 'ノード種別: "proposition", "theorem", "inference" のいずれか'
+                      },
+                      label: { type: 'STRING' },
+                      sub_question: {
+                        type: 'STRING',
+                        description: '対応する小問（例: "(1)", "(2)", "共通"）。グラフ全体の接続性は維持すること。'
+                      },
+                      is_final_answer: {
+                        type: 'BOOLEAN',
+                        description: '該当する小問の最終結果となる答えのノードである場合は true'
+                      },
+                      inputs_used: { 
+                        type: 'OBJECT',
+                        description: '【inferenceノードで必須】定理の変数定義(variables)に対応させた実際の変数や数式。キーと値のペア。'
+                      },
+                      outputs_derived: { 
+                        type: 'OBJECT',
+                        description: '【inferenceノードで必須】推論によって導かれた式や物理量。キーと値のペア。'
+                      }
+                    },
+                    required: ['id', 'type', 'label', 'sub_question']
                   }
                 },
-                required: ['id', 'type', 'label', 'sub_question']
-              }
+                edges: {
+                  type: 'ARRAY',
+                  items: {
+                    type: 'OBJECT',
+                    properties: {
+                      from: { type: 'STRING' },
+                      to: { type: 'STRING' }
+                    },
+                    required: ['from', 'to']
+                  }
+                }
+              },
+              required: ['nodes', 'edges']
             },
-            edges: {
+            construction_process: {
               type: 'ARRAY',
-              items: {
-                type: 'OBJECT',
-                properties: {
-                  from: { type: 'STRING' },
-                  to: { type: 'STRING' }
-                },
-                required: ['from', 'to']
-              }
+              items: { type: 'STRING' }
             }
           },
-          required: ['nodes', 'edges']
+          required: ['graph', 'construction_process']
         },
-        construction_process: {
-          type: 'ARRAY',
-          items: { type: 'STRING' }
-        }
-      },
-      required: ['graph', 'construction_process']
-    },
-    temperature: 0.1,
-    maxOutputTokens: 16384
-  }
-});
+        temperature: 0.1,
+        maxOutputTokens: 16384
+      }
+    });
+
     const rawText = response.text || '';
     let parsedData: any = null;
 
