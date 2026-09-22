@@ -63,7 +63,7 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
                 {Object.entries(theorem.prompt_data.variables).map(([key, val]) => (
                   <div key={key} style={styles.variableItem}>
                     <span style={styles.variableSymbol}>
-                      <FormattedText text={`$${key}$`} />
+                      <span className="font-mono text-cyan-400 font-bold">{key}</span>
                     </span>
                     <span style={styles.variableDesc}>: {val as string}</span>
                   </div>
