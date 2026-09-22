@@ -103,6 +103,10 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const [isStepViewerOpen, setIsStepViewerOpen] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
 
+  // ▼ ここを追加（連打防止用とつまづき済みマーク用）
+const [stumbledSteps, setStumbledSteps] = useState<Record<number, boolean>>({});
+const [isSubmittingStumble, setIsSubmittingStumble] = useState(false);
+
   // クエリパラメータ ?theorem=xxx から選択中の定理IDを取得
   const selectedTheoremId = searchParams.get('theorem')
 
@@ -252,11 +256,49 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const inputNodes = graphData?.nodes.filter(n => inputNodeIds.includes(n.id)) || []
   const outputNodes = graphData?.nodes.filter(n => outputNodeIds.includes(n.id)) || []
 
-  const currentStepTheoremMatch = inputNodes
-    .map(node => ({ node, theorem: findPhysicsTheorem(node) }))
-    .find(item => item.theorem !== null)
+  // ▼▼ ここから追加（指定された関数） ▼▼
+  const getPrimaryTheoremFromStep = () => {
+    if (!inputNodes || inputNodes.length === 0) return null;
+    for (const node of inputNodes) {
+      const matched = findPhysicsTheorem(node); // 既存の定理照合関数
+      if (matched) return matched;
+    }
+    return null;
+  };
 
-  const primaryTheorem = currentStepTheoremMatch?.theorem
+  const primaryTheorem = getPrimaryTheoremFromStep();
+
+  // ▼ ここを追加：「つまづいた！」ボタンのハンドラー（3つのコンテキストを保存）
+const handleStumble = async (theoremId: string) => {
+  try {
+    setIsSubmittingStumble(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      await supabase.from('stumbles').insert({
+        user_id: user.id,
+        post_id: postId,
+        theorem_id: theoremId,
+        step_index: currentStepIndex + 1,
+        // 三つの重要な情報を明示して保存
+        input_nodes: inputNodes.map(node => ({ id: node.id, label: node.label })),
+        inference_label: currentInference.label,
+        output_nodes: outputNodes.map(node => ({ id: node.id, label: node.label })),
+      });
+    }
+
+    setStumbledSteps(prev => ({ ...prev, [currentStepIndex]: true }));
+    handleOpenTheorem(theoremId);
+  } catch (err) {
+    console.error('Failed to log stumble:', err);
+    handleOpenTheorem(theoremId);
+  } finally {
+    setIsSubmittingStumble(false);
+  }
+};
+
+
 
   // ------------------------------------------------------------------------
   // 🐾 「代数計算・連立方程式の消去」を検知して自動検証を走らせる useEffect
@@ -632,7 +674,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                 </div>
               </div>
 
-              {/* 定理解説への導線カード */}
+              {/* 定理解説＆つまづきアクションカード */}
               <div style={styles.theoremBanner}>
                 <div style={styles.theoremBannerText}>
                   <div style={styles.theoremBannerTitle}>
@@ -640,26 +682,59 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
                     <span>この思考ステップに不安はありますか？</span>
                   </div>
                   <p style={styles.theoremBannerSub}>
-                    「なぜこの式変形になるのか」「なぜこの定理が使えるのか」を根底から徹底解説します。
+                    {primaryTheorem
+                      ? `「${primaryTheorem.name}」の根拠や公式の成り立ちを確認できます。`
+                      : '「なぜこの式変形になるのか」「なぜこの定理が使えるのか」を解説で確認しましょう。'}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    if (primaryTheorem) {
-                      handleOpenTheorem(primaryTheorem.id)
-                    } else {
-                      setSelectedTheorem(currentInference.label)
-                    }
-                  }}
-                  style={styles.theoremButton}
-                >
-                  <span>
-                    {primaryTheorem
-                      ? `「${primaryTheorem.name}」について確認`
-                      : '定理の解説を見る'}
-                  </span>
-                  <ArrowRight size={14} />
-                </button>
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {/* ★新設：「つまづいた！」ボタン */}
+                  <button
+                    disabled={isSubmittingStumble}
+                    onClick={() => {
+                      const targetId = primaryTheorem ? primaryTheorem.id : 'law_buoyancy_archimedes';
+                      handleStumble(targetId);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${stumbledSteps[currentStepIndex] ? '#ef4444' : '#b45309'}`,
+                      backgroundColor: stumbledSteps[currentStepIndex] ? 'rgba(239, 68, 68, 0.2)' : '#451a03',
+                      color: stumbledSteps[currentStepIndex] ? '#f87171' : '#fbbf24',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <AlertTriangle size={14} />
+                    <span>{stumbledSteps[currentStepIndex] ? 'つまづきを記録済み' : 'つまづいた！'}</span>
+                  </button>
+
+                  {/* 「定理の解説を見る」ボタン */}
+                  <button
+                    onClick={() => {
+                      if (primaryTheorem) {
+                        handleOpenTheorem(primaryTheorem.id);
+                      } else {
+                        setSelectedTheorem(currentInference.label);
+                      }
+                    }}
+                    style={styles.theoremButton}
+                  >
+                    <span>
+                      {primaryTheorem
+                        ? `「${primaryTheorem.name}」を確認`
+                        : '定理の解説を見る'}
+                    </span>
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1331,5 +1406,17 @@ theoremModalContainer: {
   textAlign: 'left',
   width: '100%',
   boxSizing: 'border-box'
+  },
+  stumbleButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s ease',
   }
 }
