@@ -95,27 +95,36 @@ export default function TheoremDetailRenderer({ theoremId, onClose }: Props) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
-    width: '100%',
-    height: '100%',
-    maxHeight: '100%',
-    backgroundColor: '#0f172a',
-    color: '#f8fafc',
-    display: 'flex',
-    flexDirection: 'column',
-    borderRadius: '16px',
-    overflow: 'hidden',
-    boxSizing: 'border-box',
-  },
-  headerBar: {
-    padding: '12px 16px',
-    borderBottom: '1px solid #1e293b',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#0f172a',
-    flexShrink: 0,
-  },
+// TheoremDetailRenderer.tsx 内の styles
+container: {
+  width: '100%',
+  height: '100%',
+  maxHeight: '100%',
+  backgroundColor: '#0f172a',
+  color: '#f8fafc',
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'hidden', // 全体の溢れをカット
+},
+headerBar: {
+  padding: '12px 16px',
+  borderBottom: '1px solid #1e293b',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  backgroundColor: '#0f172a',
+  flexShrink: 0, // ヘッダーは縮ませない
+},
+scrollBody: {
+  padding: '18px',
+  overflowY: 'auto',              // ★ここで縦スクロールを発生させる
+  overscrollBehavior: 'contain',  // 背面へのスクロール伝播を防止
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '16px',
+  flex: 1,                       // ★残りの高さをすべて伸ばして使う
+  minHeight: 0,                  // ★Flexbox内でスクロールさせるための重要プロパティ！
+},
   headerTag: {
     display: 'flex',
     alignItems: 'center',

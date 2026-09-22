@@ -1230,16 +1230,19 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     padding: '16px',
   },
-  theoremModalContainer: {
-    width: '100%',
-    maxWidth: '500px',
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-  },
+theoremModalContainer: {
+  width: '100%',
+  maxWidth: '800px',
+  maxHeight: '85vh',     // 画面の85%に収める
+  height: '85vh',        // 高さをしっかり固定する
+  backgroundColor: '#0f172a',
+  borderRadius: '16px',
+  border: '1px solid #1e293b',
+  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'hidden',    // ★スクロールは子要素（scrollBody）に任せる
+},
   theoremModalHeader: {
   padding: '14px 16px',
   borderBottom: '1px solid #f1f5f9',
