@@ -668,13 +668,12 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
         <div style={styles.theoremModalOverlay}>
           <div style={styles.theoremModalContainer}>
             <TheoremDetailRenderer
-              theoremId={selectedTheoremId || undefined}
-              theoremLabel={selectedTheorem || undefined}
-              onClose={() => {
-                if (selectedTheoremId) handleCloseTheorem()
-                if (selectedTheorem) setSelectedTheorem(null)
-              }}
-            />
+  theoremId={(selectedTheoremId || selectedTheorem) ?? ''}
+  onClose={() => {
+    if (selectedTheoremId) handleCloseTheorem()
+    if (selectedTheorem) setSelectedTheorem(null)
+  }}
+/>
           </div>
         </div>
       )}
