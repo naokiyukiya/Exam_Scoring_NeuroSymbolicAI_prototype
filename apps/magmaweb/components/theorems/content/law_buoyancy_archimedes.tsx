@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info, Calculator, GitCommitVertical, Lightbulb } from 'lucide-react';
+import { Info, Lightbulb } from 'lucide-react';
 import FormattedText from '../../FormattedText';
 
 export default function LawBuoyancyArchimedes() {
@@ -20,12 +20,20 @@ export default function LawBuoyancyArchimedes() {
       {/* 2. 公式メイン */}
       <section style={styles.cardFormula}>
         <div style={styles.formulaBadge}>
-          <Calculator size={12} color="#818cf8" />
           <span>基本公式</span>
         </div>
         
         <div style={styles.formulaDisplay}>
           <FormattedText text="$F = \rho V g$" />
+        </div>
+
+        {/* 基本公式の概念図 */}
+        <div style={styles.diagramContainer}>
+          <img
+            src="https://res.cloudinary.com/zmgjxdaa/image/upload/v1790102783/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88_2026-09-23_034555.png"
+            alt="アルキメデスの原理の基本モデル図"
+            style={styles.diagramImage}
+          />
         </div>
 
         <div style={styles.formulaGrid}>
@@ -51,11 +59,10 @@ export default function LawBuoyancyArchimedes() {
       {/* 3. 導出のメカニズム */}
       <section style={styles.cardDerivation}>
         <div style={styles.cardHeader}>
-          <GitCommitVertical size={15} color="#a5b4fc" />
           <h3 style={{ ...styles.cardTitle, color: '#a5b4fc' }}>導出のメカニズム（水圧の差）</h3>
         </div>
 
-        {/* Cloudinaryの図を表示 */}
+        {/* 導出モデルの図 */}
         <div style={styles.diagramContainer}>
           <img
             src="https://res.cloudinary.com/zmgjxdaa/image/upload/f_auto,q_auto/スクリーンショット_2026-09-23_025938"
@@ -123,7 +130,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '22px',
     fontWeight: 'bold',
     color: '#4ade80',
-    margin: '8px 0 4px',
+    margin: '4px 0',
     textAlign: 'center',
   },
   formulaGrid: {
@@ -168,6 +175,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
   },
   diagramContainer: {
+    width: '100%',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -175,10 +183,11 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     padding: '12px',
     border: '1px solid #1e293b',
+    boxSizing: 'border-box',
   },
   diagramImage: {
     maxWidth: '100%',
-    maxHeight: '260px',
+    maxHeight: '220px',
     objectFit: 'contain',
     borderRadius: '4px',
   },
