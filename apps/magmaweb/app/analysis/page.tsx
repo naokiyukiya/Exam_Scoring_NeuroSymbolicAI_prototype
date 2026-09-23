@@ -14,7 +14,7 @@ import {
   RotateCcw,
   Zap,
 } from 'lucide-react'
-import FormattedText from '../components/FormattedText'
+import FormattedText from '../../components/FormattedText'
 
 // ノード（前提・結果）のオブジェクト型
 type GraphNode = {
