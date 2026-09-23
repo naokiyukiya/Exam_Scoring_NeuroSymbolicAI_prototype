@@ -40,11 +40,22 @@ type StumbleRecord = {
   output_nodes: GraphNode[] | null
 }
 
-// パターン集計用の型定義
 type PatternStat = {
   label: string
   count: number
   percent: number
+}
+
+// COMMON PITFALLS 集計用の型 (theorem_id を基軸にキー化)
+type GroupedStumble = {
+  key: string
+  theorem_id: string
+  inference_label: string
+  input_nodes: GraphNode[]
+  output_nodes: GraphNode[]
+  post_id: string | null
+  step_index: number | null
+  count: number
 }
 
 function StumbleAnalysisContent() {
@@ -58,15 +69,14 @@ function StumbleAnalysisContent() {
   const [showResult, setShowResult] = useState(false)
   const [quizSelected, setQuizSelected] = useState<number | null>(null)
 
-  // 動的取得用データ
   const [patterns, setPatterns] = useState<PatternStat[]>([])
-  const [commonStumbles, setCommonStumbles] = useState<StumbleRecord[]>([])
+  const [groupedStumbles, setGroupedStumbles] = useState<GroupedStumble[]>([])
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
       try {
-        // 1. 対象のつまずきレコード取得
+        // 1. メインで表示するターゲットのつまずきデータ取得
         let query = supabase.from('stumbles').select('*')
         if (stumbleId) {
           query = query.eq('id', stumbleId)
@@ -80,41 +90,58 @@ function StumbleAnalysisContent() {
           setStumble(stumbleData[0] as StumbleRecord)
         }
 
-        // 2. 全つまずきデータを取得して「STUMBLE PATTERNS」を集計
+        // 2. 集計用の全つまずきデータを取得
         const { data: allStumbles, error: allError } = await supabase
           .from('stumbles')
-          .select('inference_label')
+          .select('*')
+          .order('created_at', { ascending: false })
 
         if (!allError && allStumbles) {
-          const counts: Record<string, number> = {}
+          // --- A. STUMBLE PATTERNS (theorem_id 単位の傾向集計) ---
+          const patternCounts: Record<string, number> = {}
           allStumbles.forEach((s) => {
-            const lbl = s.inference_label || '名称なしのステップ'
-            counts[lbl] = (counts[lbl] || 0) + 1
+            const keyName = s.theorem_id || s.inference_label || '未設定の定理'
+            patternCounts[keyName] = (patternCounts[keyName] || 0) + 1
           })
 
-          const sorted = Object.entries(counts)
+          const sortedPatterns = Object.entries(patternCounts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 5) // 上位5件
+            .slice(0, 5)
 
-          const maxCount = sorted[0]?.[1] || 1
-          const calculatedPatterns: PatternStat[] = sorted.map(([label, count]) => ({
+          const maxCount = sortedPatterns[0]?.[1] || 1
+          const calculatedPatterns: PatternStat[] = sortedPatterns.map(([label, count]) => ({
             label,
             count,
             percent: Math.round((count / maxCount) * 100),
           }))
-
           setPatterns(calculatedPatterns)
-        }
 
-        // 3. 「COMMON PITFALLS」用に最新のつまずきリストを取得 (最大5件)
-        const { data: recentStumbles, error: recentError } = await supabase
-          .from('stumbles')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5)
+          // --- B. COMMON PITFALLS (theorem_id ごとにグループ化・集計) ---
+          const groups: Record<string, GroupedStumble> = {}
 
-        if (!recentError && recentStumbles) {
-          setCommonStumbles(recentStumbles as StumbleRecord[])
+          allStumbles.forEach((item: StumbleRecord) => {
+            // theorem_id を主キーとしてグループ化
+            const groupKey = item.theorem_id || item.inference_label || item.id
+
+            if (!groups[groupKey]) {
+              groups[groupKey] = {
+                key: groupKey,
+                theorem_id: item.theorem_id || '未設定の定理',
+                inference_label: item.inference_label || '思考ステップ',
+                input_nodes: item.input_nodes || [],
+                output_nodes: item.output_nodes || [],
+                post_id: item.post_id,
+                step_index: item.step_index,
+                count: 1,
+              }
+            } else {
+              groups[groupKey].count += 1
+            }
+          })
+
+          // 件数が多い順（つまずいた回数・人数が多い順）にソート
+          const sortedGroups = Object.values(groups).sort((a, b) => b.count - a.count)
+          setGroupedStumbles(sortedGroups)
         }
       } catch (err) {
         console.error('Unexpected error:', err)
@@ -185,7 +212,7 @@ function StumbleAnalysisContent() {
 
         <h2 style={styles.cardTitle}>
           <FormattedText
-            text={stumble.inference_label || '名称なしのステップ'}
+            text={stumble.theorem_id || stumble.inference_label || '名称なしのステップ'}
             onTheoremClick={handleTheoremClick}
           />
         </h2>
@@ -287,7 +314,7 @@ function StumbleAnalysisContent() {
               <span style={styles.inferenceBadge}>適用した考え方・定理</span>
               <p style={styles.inferenceText}>
                 <FormattedText
-                  text={stumble.inference_label || 'なし'}
+                  text={stumble.inference_label || stumble.theorem_id || 'なし'}
                   onTheoremClick={handleTheoremClick}
                 />
               </p>
@@ -364,7 +391,7 @@ function StumbleAnalysisContent() {
         )}
       </section>
 
-      {/* STUMBLE PATTERNS (動的集計) */}
+      {/* STUMBLE PATTERNS (theorem_id での動的集計) */}
       <section style={styles.section}>
         <div style={styles.sectionEyebrow}>
           <Lightbulb size={15} />
@@ -374,7 +401,7 @@ function StumbleAnalysisContent() {
 
         <div style={styles.whiteCard}>
           <p style={styles.cardDesc}>
-            つまずきデータから抽出された、特に確認が多いステップパターンです。
+            つまずきデータから抽出された、特に確認が多い定理・公式の傾向です。
           </p>
 
           {patterns.length > 0 ? (
@@ -393,7 +420,7 @@ function StumbleAnalysisContent() {
         </div>
       </section>
 
-      {/* COMMON PITFALLS (動的取得) */}
+      {/* COMMON PITFALLS (theorem_id ごとにグループ化＆カウント表示) */}
       <section style={styles.section}>
         <div style={styles.sectionEyebrow}>
           <HelpCircle size={15} />
@@ -402,15 +429,15 @@ function StumbleAnalysisContent() {
         <h3 style={styles.sectionTitle}>みんながつまずきやすい思考ステップ</h3>
 
         <div style={styles.challengeGrid}>
-          {commonStumbles.length > 0 ? (
-            commonStumbles.map((item) => (
+          {groupedStumbles.length > 0 ? (
+            groupedStumbles.map((item) => (
               <CommunityStumbleCard
-                key={item.id}
-                theorem={item.theorem_id || '定理・法則'}
-                inference={item.inference_label || '思考ステップ'}
-                inputs={item.input_nodes?.map((n) => n.label) || []}
-                outputs={item.output_nodes?.map((n) => n.label) || []}
-                count={1} // 個別つまずき件数（集計がある場合はそちらを表示）
+                key={item.key}
+                theorem={item.theorem_id}
+                inference={item.inference_label}
+                inputs={item.input_nodes.map((n) => n.label)}
+                outputs={item.output_nodes.map((n) => n.label)}
+                count={item.count}
                 onClick={() => goToPost(item.post_id, item.step_index)}
                 onTheoremClick={handleTheoremClick}
               />
@@ -499,7 +526,7 @@ function CommunityStumbleCard({
           <BookOpen size={13} />
           {theorem}
         </span>
-        <span style={styles.countText}>{count} 人がつまずき</span>
+        <span style={styles.countText}>{count} 件のつまずき</span>
       </div>
 
       <div style={styles.miniStepGrid}>
