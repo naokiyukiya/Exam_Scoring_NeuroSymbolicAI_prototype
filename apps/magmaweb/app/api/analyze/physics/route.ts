@@ -8,7 +8,7 @@ export const maxDuration = 60;
 const physicsData: any = physicsLibrary;
 const theoremVersion = physicsData?.version || "2.4.2";
 // 出力例を追加した新しいプロンプトバージョン
-const PROMPT_VERSION = `${theoremVersion}_with_fewshot_v4`;
+const PROMPT_VERSION = `${theoremVersion}_with_fewshot_v5`;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
