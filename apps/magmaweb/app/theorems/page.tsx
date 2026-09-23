@@ -7,10 +7,13 @@ import { Search, ChevronRight, Atom, Sparkles } from 'lucide-react';
 import FormattedText from '../../components/FormattedText';
 
 // JSONの生テキスト（Python風・SymPy風）を正しく綺麗に表示される LaTeX 記法に変換するヘルパー関数
-function formatFormulaToLatex(formulaStr: string): string {
-  if (!formulaStr) return '';
+function formatFormulaToLatex(formulaInput: any): string {
+  if (!formulaInput) return '';
 
-  let formatted = formulaStr;
+  // オブジェクトや配列が渡された場合は文字列に変換
+  let formatted = typeof formulaInput === 'string' 
+    ? formulaInput 
+    : JSON.stringify(formulaInput);
 
   // 1. == を = に置換
   formatted = formatted.replace(/==/g, '=');
@@ -28,11 +31,8 @@ function formatFormulaToLatex(formulaStr: string): string {
   });
 
   // 3. 演算子の整形
-  // **2 -> ^2 などの累乗変換
   formatted = formatted.replace(/\*\*([a-zA-Z0-9]+)/g, '^{$1}');
-  // (1/2) -> \frac{1}{2}
   formatted = formatted.replace(/\(1\/2\)/g, '\\frac{1}{2}');
-  // 掛け算記号 * の削除または調整
   formatted = formatted.replace(/\s*\*\s*/g, ' ');
 
   // 4. 下付き文字 (例: F_net -> F_{\text{net}}, F_1 -> F_{1})
@@ -43,7 +43,6 @@ function formatFormulaToLatex(formulaStr: string): string {
   return `$${formatted.trim()}$`;
 }
 
-// type に応じた日本語ラベルと色のマッピング
 const TYPE_LABEL_MAP: Record<string, { label: string; bg: string; color: string }> = {
   law: { label: '物理法則', bg: '#e0f2fe', color: '#0369a1' },
   principle: { label: '原理・定理', bg: '#fef3c7', color: '#b45309' },
@@ -57,7 +56,6 @@ export default function TheoremsIndexPage() {
 
   const theorems = (physicsData as any)?.theorems || [];
 
-  // 存在するすべての type とその件数を集計
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = { all: theorems.length };
     theorems.forEach((t: any) => {
@@ -67,7 +65,6 @@ export default function TheoremsIndexPage() {
     return counts;
   }, [theorems]);
 
-  // フィルタリング処理
   const filteredTheorems = useMemo(() => {
     return theorems.filter((t: any) => {
       const matchesSearch =
@@ -95,7 +92,6 @@ export default function TheoremsIndexPage() {
 
         {/* 検索 & フィルターコントロール */}
         <div style={styles.controlSection}>
-          {/* 検索バー */}
           <div style={styles.searchBar}>
             <Search size={18} color="#94a3b8" />
             <input
@@ -107,7 +103,6 @@ export default function TheoremsIndexPage() {
             />
           </div>
 
-          {/* タブフィルター（JSONに存在するtypeから自動作成） */}
           <div style={styles.tabContainer}>
             <button
               onClick={() => setSelectedType('all')}
@@ -143,7 +138,7 @@ export default function TheoremsIndexPage() {
           <div style={styles.grid}>
             {filteredTheorems.map((item: any) => {
               const outputValues = Object.values(item.prompt_data?.outputs || {});
-              const rawFormula = outputValues.length > 0 ? (outputValues[0] as string) : '';
+              const rawFormula = outputValues.length > 0 ? outputValues[0] : '';
               const latexFormula = formatFormulaToLatex(rawFormula);
 
               const itemType = item.prompt_data?.type || 'other';
@@ -162,7 +157,6 @@ export default function TheoremsIndexPage() {
                   style={styles.cardLink}
                 >
                   <div style={styles.card}>
-                    {/* カードヘッダー（タイプタグ） */}
                     <div style={styles.cardTop}>
                       <span
                         style={{
@@ -176,17 +170,14 @@ export default function TheoremsIndexPage() {
                       <ChevronRight size={18} color="#cbd5e1" />
                     </div>
 
-                    {/* 定理名 */}
                     <h2 style={styles.cardTitle}>{item.name}</h2>
 
-                    {/* メイン公式プレビュー（FormattedText経由で綺麗なLaTeX表示） */}
                     {latexFormula && (
                       <div style={styles.formulaPreview}>
                         <FormattedText text={latexFormula} />
                       </div>
                     )}
 
-                    {/* 変数プレビュー */}
                     {variablesKeys.length > 0 && (
                       <div style={styles.variablesPreview}>
                         <Atom size={13} color="#0284c7" style={{ flexShrink: 0 }} />
@@ -217,9 +208,6 @@ export default function TheoremsIndexPage() {
   );
 }
 
-// -------------------------------------------------------------
-// スタイル定義（クリーンな白背景ベース）
-// -------------------------------------------------------------
 const styles: Record<string, React.CSSProperties> = {
   pageWrapper: {
     width: '100%',
