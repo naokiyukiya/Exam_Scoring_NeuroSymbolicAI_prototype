@@ -219,7 +219,7 @@ function StumbleAnalysisContent() {
       <header style={styles.header}>
         <h1 style={styles.title}>つまずき分析</h1>
         <p style={styles.subtitle}>
-          過去につまずいた！」を押した思考ステップの記録と構造分析です
+          過去に「つまずいた！」を押したステップを復習しよう
         </p>
       </header>
 
