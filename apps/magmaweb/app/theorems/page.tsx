@@ -10,18 +10,32 @@ import FormattedText from '../../components/FormattedText';
 function formatFormulaToLatex(formulaInput: any): string {
   if (!formulaInput) return '';
 
-  // オブジェクトや配列が渡された場合は文字列に変換
-  let formatted = typeof formulaInput === 'string' 
-    ? formulaInput 
+  let formatted = typeof formulaInput === 'string'
+    ? formulaInput
     : JSON.stringify(formulaInput);
+
+  // 配列形式などの要素をカンマ区切りテキストに整える
+  if (formatted.startsWith('[') && formatted.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(formatted);
+      if (Array.isArray(parsed)) {
+        return `$${parsed.map((item) => String(item)).join(', ')}$`;
+      }
+    } catch {
+      // JSON parseエラーの場合はそのまま続行
+    }
+  }
 
   // 1. == を = に置換
   formatted = formatted.replace(/==/g, '=');
 
-  // 2. ギリシャ文字の変換
+  // 2. sqrt 記法の修復
+  formatted = formatted.replace(/\bsqrt\(([^)]+)\)/g, '\\sqrt{$1}');
+
+  // 3. ギリシャ文字の変換
   const greekMap: Record<string, string> = {
     rho: '\\rho', theta: '\\theta', alpha: '\\alpha', beta: '\\beta',
-    gamma: '\\gamma', omega: '\\omega', mu_prime: '\\mu\'', mu: '\\mu',
+    gamma: '\\gamma', omega: '\\omega', mu_prime: "\\mu'", mu: '\\mu',
     lambda: '\\lambda', pi: '\\pi', sigma: '\\sigma', phi: '\\phi',
     epsilon: '\\epsilon', delta: '\\delta',
   };
@@ -30,12 +44,13 @@ function formatFormulaToLatex(formulaInput: any): string {
     formatted = formatted.replace(regex, latex);
   });
 
-  // 3. 演算子の整形
+  // 4. 演算子の整形
   formatted = formatted.replace(/\*\*([a-zA-Z0-9]+)/g, '^{$1}');
   formatted = formatted.replace(/\(1\/2\)/g, '\\frac{1}{2}');
   formatted = formatted.replace(/\s*\*\s*/g, ' ');
 
-  // 4. 下付き文字 (例: F_net -> F_{\text{net}}, F_1 -> F_{1})
+  // 5. 下付き文字 (連続するアンダースコアに対応)
+  // 英単語全体を \text{} で包むか数字であればそのまま下付きにする
   formatted = formatted.replace(/_([a-zA-Z0-9]+)/g, (_, sub) => {
     return isNaN(Number(sub)) ? `_{\\text{${sub}}}` : `_{${sub}}`;
   });
@@ -48,6 +63,8 @@ const TYPE_LABEL_MAP: Record<string, { label: string; bg: string; color: string 
   principle: { label: '原理・定理', bg: '#fef3c7', color: '#b45309' },
   formula: { label: '公式・計算', bg: '#dcfce7', color: '#15803d' },
   math: { label: '数学・ベクトル', bg: '#f3e8ff', color: '#6b21a8' },
+  meta_focus: { label: '注目物体・作図', bg: '#ffe4e6', color: '#9f1239' },
+  pattern: { label: '解法パターン', bg: '#e0e7ff', color: '#3730a3' },
 };
 
 export default function TheoremsIndexPage() {
@@ -185,7 +202,7 @@ export default function TheoremsIndexPage() {
                           {variablesKeys.map((key, idx) => (
                             <span key={key} style={styles.variableItem}>
                               <FormattedText text={formatFormulaToLatex(key)} />
-                              {idx < variablesKeys.length - 1 ? ', ' : ''}
+                              {idx < variablesKeys.length - 1 ? ',\u00A0' : ''}
                             </span>
                           ))}
                         </div>
@@ -216,6 +233,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#0f172a',
     padding: '32px 16px 90px 16px',
     boxSizing: 'border-box',
+    overflowX: 'hidden',
   },
   container: {
     maxWidth: '1000px',
@@ -223,6 +241,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '24px',
+    width: '100%',
   },
   header: {
     display: 'flex',
@@ -270,6 +289,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '8px',
     overflowX: 'auto',
     paddingBottom: '4px',
+    maxWidth: '100%',
+    WebkitOverflowScrolling: 'touch',
   },
   tabButton: {
     padding: '6px 14px',
@@ -282,6 +303,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'all 0.2s',
+    flexShrink: 0,
   },
   tabButtonActive: {
     backgroundColor: '#0284c7',
@@ -292,11 +314,13 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
     gap: '16px',
+    width: '100%',
   },
   cardLink: {
     textDecoration: 'none',
     color: 'inherit',
     display: 'block',
+    minWidth: 0,
   },
   card: {
     backgroundColor: '#ffffff',
@@ -310,6 +334,8 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: 'border-box',
     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
     cursor: 'pointer',
+    minWidth: 0,
+    overflow: 'hidden',
   },
   cardTop: {
     display: 'flex',
@@ -328,6 +354,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#0f172a',
     margin: 0,
     lineHeight: '1.4',
+    wordBreak: 'break-word',
   },
   formulaPreview: {
     backgroundColor: '#f8fafc',
@@ -335,21 +362,27 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     padding: '10px 12px',
     textAlign: 'center',
-    fontSize: '16px',
+    fontSize: '15px',
     color: '#0369a1',
     fontWeight: 'bold',
+    overflowX: 'auto',
+    maxWidth: '100%',
+    whiteSpace: 'nowrap',
   },
   variablesPreview: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '6px',
     marginTop: 'auto',
+    overflow: 'hidden',
   },
   variableList: {
     display: 'flex',
     flexWrap: 'wrap',
     fontSize: '12px',
     color: '#64748b',
+    overflow: 'hidden',
+    wordBreak: 'break-all',
   },
   variableItem: {
     display: 'inline-flex',

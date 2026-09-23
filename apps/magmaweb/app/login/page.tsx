@@ -58,7 +58,7 @@ function LoginForm() {
         <div style={{ ...styles.slide, ...styles.imageSlide, position: 'relative' }}>
           <div style={styles.fullContentContainer}>
             <h1 style={styles.logoTextWhite}>natti Physicsへようこそ！</h1>
-            <p style={styles.catchphraseWhite}>物理を学ぶ高校生の</p>
+            <p style={styles.catchphraseWhite}>物理を学ぶ高校生のためのAIアシスタント</p>
 
             <h2 style={styles.formTitleWhite}>{mode === 'login' ? 'ログイン' : '新規登録'}</h2>
 
