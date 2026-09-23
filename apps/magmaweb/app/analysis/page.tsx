@@ -19,6 +19,24 @@ import {
 } from 'lucide-react'
 import FormattedText from '../../components/FormattedText'
 
+import physicsData from '../../lib/constants/physics.json' // パスはプロジェクト構造に合わせて調整してください
+
+// ID（law_buoyancy_archimedes等）を日本語名（アルキメデスの原理等）に変換するヘルパー関数
+function getTheoremName(id: string | null): string {
+  if (!id) return '名称なしのステップ'
+
+  // 1. physics.json から検索
+  const match = physicsData.find((item) => item.id === id)
+  if (match) return match.name
+
+  // 2. jsonにない計算ステップなどのフォールバック
+  const fallbackMap: Record<string, string> = {
+    algebraic_simplification: '式の簡略化・代数計算',
+  }
+
+  return fallbackMap[id] || id
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -288,169 +306,175 @@ function StumbleAnalysisContent() {
         </div>
 
         {/* 思考ステップ構造 */}
-        <div style={styles.stepCardInner}>
-          <div style={styles.stepCardTitleHeader}>
-            <Compass size={15} color="#64748b" />
-            <span style={styles.stepCardTitle}>このステップで使われている考え方</span>
+      <div style={styles.stepCardInner}>
+        <div style={styles.stepCardTitleHeader}>
+          <Compass size={15} color="#64748b" />
+          <span style={styles.stepCardTitle}>このステップで使われている考え方</span>
+        </div>
+
+        <div style={styles.stepGrid}>
+          <div style={styles.stepBox}>
+            <span style={styles.inputBadge}>使う前提・根拠</span>
+            <div style={styles.nodeList}>
+              {stumble.input_nodes && stumble.input_nodes.length > 0 ? (
+                stumble.input_nodes.map((node) => (
+                  <div key={node.id} style={styles.nodeItem}>
+                    • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
+                  </div>
+                ))
+              ) : (
+                <span style={{ color: '#94a3b8' }}>前提なし</span>
+              )}
+            </div>
           </div>
 
-          <div style={styles.stepGrid}>
-            <div style={styles.stepBox}>
-              <span style={styles.inputBadge}>使う前提・根拠</span>
+          <div style={styles.stepCenterBox}>
+            <span style={styles.inferenceBadge}>適用した考え方・定理</span>
+            <p style={styles.inferenceText}>
+              <FormattedText
+                text={
+                  stumble.inference_label
+                    ? stumble.inference_label
+                    : stumble.theorem_id
+                    ? getTheoremName(stumble.theorem_id)
+                    : 'なし'
+                }
+                onTheoremClick={handleTheoremClick}
+              />
+            </p>
+          </div>
+
+          <div style={styles.stepBox}>
+            <span style={styles.outputBadge}>導かれる結果</span>
+            {!showResult ? (
+              <button
+                type="button"
+                onClick={() => setShowResult(true)}
+                style={styles.revealButton}
+              >
+                <Eye size={14} />
+                タップして結果を表示
+              </button>
+            ) : (
               <div style={styles.nodeList}>
-                {stumble.input_nodes && stumble.input_nodes.length > 0 ? (
-                  stumble.input_nodes.map((node) => (
+                {stumble.output_nodes && stumble.output_nodes.length > 0 ? (
+                  stumble.output_nodes.map((node) => (
                     <div key={node.id} style={styles.nodeItem}>
                       • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
                     </div>
                   ))
                 ) : (
-                  <span style={{ color: '#94a3b8' }}>前提なし</span>
+                  <span style={{ color: '#94a3b8' }}>結果なし</span>
                 )}
               </div>
-            </div>
-
-            <div style={styles.stepCenterBox}>
-              <span style={styles.inferenceBadge}>適用した考え方・定理</span>
-              <p style={styles.inferenceText}>
-                <FormattedText
-                  text={stumble.inference_label || stumble.theorem_id || 'なし'}
-                  onTheoremClick={handleTheoremClick}
-                />
-              </p>
-            </div>
-
-            <div style={styles.stepBox}>
-              <span style={styles.outputBadge}>導かれる結果</span>
-              {!showResult ? (
-                <button
-                  type="button"
-                  onClick={() => setShowResult(true)}
-                  style={styles.revealButton}
-                >
-                  <Eye size={14} />
-                  タップして結果を表示
-                </button>
-              ) : (
-                <div style={styles.nodeList}>
-                  {stumble.output_nodes && stumble.output_nodes.length > 0 ? (
-                    stumble.output_nodes.map((node) => (
-                      <div key={node.id} style={styles.nodeItem}>
-                        • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
-                      </div>
-                    ))
-                  ) : (
-                    <span style={{ color: '#94a3b8' }}>結果なし</span>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
+      </div>
 
-        <div style={{ marginTop: '16px' }}>
-          {!checked ? (
+      <div style={{ marginTop: '16px' }}>
+        {!checked ? (
+          <button
+            type="button"
+            onClick={() => setChecked(true)}
+            style={styles.primaryButton}
+          >
+            <span>このステップの根拠・成り立ちを確認した</span>
+            <CheckCircle2 size={16} />
+          </button>
+        ) : (
+          <div style={styles.clearedBox}>
+            <CheckCircle2 size={18} color="#16a34a" />
+            <span>復習完了！次の演習時にも意識してみましょう。</span>
             <button
               type="button"
-              onClick={() => setChecked(true)}
-              style={styles.primaryButton}
+              onClick={() => {
+                setChecked(false)
+                setShowResult(false)
+              }}
+              style={styles.retryTextBtn}
             >
-              <span>このステップの根拠・成り立ちを確認した</span>
-              <CheckCircle2 size={16} />
-            </button>
-          ) : (
-            <div style={styles.clearedBox}>
-              <CheckCircle2 size={18} color="#16a34a" />
-              <span>復習完了！次の演習時にも意識してみましょう。</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setChecked(false)
-                  setShowResult(false)
-                }}
-                style={styles.retryTextBtn}
-              >
-                <RotateCcw size={13} />
-                戻す
-              </button>
-            </div>
-          )}
-        </div>
-
-        {stumble.post_id && (
-          <div style={styles.cardFooterAction}>
-            <button
-              type="button"
-              style={styles.linkButton}
-              onClick={() => goToPost(stumble.post_id, stumble.step_index)}
-            >
-              元の答案解説を見る
-              <ChevronRight size={16} />
+              <RotateCcw size={13} />
+              戻す
             </button>
           </div>
         )}
-      </section>
+      </div>
 
-      {/* STUMBLE PATTERNS (theorem_id での動的集計) */}
-      <section style={styles.section}>
-        <div style={styles.sectionEyebrow}>
-          <Lightbulb size={15} />
-          STUMBLE PATTERNS
+      {stumble.post_id && (
+        <div style={styles.cardFooterAction}>
+          <button
+            type="button"
+            style={styles.linkButton}
+            onClick={() => goToPost(stumble.post_id, stumble.step_index)}
+          >
+            元の答案解説を見る
+            <ChevronRight size={16} />
+          </button>
         </div>
-        <h3 style={styles.sectionTitle}>よくつまずく思考・定理の傾向</h3>
+      )}
+    </section>
 
-        <div style={styles.whiteCard}>
-          <p style={styles.cardDesc}>
-            つまずきデータから抽出された、特に確認が多い定理・公式の傾向です。
-          </p>
+    {/* STUMBLE PATTERNS (theorem_id での動的集計) */}
+    <section style={styles.section}>
+      <div style={styles.sectionEyebrow}>
+        <Lightbulb size={15} />
+        STUMBLE PATTERNS
+      </div>
+      <h3 style={styles.sectionTitle}>よくつまずく思考・定理の傾向</h3>
 
-          {patterns.length > 0 ? (
-            patterns.map((pt, idx) => (
-              <StumbleBar
-                key={idx}
-                label={pt.label}
-                count={pt.count}
-                percent={pt.percent}
-                active={idx === 0}
-              />
-            ))
-          ) : (
-            <p style={{ color: '#94a3b8', fontSize: '13px' }}>集計データがまだありません。</p>
-          )}
-        </div>
-      </section>
+      <div style={styles.whiteCard}>
+        <p style={styles.cardDesc}>
+          つまずきデータから抽出された、特に確認が多い定理・公式の傾向です。
+        </p>
 
-      {/* COMMON PITFALLS (theorem_id ごとにグループ化＆カウント表示) */}
-      <section style={styles.section}>
-        <div style={styles.sectionEyebrow}>
-          <HelpCircle size={15} />
-          COMMON PITFALLS
-        </div>
-        <h3 style={styles.sectionTitle}>みんながつまずきやすい思考ステップ</h3>
+        {patterns.length > 0 ? (
+          patterns.map((pt, idx) => (
+            <StumbleBar
+              key={idx}
+              label={getTheoremName(pt.label)}
+              count={pt.count}
+              percent={pt.percent}
+              active={idx === 0}
+            />
+          ))
+        ) : (
+          <p style={{ color: '#94a3b8', fontSize: '13px' }}>集計データがまだありません。</p>
+        )}
+      </div>
+    </section>
 
-        <div style={styles.challengeGrid}>
-          {groupedStumbles.length > 0 ? (
-            groupedStumbles.map((item) => (
-              <CommunityStumbleCard
-                key={item.key}
-                theorem={item.theorem_id}
-                inference={item.inference_label}
-                inputs={item.input_nodes.map((n) => n.label)}
-                outputs={item.output_nodes.map((n) => n.label)}
-                count={item.count}
-                onClick={() => goToPost(item.post_id, item.step_index)}
-                onTheoremClick={handleTheoremClick}
-              />
-            ))
-          ) : (
-            <div style={styles.whiteCard}>
-              <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
-                つまずき記録がありません。
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
+    {/* COMMON PITFALLS (theorem_id ごとにグループ化＆カウント表示) */}
+    <section style={styles.section}>
+      <div style={styles.sectionEyebrow}>
+        <HelpCircle size={15} />
+        COMMON PITFALLS
+      </div>
+      <h3 style={styles.sectionTitle}>みんながつまずきやすい思考ステップ</h3>
+
+      <div style={styles.challengeGrid}>
+        {groupedStumbles.length > 0 ? (
+          groupedStumbles.map((item) => (
+            <CommunityStumbleCard
+              key={item.key}
+              theorem={getTheoremName(item.theorem_id)}
+              inference={item.inference_label}
+              inputs={item.input_nodes.map((n) => n.label)}
+              outputs={item.output_nodes.map((n) => n.label)}
+              count={item.count}
+              onClick={() => goToPost(item.post_id, item.step_index)}
+              onTheoremClick={handleTheoremClick}
+            />
+          ))
+        ) : (
+          <div style={styles.whiteCard}>
+            <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
+              つまずき記録がありません。
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
     </div>
   )
 }
