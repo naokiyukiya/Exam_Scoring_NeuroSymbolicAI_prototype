@@ -14,7 +14,7 @@ import {
   Search,
   BarChart3,
   Scan,
-  GitFork,
+  BookOpen, // ★ 定理一覧用に追加
   X,
   ChevronLeft,
   Camera,
@@ -45,7 +45,7 @@ export default function LayoutShell({ children }: Props) {
   const [uploading, setUploading] = useState(false)
 
   // 解析モードの指定 ('math': 数学 / 'physics': 物理)
-  const [mode, setMode] = useState<'math' | 'physics'>('math')
+  const [mode, setMode] = useState<'math' | 'physics'>('physics')
 
   const [simpleFile, setSimpleFile] = useState<File | null>(null)
   const [simpleUploading, setSimpleUploading] = useState(false)
@@ -182,22 +182,31 @@ export default function LayoutShell({ children }: Props) {
 
       {/* フッターナビゲーション */}
       <footer style={styles.footer}>
+        {/* 1番目: SNS・検索 */}
         <button style={styles.icon} onClick={() => router.push('/search')}>
           <Search size={28} />
         </button>
 
-        {/* 2番目のボタン（物理用：analysis_p への撮影・解析フロー） */}
+        {/* 2番目: 定理一覧 (theorems/page.tsx) への遷移 */}
         <button 
           style={styles.icon} 
+          onClick={() => router.push('/theorems')}
+        >
+          <BookOpen size={28} />
+        </button>
+
+        {/* 3番目: 物理解析用の撮影・解析フロー (旧2番目から移動) */}
+        <button 
+          style={styles.scanIconBtn} 
           onClick={() => {
             setMode('physics')
             goToStep(1)
           }}
         >
-          <GitFork size={28} />
+          <Scan size={30} color="#fff" />
         </button>
 
-        {/* 3番目のボタン（数学用：analysis への撮影・解析フロー） */}
+        {/* 旧magmathe時代の機能（数学解析モード）
         <button 
           style={styles.scanIconBtn} 
           onClick={() => {
@@ -207,11 +216,14 @@ export default function LayoutShell({ children }: Props) {
         >
           <Scan size={30} color="#fff" />
         </button>
+        */}
 
+        {/* 4番目: 解析一覧 */}
         <button style={styles.icon} onClick={() => router.push('/analysis')}>
           <BarChart3 size={28} />
         </button>
 
+        {/* 5番目: マイページ */}
         <button style={styles.icon} onClick={() => router.push('/me')}>
           <UserRound size={28} />
         </button>
