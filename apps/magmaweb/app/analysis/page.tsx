@@ -25,8 +25,8 @@ import physicsData from '../../lib/constants/physics.json' // パスはプロジ
 function getTheoremName(id: string | null): string {
   if (!id) return '名称なしのステップ'
 
-  // 1. physics.json から検索
-  const match = physicsData.find((item) => item.id === id)
+  // 1. physics.json の theorems 配列から検索
+  const match = physicsData.theorems?.find((item) => item.id === id)
   if (match) return match.name
 
   // 2. jsonにない計算ステップなどのフォールバック
