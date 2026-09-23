@@ -338,7 +338,28 @@ ${theoremListString}
         }
       }
     }
+    // --- パース済みデータのデータ構造・文字列サニタイズ処理 ---
+if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes)) {
+  parsedData.graph.nodes = parsedData.graph.nodes.map((node: any) => {
+    // 1. ラベル内の特殊文字・制御文字を除去
+    if (typeof node.label === 'string') {
+      node.label = node.label.replace(/[\x00-\x1F\x7F]/g, '');
+    }
 
+    // 2. inputs_used / outputs_derived が文字列で返ってきた場合の安全なオブジェクト化
+    ['inputs_used', 'outputs_derived'].forEach((key) => {
+      if (typeof node[key] === 'string') {
+        try {
+          node[key] = JSON.parse(node[key]);
+        } catch {
+          node[key] = { value: node[key] };
+        }
+      }
+    });
+
+    return node;
+  });
+}
     // 浮いている推論ノードへのセーフティ補填
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
       const currentNodes = [...parsedData.graph.nodes];

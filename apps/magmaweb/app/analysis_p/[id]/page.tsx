@@ -332,37 +332,53 @@ const handleStumble = async (theoremId: string) => {
         });
 
         const extractAndFormatMath = (text: string) => {
-          if (!text) return '';
-          let expr = text;
-          const mathMatch = text.match(/\$([^\$]+)\$/);
-          if (mathMatch) {
-            expr = mathMatch[1];
-          } else {
-            expr = expr.replace(/[^\x00-\x7F]/g, '').trim(); 
-          }
+  if (!text || typeof text !== 'string') return '';
+  
+  try {
+    let expr = text.trim();
+    
+    // $ ... $ で囲まれている場合は中身を抽出
+    const mathMatch = expr.match(/\$([^\$]+)\$/);
+    if (mathMatch && mathMatch[1]) {
+      expr = mathMatch[1];
+    }
 
-          expr = expr
-            .replace(/≧/g, '>=')
-            .replace(/≦/g, '<=')
-            .replace(/≠/g, '!=')
-            .replace(/×/g, '*')
-            .replace(/÷/g, '/');
+    // 全角記号・数学記号の変換
+    expr = expr
+      .replace(/≧/g, '>=')
+      .replace(/≦/g, '<=')
+      .replace(/≠/g, '!=')
+      .replace(/×/g, '*')
+      .replace(/÷/g, '/');
 
-          expr = expr
-            .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '(($1)/($2))')
-            .replace(/\\times/g, '*')
-            .replace(/\\div/g, '/')
-            .replace(/\\pi/g, 'pi')
-            .replace(/\\/g, '');
+    // LaTeX記法の変換（\frac{A}{B} -> ((A)/(B))）
+    expr = expr.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '(($1)/($2))');
 
-          expr = expr.replace(/'/g, '_prime');
-          
-          expr = expr.replace(/(^|[\s\+\-\*\/\(\)=])S([\s\+\-\*\/\(\)=]|$)/g, '$1Area_S$2')
-                     .replace(/(^|[\s\+\-\*\/\(\)=])I([\s\+\-\*\/\(\)=]|$)/g, '$1Current_I$2')
-                     .replace(/(^|[\s\+\-\*\/\(\)=])E([\s\+\-\*\/\(\)=]|$)/g, '$1Energy_E$2');
+    // その他のTeXコマンドの単純変換
+    expr = expr
+      .replace(/\\times/g, '*')
+      .replace(/\\div/g, '/')
+      .replace(/\\pi/g, 'pi');
 
-          return expr;
-        };
+    // ★重要: .replace(/\\/g, '') は撤去（バックスラッシュの一括削除が文字列破損の原因）
+    // 残った単一バックスラッシュのみ安全に削除
+    expr = expr.replace(/\\(?![a-zA-Z])/g, '');
+
+    // 変数プライム表記
+    expr = expr.replace(/'/g, '_prime');
+    
+    // 物理変数の安全な置換
+    expr = expr
+      .replace(/(^|[\s\+\-\*\/\(\)=])S([\s\+\-\*\/\(\)=]|$)/g, '$1Area_S$2')
+      .replace(/(^|[\s\+\-\*\/\(\)=])I([\s\+\-\*\/\(\)=]|$)/g, '$1Current_I$2')
+      .replace(/(^|[\s\+\-\*\/\(\)=])E([\s\+\-\*\/\(\)=]|$)/g, '$1Energy_E$2');
+
+    return expr;
+  } catch (err) {
+    console.warn('extractAndFormatMath error:', err);
+    return text; // 例外発生時は元の文字列をそのまま返してクラッシュを防ぐ
+  }
+};
 
         // ★ サーバー側（/api/verify）が期待するグラフペイロードの構造に合わせる
         // ノードの label 内の数式をサニタイズしたものに一時的に書き換えて送る
