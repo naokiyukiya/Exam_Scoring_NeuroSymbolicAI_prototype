@@ -40,7 +40,13 @@ type StumbleRecord = {
   output_nodes: GraphNode[] | null
 }
 
-// 1. useSearchParams を使うメインコンテンツ
+// パターン集計用の型定義
+type PatternStat = {
+  label: string
+  count: number
+  percent: number
+}
+
 function StumbleAnalysisContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -52,24 +58,63 @@ function StumbleAnalysisContent() {
   const [showResult, setShowResult] = useState(false)
   const [quizSelected, setQuizSelected] = useState<number | null>(null)
 
+  // 動的取得用データ
+  const [patterns, setPatterns] = useState<PatternStat[]>([])
+  const [commonStumbles, setCommonStumbles] = useState<StumbleRecord[]>([])
+
   useEffect(() => {
-    async function fetchStumbleData() {
+    async function fetchData() {
       setLoading(true)
       try {
+        // 1. 対象のつまずきレコード取得
         let query = supabase.from('stumbles').select('*')
-
         if (stumbleId) {
           query = query.eq('id', stumbleId)
         } else {
           query = query.order('created_at', { ascending: false }).limit(1)
         }
 
-        const { data, error } = await query
+        const { data: stumbleData, error: stumbleError } = await query
+        if (stumbleError) console.error('Error fetching stumble:', stumbleError)
+        if (stumbleData && stumbleData.length > 0) {
+          setStumble(stumbleData[0] as StumbleRecord)
+        }
 
-        if (error) {
-          console.error('Error fetching stumble:', error)
-        } else if (data && data.length > 0) {
-          setStumble(data[0] as StumbleRecord)
+        // 2. 全つまずきデータを取得して「STUMBLE PATTERNS」を集計
+        const { data: allStumbles, error: allError } = await supabase
+          .from('stumbles')
+          .select('inference_label')
+
+        if (!allError && allStumbles) {
+          const counts: Record<string, number> = {}
+          allStumbles.forEach((s) => {
+            const lbl = s.inference_label || '名称なしのステップ'
+            counts[lbl] = (counts[lbl] || 0) + 1
+          })
+
+          const sorted = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5) // 上位5件
+
+          const maxCount = sorted[0]?.[1] || 1
+          const calculatedPatterns: PatternStat[] = sorted.map(([label, count]) => ({
+            label,
+            count,
+            percent: Math.round((count / maxCount) * 100),
+          }))
+
+          setPatterns(calculatedPatterns)
+        }
+
+        // 3. 「COMMON PITFALLS」用に最新のつまずきリストを取得 (最大5件)
+        const { data: recentStumbles, error: recentError } = await supabase
+          .from('stumbles')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        if (!recentError && recentStumbles) {
+          setCommonStumbles(recentStumbles as StumbleRecord[])
         }
       } catch (err) {
         console.error('Unexpected error:', err)
@@ -78,7 +123,7 @@ function StumbleAnalysisContent() {
       }
     }
 
-    fetchStumbleData()
+    fetchData()
   }, [stumbleId])
 
   const goToPost = (postId: string | null, stepIndex: number | null) => {
@@ -127,6 +172,7 @@ function StumbleAnalysisContent() {
         </p>
       </header>
 
+      {/* メインカード */}
       <section style={styles.mainCard}>
         <div style={styles.cardHeader}>
           <div style={styles.eyebrowGroup}>
@@ -144,6 +190,7 @@ function StumbleAnalysisContent() {
           />
         </h2>
 
+        {/* クイズカード */}
         <div style={styles.quizCard}>
           <div style={styles.quizHeader}>
             <BookOpen size={16} color="#2563eb" />
@@ -213,6 +260,7 @@ function StumbleAnalysisContent() {
           )}
         </div>
 
+        {/* 思考ステップ構造 */}
         <div style={styles.stepCardInner}>
           <div style={styles.stepCardTitleHeader}>
             <Compass size={15} color="#64748b" />
@@ -316,6 +364,7 @@ function StumbleAnalysisContent() {
         )}
       </section>
 
+      {/* STUMBLE PATTERNS (動的集計) */}
       <section style={styles.section}>
         <div style={styles.sectionEyebrow}>
           <Lightbulb size={15} />
@@ -328,12 +377,23 @@ function StumbleAnalysisContent() {
             つまずきデータから抽出された、特に確認が多いステップパターンです。
           </p>
 
-          <StumbleBar label="アルキメデスの原理による浮力の計算" count={5} percent={100} active />
-          <StumbleBar label="つりあいの式の立式と符号の設定" count={3} percent={60} />
-          <StumbleBar label="状態方程式による未知数の整理" count={2} percent={40} />
+          {patterns.length > 0 ? (
+            patterns.map((pt, idx) => (
+              <StumbleBar
+                key={idx}
+                label={pt.label}
+                count={pt.count}
+                percent={pt.percent}
+                active={idx === 0}
+              />
+            ))
+          ) : (
+            <p style={{ color: '#94a3b8', fontSize: '13px' }}>集計データがまだありません。</p>
+          )}
         </div>
       </section>
 
+      {/* COMMON PITFALLS (動的取得) */}
       <section style={styles.section}>
         <div style={styles.sectionEyebrow}>
           <HelpCircle size={15} />
@@ -342,22 +402,32 @@ function StumbleAnalysisContent() {
         <h3 style={styles.sectionTitle}>みんながつまずきやすい思考ステップ</h3>
 
         <div style={styles.challengeGrid}>
-          <CommunityStumbleCard
-            theorem="アルキメデスの原理"
-            inference="水没部の体積から浮力 $F$ を計算する"
-            inputs={['水没部の体積 $V = \\frac{2}{3}HS$', 'アルキメデスの原理']}
-            outputs={['浮力 $F = \\frac{2}{3}HSg$']}
-            count={42}
-            onClick={() => goToPost(stumble.post_id, stumble.step_index)}
-            onTheoremClick={handleTheoremClick}
-          />
+          {commonStumbles.length > 0 ? (
+            commonStumbles.map((item) => (
+              <CommunityStumbleCard
+                key={item.id}
+                theorem={item.theorem_id || '定理・法則'}
+                inference={item.inference_label || '思考ステップ'}
+                inputs={item.input_nodes?.map((n) => n.label) || []}
+                outputs={item.output_nodes?.map((n) => n.label) || []}
+                count={1} // 個別つまずき件数（集計がある場合はそちらを表示）
+                onClick={() => goToPost(item.post_id, item.step_index)}
+                onTheoremClick={handleTheoremClick}
+              />
+            ))
+          ) : (
+            <div style={styles.whiteCard}>
+              <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
+                つまずき記録がありません。
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </div>
   )
 }
 
-// 2. Suspense で包むエクスポート用ページコンポーネント
 export default function StumbleAnalysisPage() {
   return (
     <main style={styles.page}>
@@ -436,12 +506,16 @@ function CommunityStumbleCard({
         <div style={styles.miniStepBox}>
           <span style={styles.inputBadgeMini}>前提</span>
           <div style={styles.miniText}>
-            {inputs.map((inp, idx) => (
-              <span key={idx}>
-                {idx > 0 && ' / '}
-                <FormattedText text={inp} onTheoremClick={onTheoremClick} />
-              </span>
-            ))}
+            {inputs.length > 0 ? (
+              inputs.map((inp, idx) => (
+                <span key={idx}>
+                  {idx > 0 && ' / '}
+                  <FormattedText text={inp} onTheoremClick={onTheoremClick} />
+                </span>
+              ))
+            ) : (
+              <span style={{ color: '#94a3b8' }}>なし</span>
+            )}
           </div>
         </div>
         <div style={styles.miniCenterBox}>
@@ -453,12 +527,16 @@ function CommunityStumbleCard({
         <div style={styles.miniStepBox}>
           <span style={styles.outputBadgeMini}>結果</span>
           <div style={styles.miniText}>
-            {outputs.map((out, idx) => (
-              <span key={idx}>
-                {idx > 0 && ' / '}
-                <FormattedText text={out} onTheoremClick={onTheoremClick} />
-              </span>
-            ))}
+            {outputs.length > 0 ? (
+              outputs.map((out, idx) => (
+                <span key={idx}>
+                  {idx > 0 && ' / '}
+                  <FormattedText text={out} onTheoremClick={onTheoremClick} />
+                </span>
+              ))
+            ) : (
+              <span style={{ color: '#94a3b8' }}>なし</span>
+            )}
           </div>
         </div>
       </div>
