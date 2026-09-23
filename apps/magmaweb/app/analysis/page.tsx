@@ -8,13 +8,21 @@ import {
   BookOpen,
   CheckCircle2,
   ChevronRight,
+  Compass,
   HelpCircle,
   Lightbulb,
   RotateCcw,
   Zap,
 } from 'lucide-react'
+import FormattedText from '../components/FormattedText'
 
-// stumblesテーブルのレコード型定義
+// ノード（前提・結果）のオブジェクト型
+type GraphNode = {
+  id: string
+  label: string
+}
+
+// データベースの stumbles テーブルの実際のレコード型
 type StumbleRecord = {
   id: string
   user_id: string
@@ -22,46 +30,53 @@ type StumbleRecord = {
   theorem_id: string | null
   step_index: number
   created_at: string
-  input_nodes: string[] // 使う前提・根拠
-  inference_label: string // 適用した考え方・定理
-  output_nodes: string[] // 導かれる結果
+  input_nodes: GraphNode[]     // 使う前提・根拠（オブジェクト配列）
+  inference_label: string      // 適用した考え方・定理
+  output_nodes: GraphNode[]    // 導かれる結果（オブジェクト配列）
 }
 
-// サンプルデータ（実際はSupabaseから取得）
+// データベースの実データに基づくサンプルデータ
 const SAMPLE_STUMBLES: StumbleRecord[] = [
   {
     id: 'stumble-1',
     user_id: 'user-123',
     post_id: 'post-456',
-    theorem_id: 'simple_harmonic_motion_period',
+    theorem_id: 'law_buoyancy_archimedes',
     step_index: 7,
     created_at: '2026-05-10T10:00:00Z',
-    input_nodes: ['全質量 M = 2/3 HS', '復元力定数 K = Sg', '単振動の周期の公式'],
-    inference_label: 'M と K を周期の公式に代入して計算する',
-    output_nodes: ['周期 T = 2π√(M/K) = 2π√(2H / 3g)'],
-  },
-  {
-    id: 'stumble-2',
-    user_id: 'user-123',
-    post_id: 'post-789',
-    theorem_id: 'equation_of_motion',
-    step_index: 3,
-    created_at: '2026-05-11T14:30:00Z',
-    input_nodes: ['小物体に働く鉛直方向の力 Ma', '重力 Mg', '浮力 ρdVg'],
-    inference_label: '鉛直上向きを正として運動方程式を立てる',
-    output_nodes: ['Ma = ρdVg - Mg'],
+    input_nodes: [
+      {
+        id: 'p1_1',
+        label: '頭部が水面上に $\\frac{1}{3}H$ 出ているとき、水没部の体積 $V = \\frac{2}{3}HS$',
+      },
+      {
+        id: 't1_1',
+        label: 'アルキメデスの原理（浮力）',
+      },
+    ],
+    inference_label: '水没部の体積から浮力 $F$ を計算する',
+    output_nodes: [
+      {
+        id: 'p1_2',
+        label: '浮力 $F = 1 \\cdot \\frac{2}{3}HS \\cdot g = \\frac{2}{3}HSg$',
+      },
+    ],
   },
 ]
 
-export default function AnalysisPage() {
+export default function StumbleAnalysisPage() {
   const router = useRouter()
-
-  // 今日の伸びしろ（最新のつまづきステップ）の回答状態
   const [checked, setChecked] = useState(false)
-  const currentStumble = SAMPLE_STUMBLES[0]
+  const stumble = SAMPLE_STUMBLES[0]
 
+  // 答案詳細ページへの遷移
   const goToPost = (postId: string, stepIndex: number) => {
     router.push(`/post/${postId}?step=${stepIndex}`)
+  }
+
+  // 定理キーワードがクリックされたときの処理
+  const handleTheoremClick = (theoremId: string) => {
+    router.push(`/theorems/${theoremId}`)
   }
 
   return (
@@ -77,82 +92,108 @@ export default function AnalysisPage() {
         </header>
 
         {/* ================================================== */}
-        {/* 直近のつまずきステップ（ピックアップ・リベンジ） */}
+        {/* メイン：要復習ステップカード */}
         {/* ================================================== */}
-        <section style={styles.growthCard}>
-          <div style={styles.growthHeader}>
-            <div>
-              <div style={styles.eyebrowBadge}>
-                <Zap size={14} />
-                要復習ステップ (Step {currentStumble.step_index})
-              </div>
-              <h2 style={styles.growthTitle}>
-                {currentStumble.inference_label}
-              </h2>
+        <section style={styles.mainCard}>
+          {/* カードヘッダー */}
+          <div style={styles.cardHeader}>
+            <div style={styles.eyebrowGroup}>
+              <span style={styles.stepBadge}>
+                <Zap size={13} />
+                要復習ステップ (Step {stumble.step_index})
+              </span>
             </div>
-            <div style={styles.stumbleBadge}>
-              <AlertTriangle size={16} />
+            <div style={styles.stumbleTag}>
+              <AlertTriangle size={14} />
               つまずき記録
             </div>
           </div>
 
-          {/* つまずいた推論ステップの3ブロック構造復元 */}
-          <div style={styles.stepFlowBox}>
-            <div style={styles.nodeBlock}>
-              <span style={styles.nodeLabelBlue}>使う前提・根拠</span>
-              <ul style={styles.nodeList}>
-                {currentStumble.input_nodes.map((node, idx) => (
-                  <li key={idx}>{node}</li>
-                ))}
-              </ul>
+          <h2 style={styles.cardTitle}>
+            <FormattedText
+              text={stumble.inference_label}
+              onTheoremClick={handleTheoremClick}
+            />
+          </h2>
+
+          {/* ステップ構造（stepGrid） */}
+          <div style={styles.stepCardInner}>
+            <div style={styles.stepCardTitleHeader}>
+              <Compass size={15} color="#64748b" />
+              <span style={styles.stepCardTitle}>このステップで行われている変形・推論</span>
             </div>
 
-            <div style={styles.nodeBlockHighlight}>
-              <span style={styles.nodeLabelPurple}>適用した考え方・定理</span>
-              <p style={styles.inferenceText}>
-                {currentStumble.inference_label}
-              </p>
-            </div>
+            <div style={styles.stepGrid}>
+              {/* 1. 使う前提・根拠 (Inputs) */}
+              <div style={styles.stepBox}>
+                <span style={styles.inputBadge}>使う前提・根拠</span>
+                <div style={styles.nodeList}>
+                  {stumble.input_nodes.map((node) => (
+                    <div key={node.id} style={styles.nodeItem}>
+                      • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-            <div style={styles.nodeBlock}>
-              <span style={styles.nodeLabelGreen}>導かれる結果</span>
-              <ul style={styles.nodeList}>
-                {currentStumble.output_nodes.map((node, idx) => (
-                  <li key={idx}>{node}</li>
-                ))}
-              </ul>
+              {/* 2. 適用した考え方・定理 (Inference) */}
+              <div style={styles.stepCenterBox}>
+                <span style={styles.inferenceBadge}>適用した考え方・定理</span>
+                <p style={styles.inferenceText}>
+                  <FormattedText
+                    text={stumble.inference_label}
+                    onTheoremClick={handleTheoremClick}
+                  />
+                </p>
+              </div>
+
+              {/* 3. 導かれる結果 (Outputs) */}
+              <div style={styles.stepBox}>
+                <span style={styles.outputBadge}>導かれる結果</span>
+                <div style={styles.nodeList}>
+                  {stumble.output_nodes.map((node) => (
+                    <div key={node.id} style={styles.nodeItem}>
+                      • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {!checked ? (
-            <button
-              type="button"
-              onClick={() => setChecked(true)}
-              style={styles.primaryButton}
-            >
-              このステップの根拠・成り立ちを確認した
-              <CheckCircle2 size={16} />
-            </button>
-          ) : (
-            <div style={styles.clearedBox}>
-              <CheckCircle2 size={20} color="#16a34a" />
-              <span>復習完了！次の演習時にも意識してみましょう。</span>
+          {/* 復習確認アクション */}
+          <div style={{ marginTop: '16px' }}>
+            {!checked ? (
               <button
                 type="button"
-                onClick={() => setChecked(false)}
-                style={styles.retryTextBtn}
+                onClick={() => setChecked(true)}
+                style={styles.primaryButton}
               >
-                <RotateCcw size={14} />
-                戻す
+                <span>このステップの根拠・成り立ちを確認した</span>
+                <CheckCircle2 size={16} />
               </button>
-            </div>
-          )}
+            ) : (
+              <div style={styles.clearedBox}>
+                <CheckCircle2 size={18} color="#16a34a" />
+                <span>復習完了！次の演習時にも意識してみましょう。</span>
+                <button
+                  type="button"
+                  onClick={() => setChecked(false)}
+                  style={styles.retryTextBtn}
+                >
+                  <RotateCcw size={13} />
+                  戻す
+                </button>
+              </div>
+            )}
+          </div>
 
+          {/* 答案ページへの導線 */}
           <div style={styles.cardFooterAction}>
             <button
               type="button"
               style={styles.linkButton}
-              onClick={() => goToPost(currentStumble.post_id, currentStumble.step_index)}
+              onClick={() => goToPost(stumble.post_id, stumble.step_index)}
             >
               元の答案解説を見る
               <ChevronRight size={16} />
@@ -161,88 +202,48 @@ export default function AnalysisPage() {
         </section>
 
         {/* ================================================== */}
-        {/* つまずきの傾向分析 (定理・適用パターン別) */}
+        {/* 集計：よくつまずく傾向 */}
         {/* ================================================== */}
         <section style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div>
-              <div style={styles.sectionEyebrow}>
-                <Lightbulb size={15} />
-                STUMBLE PATTERNS
-              </div>
-              <h2 style={styles.sectionTitle}>
-                よくつまずく思考・定理の傾向
-              </h2>
-            </div>
+          <div style={styles.sectionEyebrow}>
+            <Lightbulb size={15} />
+            STUMBLE PATTERNS
           </div>
+          <h3 style={styles.sectionTitle}>よくつまずく思考・定理の傾向</h3>
 
-          <div style={styles.card}>
-            <p style={styles.cardDescription}>
-              `stumbles` に記録されたステップから、特に確認ボタンが多く押された思考パターンです。
+          <div style={styles.whiteCard}>
+            <p style={styles.cardDesc}>
+              つまずきデータから抽出された、特に確認が多いステップパターンです。
             </p>
 
-            <StumbleBar
-              label="単振動の周期の公式の適用・代入"
-              count={5}
-              percent={100}
-              active
-            />
-            <StumbleBar
-              label="運動方程式の立式と符号の設定"
-              count={3}
-              percent={60}
-            />
-            <StumbleBar
-              label="状態方程式による未知数の整理"
-              count={2}
-              percent={40}
-            />
+            <StumbleBar label="アルキメデスの原理による浮力の計算" count={5} percent={100} active />
+            <StumbleBar label="つりあいの式の立式と符号の設定" count={3} percent={60} />
+            <StumbleBar label="状態方程式による未知数の整理" count={2} percent={40} />
           </div>
         </section>
 
         {/* ================================================== */}
-        {/* みんなの「つmost/つまずき」ノード（他ユーザーのstumbles集計） */}
+        {/* みんなのつまずきポイント */}
         {/* ================================================== */}
         <section style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div>
-              <div style={styles.sectionEyebrow}>
-                <HelpCircle size={15} />
-                COMMON PITFALLS
-              </div>
-              <h2 style={styles.sectionTitle}>
-                みんながつまずきやすい思考ステップ
-              </h2>
-            </div>
+          <div style={styles.sectionEyebrow}>
+            <HelpCircle size={15} />
+            COMMON PITFALLS
           </div>
-
-          <p style={styles.sectionDescription}>
-            他のユーザーの答案分析で「つまずいた！」が多く押されているステップです。
-          </p>
+          <h3 style={styles.sectionTitle}>みんながつまずきやすい思考ステップ</h3>
 
           <div style={styles.challengeGrid}>
-            <StumbleChallengeCard
-              theorem="単振動の周期公式"
-              inference="M と K を周期の公式 T = 2π√(M/K) に代入して計算する"
-              inputNodes={['全質量 M = 2/3 HS', '復元力定数 K = Sg']}
-              stumbleCount={42}
+            <CommunityStumbleCard
+              theorem="アルキメデスの原理"
+              inference="水没部の体積から浮力 $F$ を計算する"
+              inputs={['水没部の体積 $V = \\frac{2}{3}HS$', 'アルキメデスの原理']}
+              outputs={['浮力 $F = \\frac{2}{3}HSg$']}
+              count={42}
               onClick={() => goToPost('sample-1', 7)}
-            />
-
-            <StumbleChallengeCard
-              theorem="浮力と運動方程式"
-              inference="鉛直上向きを正として浮力を含めた運動方程式を立てる"
-              inputNodes={['質量 M', '浮力 ρdVg', '重力 Mg']}
-              stumbleCount={28}
-              onClick={() => goToPost('sample-2', 3)}
+              onTheoremClick={handleTheoremClick}
             />
           </div>
         </section>
-
-        {/* FOOTER */}
-        <p style={styles.footerText}>
-          ※ stumbles テーブルに記録された `input_nodes` / `inference_label` / `output_nodes` を基に動的描画しています。
-        </p>
 
       </div>
     </main>
@@ -265,15 +266,15 @@ function StumbleBar({
   active?: boolean
 }) {
   return (
-    <div style={styles.errorRow}>
-      <div style={styles.errorTop}>
-        <span style={styles.errorLabel}>{label}</span>
-        <span style={styles.errorCount}>{count} 回つまずき</span>
+    <div style={styles.barRow}>
+      <div style={styles.barTop}>
+        <span style={styles.barLabel}>{label}</span>
+        <span style={styles.barCount}>{count} 回</span>
       </div>
-      <div style={styles.errorTrack}>
+      <div style={styles.barTrack}>
         <div
           style={{
-            ...styles.errorFill,
+            ...styles.barFill,
             width: `${percent}%`,
             backgroundColor: active ? '#2563eb' : '#94a3b8',
           }}
@@ -283,39 +284,65 @@ function StumbleBar({
   )
 }
 
-function StumbleChallengeCard({
+function CommunityStumbleCard({
   theorem,
   inference,
-  inputNodes,
-  stumbleCount,
+  inputs,
+  outputs,
+  count,
   onClick,
+  onTheoremClick,
 }: {
   theorem: string
   inference: string
-  inputNodes: string[]
-  stumbleCount: number
+  inputs: string[]
+  outputs: string[]
+  count: number
   onClick: () => void
+  onTheoremClick: (theoremId: string) => void
 }) {
   return (
-    <div style={styles.challengeCard}>
-      <div style={styles.challengeTop}>
+    <div style={styles.whiteCard}>
+      <div style={styles.communityCardHeader}>
         <span style={styles.theoremTag}>
-          <BookOpen size={12} />
+          <BookOpen size={13} />
           {theorem}
         </span>
-        <span style={styles.countBadge}>{stumbleCount} 人がつまずき</span>
+        <span style={styles.countText}>{count} 人がつまずき</span>
       </div>
 
-      <div style={styles.miniNodeBox}>
-        <div style={styles.miniInference}>
-          <strong>適用ステップ:</strong> {inference}
+      <div style={styles.miniStepGrid}>
+        <div style={styles.miniStepBox}>
+          <span style={styles.inputBadgeMini}>前提</span>
+          <div style={styles.miniText}>
+            {inputs.map((inp, idx) => (
+              <span key={idx}>
+                {idx > 0 && ' / '}
+                <FormattedText text={inp} onTheoremClick={onTheoremClick} />
+              </span>
+            ))}
+          </div>
         </div>
-        <div style={styles.miniInputs}>
-          前提: {inputNodes.join(' / ')}
+        <div style={styles.miniCenterBox}>
+          <span style={styles.inferenceBadgeMini}>適用</span>
+          <div style={styles.miniTextBold}>
+            <FormattedText text={inference} onTheoremClick={onTheoremClick} />
+          </div>
+        </div>
+        <div style={styles.miniStepBox}>
+          <span style={styles.outputBadgeMini}>結果</span>
+          <div style={styles.miniText}>
+            {outputs.map((out, idx) => (
+              <span key={idx}>
+                {idx > 0 && ' / '}
+                <FormattedText text={out} onTheoremClick={onTheoremClick} />
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
-      <button type="button" onClick={onClick} style={styles.challengeButton}>
+      <button type="button" onClick={onClick} style={styles.darkButton}>
         このステップを含む答案を見る
         <ArrowRight size={15} />
       </button>
@@ -324,71 +351,69 @@ function StumbleChallengeCard({
 }
 
 /* ================================================== */
-/* スタイル定義 (Light Background / 白ベース) */
+/* スタイル定義 */
 /* ================================================== */
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    padding: '32px 16px',
-    backgroundColor: '#f8fafc', // 白〜明るいライトグレー背景
+    padding: '24px 16px',
+    backgroundColor: '#f8fafc',
     color: '#0f172a',
     minHeight: '100vh',
-    fontFamily: 'sans-serif',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   container: {
-    maxWidth: '720px',
+    maxWidth: '680px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '28px',
+    gap: '24px',
   },
   header: {
-    marginBottom: '4px',
+    marginBottom: '0px',
   },
   title: {
-    fontSize: '26px',
+    fontSize: '24px',
     fontWeight: 'bold',
     color: '#0f172a',
-    margin: '0 0 6px 0',
+    margin: '0 0 4px 0',
   },
   subtitle: {
-    fontSize: '14px',
-    color: '#475569',
+    fontSize: '13px',
+    color: '#64748b',
     margin: 0,
   },
-  growthCard: {
+  mainCard: {
     backgroundColor: '#ffffff',
     borderRadius: '16px',
-    padding: '24px',
+    padding: '20px',
     border: '1px solid #e2e8f0',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
   },
-  growthHeader: {
+  cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '16px',
+    alignItems: 'center',
+    marginBottom: '12px',
   },
-  eyebrowBadge: {
+  eyebrowGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  stepBadge: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '6px',
+    gap: '4px',
     fontSize: '12px',
     fontWeight: 600,
     color: '#2563eb',
     backgroundColor: '#eff6ff',
     padding: '4px 10px',
     borderRadius: '20px',
-    marginBottom: '8px',
   },
-  growthTitle: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    margin: 0,
-    color: '#0f172a',
-  },
-  stumbleBadge: {
-    display: 'flex',
+  stumbleTag: {
+    display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
     fontSize: '12px',
@@ -399,60 +424,97 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '4px 10px',
     borderRadius: '8px',
   },
-  stepFlowBox: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    gap: '10px',
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    margin: '0 0 16px 0',
+    color: '#0f172a',
+    lineHeight: 1.4,
+  },
+  stepCardInner: {
     backgroundColor: '#f8fafc',
-    padding: '16px',
     borderRadius: '12px',
+    padding: '16px',
     border: '1px solid #e2e8f0',
-    marginBottom: '16px',
   },
-  nodeBlock: {
+  stepCardTitleHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginBottom: '12px',
+  },
+  stepCardTitle: {
+    fontSize: '13px',
+    fontWeight: 'bold',
+    color: '#475569',
+  },
+  stepGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: '12px',
+  },
+  stepBox: {
     backgroundColor: '#ffffff',
-    padding: '10px',
-    borderRadius: '8px',
+    borderRadius: '10px',
+    padding: '12px',
     border: '1px solid #cbd5e1',
-    fontSize: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
   },
-  nodeBlockHighlight: {
+  stepCenterBox: {
     backgroundColor: '#f0fdf4',
-    padding: '10px',
-    borderRadius: '8px',
+    borderRadius: '10px',
+    padding: '12px',
     border: '1px solid #86efac',
-    fontSize: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
   },
-  nodeLabelBlue: {
+  inputBadge: {
     fontSize: '11px',
     fontWeight: 'bold',
-    color: '#2563eb',
-    display: 'block',
-    marginBottom: '4px',
+    color: '#1d4ed8',
+    backgroundColor: '#eff6ff',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    alignSelf: 'flex-start',
   },
-  nodeLabelPurple: {
+  inferenceBadge: {
     fontSize: '11px',
-    fontWeight: 'bold',
-    color: '#16a34a',
-    display: 'block',
-    marginBottom: '4px',
-  },
-  nodeLabelGreen: {
-    fontSize: '11px',
-    fontWeight: 'bold',
-    color: '#059669',
-    display: 'block',
-    marginBottom: '4px',
-  },
-  nodeList: {
-    margin: 0,
-    paddingLeft: '14px',
-    color: '#334155',
-  },
-  inferenceText: {
-    margin: 0,
     fontWeight: 'bold',
     color: '#15803d',
+    backgroundColor: '#dcfce7',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    alignSelf: 'flex-start',
+  },
+  outputBadge: {
+    fontSize: '11px',
+    fontWeight: 'bold',
+    color: '#047857',
+    backgroundColor: '#ecfdf5',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    alignSelf: 'flex-start',
+  },
+  nodeList: {
+    fontSize: '12px',
+    color: '#334155',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    lineHeight: 1.4,
+  },
+  nodeItem: {
+    wordBreak: 'break-word',
+  },
+  inferenceText: {
+    fontSize: '13px',
+    fontWeight: 'bold',
+    color: '#166534',
+    margin: 0,
+    lineHeight: 1.4,
   },
   primaryButton: {
     width: '100%',
@@ -474,7 +536,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '8px',
     backgroundColor: '#f0fdf4',
-    padding: '12px',
+    padding: '10px 14px',
     borderRadius: '10px',
     border: '1px solid #bbf7d0',
     color: '#166534',
@@ -511,12 +573,7 @@ const styles: Record<string, React.CSSProperties> = {
   section: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-  },
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: '8px',
   },
   sectionEyebrow: {
     display: 'flex',
@@ -524,58 +581,51 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '6px',
     fontSize: '11px',
     fontWeight: 'bold',
-    letterSpacing: '0.05em',
     color: '#2563eb',
-    marginBottom: '2px',
+    letterSpacing: '0.05em',
   },
   sectionTitle: {
-    fontSize: '18px',
+    fontSize: '17px',
     fontWeight: 'bold',
     color: '#0f172a',
-    margin: 0,
+    margin: '0 0 4px 0',
   },
-  sectionDescription: {
-    fontSize: '13px',
-    color: '#64748b',
-    margin: 0,
-  },
-  card: {
+  whiteCard: {
     backgroundColor: '#ffffff',
     borderRadius: '14px',
-    padding: '20px',
+    padding: '18px',
     border: '1px solid #e2e8f0',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
   },
-  cardDescription: {
+  cardDesc: {
     fontSize: '13px',
     color: '#64748b',
-    marginTop: 0,
-    marginBottom: '16px',
+    margin: '0 0 16px 0',
   },
-  errorRow: {
+  barRow: {
     marginBottom: '12px',
   },
-  errorTop: {
+  barTop: {
     display: 'flex',
     justifyContent: 'space-between',
     fontSize: '13px',
     marginBottom: '4px',
   },
-  errorLabel: {
+  barLabel: {
     color: '#1e293b',
     fontWeight: 500,
   },
-  errorCount: {
+  barCount: {
     color: '#64748b',
     fontSize: '12px',
   },
-  errorTrack: {
+  barTrack: {
     height: '8px',
     backgroundColor: '#f1f5f9',
     borderRadius: '4px',
     overflow: 'hidden',
   },
-  errorFill: {
+  barFill: {
     height: '100%',
     borderRadius: '4px',
   },
@@ -583,56 +633,79 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    marginTop: '4px',
   },
-  challengeCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '14px',
-    padding: '16px',
-    border: '1px solid #e2e8f0',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-  },
-  challengeTop: {
+  communityCardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '10px',
+    marginBottom: '12px',
   },
   theoremTag: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
     fontSize: '12px',
     fontWeight: 'bold',
     color: '#1d4ed8',
     backgroundColor: '#eff6ff',
-    padding: '2px 8px',
+    padding: '3px 8px',
     borderRadius: '6px',
   },
-  countBadge: {
-    fontSize: '11px',
+  countText: {
+    fontSize: '12px',
     color: '#d97706',
     fontWeight: 'bold',
   },
-  miniNodeBox: {
+  miniStepGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '8px',
     backgroundColor: '#f8fafc',
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid #f1f5f9',
+    padding: '10px',
+    borderRadius: '10px',
     marginBottom: '12px',
   },
-  miniInference: {
-    fontSize: '13px',
-    color: '#0f172a',
-    marginBottom: '4px',
+  miniStepBox: {
+    backgroundColor: '#ffffff',
+    padding: '8px',
+    borderRadius: '6px',
+    border: '1px solid #e2e8f0',
   },
-  miniInputs: {
+  miniCenterBox: {
+    backgroundColor: '#f0fdf4',
+    padding: '8px',
+    borderRadius: '6px',
+    border: '1px solid #bbf7d0',
+  },
+  inputBadgeMini: {
+    fontSize: '10px',
+    fontWeight: 'bold',
+    color: '#2563eb',
+  },
+  inferenceBadgeMini: {
+    fontSize: '10px',
+    fontWeight: 'bold',
+    color: '#16a34a',
+  },
+  outputBadgeMini: {
+    fontSize: '10px',
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+  miniText: {
     fontSize: '11px',
-    color: '#64748b',
+    color: '#475569',
+    marginTop: '2px',
   },
-  challengeButton: {
+  miniTextBold: {
+    fontSize: '11px',
+    fontWeight: 'bold',
+    color: '#15803d',
+    marginTop: '2px',
+  },
+  darkButton: {
     width: '100%',
-    padding: '9px',
+    padding: '10px',
     borderRadius: '8px',
     backgroundColor: '#0f172a',
     color: '#ffffff',
@@ -644,11 +717,5 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     gap: '6px',
     cursor: 'pointer',
-  },
-  footerText: {
-    fontSize: '11px',
-    color: '#94a3b8',
-    textAlign: 'center',
-    marginTop: '12px',
   },
 }
