@@ -49,7 +49,9 @@ export default function StumbleAnalysisPage() {
   const [showResult, setShowResult] = useState(false) // 導かれる結果の表示フラグ
   const [quizSelected, setQuizSelected] = useState<number | null>(null)
 
-  const supabase = createClient()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
   // Supabaseからデータ取得
   useEffect(() => {
