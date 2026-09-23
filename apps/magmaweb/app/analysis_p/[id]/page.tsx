@@ -145,7 +145,14 @@ const [isSubmittingStumble, setIsSubmittingStumble] = useState(false);
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
+      // 1. セッション（またはユーザー情報）を取得してログイン状態を確認
+        const { data: { session } } = await supabase.auth.getSession()
 
+        // 未ログインの場合はログイン画面へ飛ばす
+        if (!session) {
+          router.push('/login')
+          return
+        }
         const { data: post, error: pError } = await supabase
           .from('posts')
           .select(`
