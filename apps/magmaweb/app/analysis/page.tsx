@@ -213,7 +213,7 @@ function StumbleAnalysisContent() {
       <header style={styles.header}>
         <h1 style={styles.title}>つまずき分析</h1>
         <p style={styles.subtitle}>
-          あなたが「つまづいた！」を押した思考ステップの記録と構造分析です
+          過去につまずいた！」を押した思考ステップの記録と構造分析です
         </p>
       </header>
 
@@ -229,17 +229,21 @@ function StumbleAnalysisContent() {
         </div>
 
         <h2 style={styles.cardTitle}>
-          <FormattedText
-            text={stumble.theorem_id || stumble.inference_label || '名称なしのステップ'}
-            onTheoremClick={handleTheoremClick}
-          />
-        </h2>
+  <FormattedText
+    text={
+      stumble.theorem_id
+        ? getTheoremName(stumble.theorem_id)
+        : stumble.inference_label || '名称なしのステップ'
+    }
+    onTheoremClick={handleTheoremClick}
+  />
+</h2>
 
         {/* クイズカード */}
         <div style={styles.quizCard}>
           <div style={styles.quizHeader}>
             <BookOpen size={16} color="#2563eb" />
-            <span style={styles.quizTitle}>まず「定理・定義」の前提チェック！</span>
+            <span style={styles.quizTitle}>定理・定義の確認</span>
           </div>
 
           <p style={styles.quizQuestion}>
@@ -285,7 +289,7 @@ function StumbleAnalysisContent() {
                   <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
                   <div>
                     <FormattedText
-                      text="正解！ 浮力は「押しのけた水（流体）の質量 $\rho V_2$ に働く重力」です。"
+                      text="正解：浮力は「押しのけた水（流体）の質量 $\rho V_2$ に働く重力」です。"
                       onTheoremClick={handleTheoremClick}
                     />
                   </div>
@@ -295,7 +299,7 @@ function StumbleAnalysisContent() {
                   <XCircle size={16} style={{ flexShrink: 0 }} />
                   <div>
                     <FormattedText
-                      text="残念！ 浮力で使う密度は「物体の密度 $\rho_1$」ではなく「水の密度 $\rho$」で、体積は「水没部 $V_2$」です。"
+                      text="不正解：浮力で使う密度は「物体じたいの密度 $\rho_1$」ではなく「液体の密度 $\rho$」で、体積は「液体中にある部分 $V_2$」です。"
                       onTheoremClick={handleTheoremClick}
                     />
                   </div>
