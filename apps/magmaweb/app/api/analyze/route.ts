@@ -5,7 +5,7 @@ import theorems from '../../../lib/constants/mathematics.json';
 
 // ★ タイムアウトを60秒に延長
 export const maxDuration = 60;
-const PROMPT_VERSION = "1.24.0"; // バージョンを更新
+const PROMPT_VERSION = "1.25.0"; // バージョンを更新
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
