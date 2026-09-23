@@ -21,6 +21,12 @@ import FormattedText from '../../components/FormattedText'
 
 import physicsData from '../../lib/constants/physics.json' // パスはプロジェクト構造に合わせて調整してください
 
+import { PHYSICS_QUIZZES } from '../../lib/constants/physicsQuizzes'
+
+// コンポーネント内の処理（レンダリング前）
+const quizData = stumble.theorem_id ? PHYSICS_QUIZZES[stumble.theorem_id] : null
+const selectedOption = quizSelected !== null && quizData ? quizData.options[quizSelected] : null
+
 // ID（law_buoyancy_archimedes等）を日本語名（アルキメデスの原理等）に変換するヘルパー関数
 function getTheoremName(id: string | null): string {
   if (!id) return '名称なしのステップ'
@@ -239,75 +245,74 @@ function StumbleAnalysisContent() {
   />
 </h2>
 
-        {/* クイズカード */}
-        <div style={styles.quizCard}>
-          <div style={styles.quizHeader}>
-            <BookOpen size={16} color="#2563eb" />
-            <span style={styles.quizTitle}>定理・定義の確認</span>
-          </div>
+{/* クイズが存在する場合のみ表示 */}
+{quizData && (
+  <div style={styles.quizCard}>
+    <div style={styles.quizHeader}>
+      <BookOpen size={16} color="#2563eb" />
+      <span style={styles.quizTitle}>定理・定義の確認</span>
+    </div>
 
-          <p style={styles.quizQuestion}>
-            <FormattedText
-              text="密度 $\rho_1$、体積 $V_1$ の物体を、水（密度 $\rho$）に浮かべると体積 $V_2$ 部分が水につかった。物体に働く浮力 $F$ の大きさは？（重力加速度を $g$ とする）"
-              onTheoremClick={handleTheoremClick}
-            />
-          </p>
+    <p style={styles.quizQuestion}>
+      <FormattedText text={quizData.question} onTheoremClick={handleTheoremClick} />
+    </p>
 
-          <div style={styles.quizGrid}>
-            {quizOptions.map((opt) => {
-              const isSelected = quizSelected === opt.id
-              let btnStyle = styles.quizOptionBtn
-              if (isSelected) {
-                btnStyle = opt.isCorrect
-                  ? { ...styles.quizOptionBtn, ...styles.quizOptionCorrect }
-                  : { ...styles.quizOptionBtn, ...styles.quizOptionIncorrect }
-              }
+    <div style={styles.quizGrid}>
+      {quizData.options.map((opt, idx) => {
+        const isSelected = quizSelected === idx
+        let btnStyle = styles.quizOptionBtn
+        if (isSelected) {
+          btnStyle = opt.isCorrect
+            ? { ...styles.quizOptionBtn, ...styles.quizOptionCorrect }
+            : { ...styles.quizOptionBtn, ...styles.quizOptionIncorrect }
+        }
 
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setQuizSelected(opt.id)}
-                  style={btnStyle}
-                >
-                  <FormattedText text={opt.text} onTheoremClick={handleTheoremClick} />
-                </button>
-              )
-            })}
-          </div>
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setQuizSelected(idx)}
+            style={btnStyle}
+          >
+            <FormattedText text={opt.text} onTheoremClick={handleTheoremClick} />
+          </button>
+        )
+      })}
+    </div>
 
-          {quizSelected !== null && (
-            <div
-              style={{
-                ...styles.quizFeedback,
-                backgroundColor: quizOptions[quizSelected].isCorrect ? '#f0fdf4' : '#fff1f2',
-                borderColor: quizOptions[quizSelected].isCorrect ? '#bbf7d0' : '#fecdd3',
-              }}
-            >
-              {quizOptions[quizSelected].isCorrect ? (
-                <div style={styles.feedbackTitleCorrect}>
-                  <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-                  <div>
-                    <FormattedText
-                      text="正解：浮力は「押しのけた水（流体）の質量 $\rho V_2$ に働く重力」です。"
-                      onTheoremClick={handleTheoremClick}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div style={styles.feedbackTitleIncorrect}>
-                  <XCircle size={16} style={{ flexShrink: 0 }} />
-                  <div>
-                    <FormattedText
-                      text="不正解：浮力で使う密度は「物体じたいの密度 $\rho_1$」ではなく「液体の密度 $\rho$」で、体積は「液体中にある部分 $V_2$」です。"
-                      onTheoremClick={handleTheoremClick}
-                    />
-                  </div>
-                </div>
-              )}
+    {selectedOption && (
+      <div
+        style={{
+          ...styles.quizFeedback,
+          backgroundColor: selectedOption.isCorrect ? '#f0fdf4' : '#fff1f2',
+          borderColor: selectedOption.isCorrect ? '#bbf7d0' : '#fecdd3',
+        }}
+      >
+        {selectedOption.isCorrect ? (
+          <div style={styles.feedbackTitleCorrect}>
+            <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+            <div>
+              <FormattedText
+                text={quizData.explanationCorrect}
+                onTheoremClick={handleTheoremClick}
+              />
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div style={styles.feedbackTitleIncorrect}>
+            <XCircle size={16} style={{ flexShrink: 0 }} />
+            <div>
+              <FormattedText
+                text={quizData.explanationIncorrect}
+                onTheoremClick={handleTheoremClick}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
 
         {/* 思考ステップ構造 */}
       <div style={styles.stepCardInner}>
