@@ -108,7 +108,7 @@ export default function AnalysisPhysicsPage({ params }: { params: { id: string }
   const [isStepViewerOpen, setIsStepViewerOpen] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
 
-  // ▼ ここを追加（連打防止用とつまづき済みマーク用）
+  // ▼ ここを追加（連打防止用とつまずき済みマーク用）
 const [stumbledSteps, setStumbledSteps] = useState<Record<number, boolean>>({});
 const [isSubmittingStumble, setIsSubmittingStumble] = useState(false);
 
@@ -273,7 +273,7 @@ const [isSubmittingStumble, setIsSubmittingStumble] = useState(false);
 
   const primaryTheorem = getPrimaryTheoremFromStep();
 
-  // ▼ ここを追加：「つまづいた！」ボタンのハンドラー（3つのコンテキストを保存）
+  // ▼ ここを追加：「つまずいた！」ボタンのハンドラー（3つのコンテキストを保存）
 const handleStumble = async (theoremId: string) => {
   try {
     setIsSubmittingStumble(true);
@@ -678,7 +678,7 @@ const handleStumble = async (theoremId: string) => {
                   </div>
                 </div>
               </div>
-{/* 定理解説＆つまづきアクションカード */}
+{/* 定理解説＆つまずきアクションカード */}
               <div style={styles.theoremBanner}>
                 <div style={styles.theoremBannerText}>
                   <div style={styles.theoremBannerTitle}>
@@ -693,7 +693,7 @@ const handleStumble = async (theoremId: string) => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', minWidth: 0, width: '100%' }}>
-                  {/* ★「つまづいた！」ボタン */}
+                  {/* ★「つまずいた！」ボタン */}
                   <button
                     disabled={isSubmittingStumble}
                     onClick={() => {
@@ -718,7 +718,7 @@ const handleStumble = async (theoremId: string) => {
                     }}
                   >
                     <AlertTriangle size={14} />
-                    <span>{stumbledSteps[currentStepIndex] ? 'つまづきを記録済み' : 'つまづいた！'}</span>
+                    <span>{stumbledSteps[currentStepIndex] ? 'つまずきを記録済み' : 'つまずいた！'}</span>
                   </button>
 
                   {/* ★「定理の解説を見る」ボタン */}
