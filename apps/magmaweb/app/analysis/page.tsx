@@ -82,12 +82,12 @@ export default function StumbleAnalysisPage() {
     router.push(`/theorems/${theoremId}`)
   }
 
-  // クイズ選択肢のデータ（例: アルキメデスの原理）
+  // クイズ選択肢のデータ
   const quizOptions = [
     { id: 0, text: '$F = \\rho_1 V_1 g$', isCorrect: false },
     { id: 1, text: '$F = \\rho V_1 g$', isCorrect: false },
     { id: 2, text: '$F = \\rho_1 V_2 g$', isCorrect: false },
-    { id: 3, text: '$F = \\rho V_2 g$', isCorrect: true }, // 浮力 = 排除した流体の密度ρ × 水没体積V2 × g
+    { id: 3, text: '$F = \\rho V_2 g$', isCorrect: true },
   ]
 
   return (
@@ -137,7 +137,10 @@ export default function StumbleAnalysisPage() {
             </div>
 
             <p style={styles.quizQuestion}>
-              密度 $\rho_1$、体積 $V_1$ の物体を、水（密度 $\rho$）に浮かべると体積 $V_2$ 部分が水につかった。物体に働く浮力 $F$ の大きさは？（重力加速度を $g$ とする）
+              <FormattedText
+                text="密度 $\rho_1$、体積 $V_1$ の物体を、水（密度 $\rho$）に浮かべると体積 $V_2$ 部分が水につかった。物体に働く浮力 $F$ の大きさは？（重力加速度を $g$ とする）"
+                onTheoremClick={handleTheoremClick}
+              />
             </p>
 
             <div style={styles.quizGrid}>
@@ -157,7 +160,7 @@ export default function StumbleAnalysisPage() {
                     onClick={() => setQuizSelected(opt.id)}
                     style={btnStyle}
                   >
-                    <FormattedText text={opt.text} />
+                    <FormattedText text={opt.text} onTheoremClick={handleTheoremClick} />
                   </button>
                 )
               })}
@@ -174,11 +177,23 @@ export default function StumbleAnalysisPage() {
               >
                 {quizOptions[quizSelected].isCorrect ? (
                   <div style={styles.feedbackTitleCorrect}>
-                    <CheckCircle2 size={16} /> 正解！ 浮力は「押しのけた水（流体）の質量 $\rho V_2$ に働く重力」です。
+                    <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                    <div>
+                      <FormattedText
+                        text="正解！ 浮力は「押しのけた水（流体）の質量 $\rho V_2$ に働く重力」です。"
+                        onTheoremClick={handleTheoremClick}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div style={styles.feedbackTitleIncorrect}>
-                    <XCircle size={16} /> 残念！ 浮力で使う密度は「物体の密度 $\rho_1$」ではなく「水の密度 $\rho$」で、体積は「水没部 $V_2$」です。
+                    <XCircle size={16} style={{ flexShrink: 0 }} />
+                    <div>
+                      <FormattedText
+                        text="残念！ 浮力で使う密度は「物体の密度 $\rho_1$」ではなく「水の密度 $\rho$」で、体積は「水没部 $V_2$」です。"
+                        onTheoremClick={handleTheoremClick}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -218,7 +233,7 @@ export default function StumbleAnalysisPage() {
                 </p>
               </div>
 
-              {/* 3. 導かれる結果 (Outputs) ※タップで伏せ字解除 */}
+              {/* 3. 導かれる結果 (Outputs) ※タップで表示 */}
               <div style={styles.stepBox}>
                 <span style={styles.outputBadge}>導かれる結果</span>
                 {!showResult ? (
@@ -579,14 +594,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   feedbackTitleCorrect: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '6px',
     color: '#15803d',
     fontWeight: 'bold',
   },
   feedbackTitleIncorrect: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '6px',
     color: '#be123c',
     fontWeight: 'bold',
