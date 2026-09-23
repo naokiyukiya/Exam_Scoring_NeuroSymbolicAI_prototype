@@ -3,8 +3,53 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import physicsData from '../../lib/constants/physics.json';
-import { Search, BookOpen, ChevronRight, Atom, Sparkles } from 'lucide-react';
+import { Search, ChevronRight, Atom, Sparkles } from 'lucide-react';
 import FormattedText from '../../components/FormattedText';
+
+// JSONの生テキスト（Python風・SymPy風）を正しく綺麗に表示される LaTeX 記法に変換するヘルパー関数
+function formatFormulaToLatex(formulaStr: string): string {
+  if (!formulaStr) return '';
+
+  let formatted = formulaStr;
+
+  // 1. == を = に置換
+  formatted = formatted.replace(/==/g, '=');
+
+  // 2. ギリシャ文字の変換
+  const greekMap: Record<string, string> = {
+    rho: '\\rho', theta: '\\theta', alpha: '\\alpha', beta: '\\beta',
+    gamma: '\\gamma', omega: '\\omega', mu_prime: '\\mu\'', mu: '\\mu',
+    lambda: '\\lambda', pi: '\\pi', sigma: '\\sigma', phi: '\\phi',
+    epsilon: '\\epsilon', delta: '\\delta',
+  };
+  Object.entries(greekMap).forEach(([raw, latex]) => {
+    const regex = new RegExp(`\\b${raw}\\b`, 'g');
+    formatted = formatted.replace(regex, latex);
+  });
+
+  // 3. 演算子の整形
+  // **2 -> ^2 などの累乗変換
+  formatted = formatted.replace(/\*\*([a-zA-Z0-9]+)/g, '^{$1}');
+  // (1/2) -> \frac{1}{2}
+  formatted = formatted.replace(/\(1\/2\)/g, '\\frac{1}{2}');
+  // 掛け算記号 * の削除または調整
+  formatted = formatted.replace(/\s*\*\s*/g, ' ');
+
+  // 4. 下付き文字 (例: F_net -> F_{\text{net}}, F_1 -> F_{1})
+  formatted = formatted.replace(/_([a-zA-Z0-9]+)/g, (_, sub) => {
+    return isNaN(Number(sub)) ? `_{\\text{${sub}}}` : `_{${sub}}`;
+  });
+
+  return `$${formatted.trim()}$`;
+}
+
+// type に応じた日本語ラベルと色のマッピング
+const TYPE_LABEL_MAP: Record<string, { label: string; bg: string; color: string }> = {
+  law: { label: '物理法則', bg: '#e0f2fe', color: '#0369a1' },
+  principle: { label: '原理・定理', bg: '#fef3c7', color: '#b45309' },
+  formula: { label: '公式・計算', bg: '#dcfce7', color: '#15803d' },
+  math: { label: '数学・ベクトル', bg: '#f3e8ff', color: '#6b21a8' },
+};
 
 export default function TheoremsIndexPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,15 +57,23 @@ export default function TheoremsIndexPage() {
 
   const theorems = (physicsData as any)?.theorems || [];
 
+  // 存在するすべての type とその件数を集計
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: theorems.length };
+    theorems.forEach((t: any) => {
+      const type = t.prompt_data?.type || 'other';
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return counts;
+  }, [theorems]);
+
   // フィルタリング処理
   const filteredTheorems = useMemo(() => {
     return theorems.filter((t: any) => {
-      // 検索ワードマッチ（名前 or ID）
       const matchesSearch =
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.id.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // タイプ（law / math など）マッチ
       const matchesType =
         selectedType === 'all' || t.prompt_data?.type === selectedType;
 
@@ -34,10 +87,6 @@ export default function TheoremsIndexPage() {
         
         {/* ヘッダーセクション */}
         <header style={styles.header}>
-          <div style={styles.titleBadge}>
-            <BookOpen size={16} color="#0284c7" />
-            <span>物理公式・法則ライブラリ</span>
-          </div>
           <h1 style={styles.mainTitle}>物理の定理・法則一覧</h1>
           <p style={styles.subTitle}>
             各定理の解説、公式、登場する物理量や導出メカニズムを確認できます。
@@ -58,7 +107,7 @@ export default function TheoremsIndexPage() {
             />
           </div>
 
-          {/* タブフィルター */}
+          {/* タブフィルター（JSONに存在するtypeから自動作成） */}
           <div style={styles.tabContainer}>
             <button
               onClick={() => setSelectedType('all')}
@@ -67,26 +116,25 @@ export default function TheoremsIndexPage() {
                 ...(selectedType === 'all' ? styles.tabButtonActive : {}),
               }}
             >
-              すべて ({theorems.length})
+              すべて ({typeCounts.all})
             </button>
-            <button
-              onClick={() => setSelectedType('law')}
-              style={{
-                ...styles.tabButton,
-                ...(selectedType === 'law' ? styles.tabButtonActive : {}),
-              }}
-            >
-              物理法則 (Law)
-            </button>
-            <button
-              onClick={() => setSelectedType('math')}
-              style={{
-                ...styles.tabButton,
-                ...(selectedType === 'math' ? styles.tabButtonActive : {}),
-              }}
-            >
-              数学・ベクトル (Math)
-            </button>
+            {Object.keys(typeCounts)
+              .filter((type) => type !== 'all')
+              .map((type) => {
+                const badgeInfo = TYPE_LABEL_MAP[type] || { label: type };
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedType(type)}
+                    style={{
+                      ...styles.tabButton,
+                      ...(selectedType === type ? styles.tabButtonActive : {}),
+                    }}
+                  >
+                    {badgeInfo.label} ({typeCounts[type]})
+                  </button>
+                );
+              })}
           </div>
         </div>
 
@@ -95,7 +143,17 @@ export default function TheoremsIndexPage() {
           <div style={styles.grid}>
             {filteredTheorems.map((item: any) => {
               const outputValues = Object.values(item.prompt_data?.outputs || {});
-              const mainFormula = outputValues.length > 0 ? (outputValues[0] as string) : null;
+              const rawFormula = outputValues.length > 0 ? (outputValues[0] as string) : '';
+              const latexFormula = formatFormulaToLatex(rawFormula);
+
+              const itemType = item.prompt_data?.type || 'other';
+              const typeStyle = TYPE_LABEL_MAP[itemType] || {
+                label: itemType,
+                bg: '#f1f5f9',
+                color: '#475569',
+              };
+
+              const variablesKeys = Object.keys(item.prompt_data?.variables || {});
 
               return (
                 <Link
@@ -109,12 +167,11 @@ export default function TheoremsIndexPage() {
                       <span
                         style={{
                           ...styles.typeBadge,
-                          ...(item.prompt_data?.type === 'law'
-                            ? styles.badgeLaw
-                            : styles.badgeMath),
+                          backgroundColor: typeStyle.bg,
+                          color: typeStyle.color,
                         }}
                       >
-                        {item.prompt_data?.type === 'law' ? '物理法則' : '数学手法'}
+                        {typeStyle.label}
                       </span>
                       <ChevronRight size={18} color="#cbd5e1" />
                     </div>
@@ -122,20 +179,25 @@ export default function TheoremsIndexPage() {
                     {/* 定理名 */}
                     <h2 style={styles.cardTitle}>{item.name}</h2>
 
-                    {/* メイン公式プレビュー */}
-                    {mainFormula && (
+                    {/* メイン公式プレビュー（FormattedText経由で綺麗なLaTeX表示） */}
+                    {latexFormula && (
                       <div style={styles.formulaPreview}>
-                        <FormattedText text={`$${mainFormula}$`} />
+                        <FormattedText text={latexFormula} />
                       </div>
                     )}
 
                     {/* 変数プレビュー */}
-                    {item.prompt_data?.variables && (
+                    {variablesKeys.length > 0 && (
                       <div style={styles.variablesPreview}>
                         <Atom size={13} color="#0284c7" style={{ flexShrink: 0 }} />
-                        <span style={styles.variableText}>
-                          {Object.keys(item.prompt_data.variables).join(', ')}
-                        </span>
+                        <div style={styles.variableList}>
+                          {variablesKeys.map((key, idx) => (
+                            <span key={key} style={styles.variableItem}>
+                              <FormattedText text={formatFormulaToLatex(key)} />
+                              {idx < variablesKeys.length - 1 ? ', ' : ''}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -164,7 +226,7 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '100vh',
     backgroundColor: '#ffffff',
     color: '#0f172a',
-    padding: '32px 16px 90px 16px', // フッター被り防止の余白
+    padding: '32px 16px 90px 16px',
     boxSizing: 'border-box',
   },
   container: {
@@ -178,14 +240,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
-  },
-  titleBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '13px',
-    fontWeight: 'bold',
-    color: '#0284c7',
   },
   mainTitle: {
     fontSize: '28px',
@@ -227,6 +281,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '8px',
     overflowX: 'auto',
+    paddingBottom: '4px',
   },
   tabButton: {
     padding: '6px 14px',
@@ -266,7 +321,6 @@ const styles: Record<string, React.CSSProperties> = {
     height: '100%',
     boxSizing: 'border-box',
     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-    transition: 'transform 0.15s, box-shadow 0.15s, border-color 0.15s',
     cursor: 'pointer',
   },
   cardTop: {
@@ -280,14 +334,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '2px 8px',
     borderRadius: '4px',
   },
-  badgeLaw: {
-    backgroundColor: '#e0f2fe',
-    color: '#0369a1',
-  },
-  badgeMath: {
-    backgroundColor: '#f3e8ff',
-    color: '#6b21a8',
-  },
   cardTitle: {
     fontSize: '16px',
     fontWeight: 'bold',
@@ -299,9 +345,9 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#f8fafc',
     border: '1px solid #f1f5f9',
     borderRadius: '8px',
-    padding: '8px 12px',
+    padding: '10px 12px',
     textAlign: 'center',
-    fontSize: '15px',
+    fontSize: '16px',
     color: '#0369a1',
     fontWeight: 'bold',
   },
@@ -311,12 +357,15 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '6px',
     marginTop: 'auto',
   },
-  variableText: {
+  variableList: {
+    display: 'flex',
+    flexWrap: 'wrap',
     fontSize: '12px',
     color: '#64748b',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+  },
+  variableItem: {
+    display: 'inline-flex',
+    alignItems: 'center',
   },
   emptyBox: {
     padding: '48px',
