@@ -11,7 +11,7 @@ const theoremVersion = physicsData?.version || "2.4.2";
 const PROMPT_VERSION = `${theoremVersion}_with_fewshot_v5`;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-
+ 
 async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 2000) {
   let delay = initialDelayMs;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
