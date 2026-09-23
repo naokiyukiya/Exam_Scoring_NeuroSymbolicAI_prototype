@@ -61,6 +61,12 @@ export default function AnswerCard({
     getReactionsByPostId(answerId).then(setReactions)
   }, [answerId])
 
+  // ★ 画像クリックで分析ページ (/analysis_p/[answerId]) へ遷移する処理
+  const handleImageClick = () => {
+    setActiveReactionId(null)
+    router.push(`/analysis_p/${answerId}`)
+  }
+
   const icon = (type: Reaction['type']) => {
     const iconSize = 16
     const strokeColor = '#444'
@@ -131,8 +137,8 @@ export default function AnswerCard({
         {image && (
           <div style={styles.imageSection}>
             <div
-              style={styles.imageWrapper}
-              onClick={() => setActiveReactionId(null)} // ★追加（外タップで閉じる）
+              style={{ ...styles.imageWrapper, cursor: 'pointer' }}
+              onClick={handleImageClick} // ★ ここで analysis_p ページへ飛ぶ
             >
               <img src={image} alt="answer" style={styles.image} draggable={false} />
 
@@ -147,12 +153,12 @@ export default function AnswerCard({
                         ...styles.reaction,
                         left: `${r.x_float * 100}%`,
                         top: `${r.y_float * 100}%`,
-                        zIndex: isActive ? 1000 : 10, // ★最前面
+                        zIndex: isActive ? 1000 : 10,
                       }}
                     >
                       <div
                         onClick={(e) => {
-                          e.stopPropagation()
+                          e.stopPropagation() // ★ 画像クリック（ページ遷移）を発動させない
                           if (r.type === 'question') {
                             setOpenThread(r)
                             return
@@ -165,7 +171,7 @@ export default function AnswerCard({
                       </div>
 
                       {isActive && r.type !== 'question' && (
-                        <div style={{ ...styles.bubble, zIndex: 1001 }}> {/* ★最前面 */}
+                        <div style={{ ...styles.bubble, zIndex: 1001 }}>
                           <div style={styles.bubbleHeader}>
                             <UserBadge username={r.username ?? ''} size={14} />
                             <span>@{r.username ?? 'unknown'}</span>
@@ -239,7 +245,6 @@ function ThreadModal({
   const sheetRef = useRef<HTMLDivElement | null>(null)
   const threadRef = useRef<HTMLDivElement | null>(null)
 
-  // ★開始状態
   const startAtTop = useRef(false)
   const startAtBottom = useRef(false)
 
@@ -259,7 +264,6 @@ function ThreadModal({
     }
   }, [])
 
-  // ★② height変化でもトップへ戻す（安定化）
   useEffect(() => {
     if (height === '100dvh' && threadRef.current) {
       threadRef.current.scrollTop = 0
@@ -291,7 +295,6 @@ function ThreadModal({
           const isTopArea = touchY < rect.top + 120
           const isAtTop = thread?.scrollTop === 0
 
-          // ★下端（余裕あり）
           const isAtBottom =
             thread &&
             thread.scrollHeight - thread.scrollTop - thread.clientHeight < 10
@@ -316,7 +319,6 @@ function ThreadModal({
 
           const diff = currentY - startY.current
 
-          // ★下スワイプ（閉じる）
           if (diff > 0) {
             if (!startAtTop.current) {
               dragging.current = false
@@ -324,7 +326,6 @@ function ThreadModal({
             }
           }
 
-          // ★上スワイプ（開く）
           if (diff < 0) {
             if (!startAtBottom.current) {
               dragging.current = false
@@ -332,7 +333,6 @@ function ThreadModal({
             }
           }
 
-          // velocity
           if (lastY.current !== null && lastTime.current !== null) {
             const dy = currentY - lastY.current
             const dt = now - lastTime.current
@@ -363,7 +363,6 @@ function ThreadModal({
           } else if (diff < -100 || v < -0.7) {
             setHeight('100dvh')
 
-            // ★① その場でもトップへ戻す
             if (threadRef.current) {
               threadRef.current.scrollTop = 0
             }
@@ -433,6 +432,7 @@ function ThreadModal({
     document.body
   )
 }
+
 /* ===================== */
 /* styles */
 /* ===================== */
@@ -506,7 +506,7 @@ const modalStyles: { [key: string]: CSSProperties } = {
   content: {
     fontSize: '16px',
     color: '#333',
-    WebkitTextFillColor: '#333', // ★重要：文字見えないバグ対策
+    WebkitTextFillColor: '#333',
   },
   inputArea: {
     display: 'flex',
@@ -521,7 +521,7 @@ const modalStyles: { [key: string]: CSSProperties } = {
     border: '1px solid #eee',
     fontSize: '16px',
     WebkitAppearance: 'none',
-    WebkitTextFillColor: '#000', // ★これが効く
+    WebkitTextFillColor: '#000',
   },
   send: {
     background: '#4D96FF',
