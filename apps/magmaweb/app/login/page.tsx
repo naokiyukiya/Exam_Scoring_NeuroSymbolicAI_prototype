@@ -45,8 +45,8 @@ function LoginForm() {
   const AgreementText = ({ whiteMode = false }: { whiteMode?: boolean }) => (
     <p style={whiteMode ? styles.agreementWhite : styles.agreement}>
       続行することで、
-      <Link href="/terms" style={whiteMode ? styles.agreementLinkWhite : styles.agreementLink}>Magmatheの利用規約</Link>
-      に同意し、Magmatheのプライバシーポリシーを読んだものとみなされます。
+      <Link href="/terms" style={whiteMode ? styles.agreementLinkWhite : styles.agreementLink}>natti Physicsの利用規約</Link>
+      に同意し、natti Physicsのプライバシーポリシーを読んだものとみなされます。
     </p>
   )
 
@@ -57,8 +57,8 @@ function LoginForm() {
         {/* ① スタート（5枚目とUIを完全に統合） */}
         <div style={{ ...styles.slide, ...styles.imageSlide, position: 'relative' }}>
           <div style={styles.fullContentContainer}>
-            <h1 style={styles.logoTextWhite}>Magmathe(renew)へようこそ！</h1>
-            <p style={styles.catchphraseWhite}>解き方でつながる高校生のための数学SNS</p>
+            <h1 style={styles.logoTextWhite}>natti Physicsへようこそ！</h1>
+            <p style={styles.catchphraseWhite}>物理を学ぶ高校生の</p>
 
             <h2 style={styles.formTitleWhite}>{mode === 'login' ? 'ログイン' : '新規登録'}</h2>
 

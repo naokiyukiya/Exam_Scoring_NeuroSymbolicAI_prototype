@@ -164,7 +164,7 @@ export default function LayoutShell({ children }: Props) {
   return (
     <div style={styles.wrapper}>
       <header style={styles.header} onClick={() => router.push('/search')}>
-        <span style={styles.logo}>Magmathe</span>
+        <span style={styles.logo}>natti</span>
       </header>
 
       <main style={styles.main}>{children}</main>
