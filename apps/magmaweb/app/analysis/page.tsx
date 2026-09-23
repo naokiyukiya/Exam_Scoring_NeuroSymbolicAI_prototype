@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  AlertTriangle,
   ArrowRight,
   BookOpen,
   CheckCircle2,
@@ -15,80 +14,115 @@ import {
   RotateCcw,
   Zap,
   XCircle,
+  Loader2,
 } from 'lucide-react'
 import FormattedText from '../../components/FormattedText'
+import { createClient } from '@supabase/supabase-js'
 
-// ノード（前提・結果）のオブジェクト型
+// ノード（前提・結果）の型定義
 type GraphNode = {
   id: string
   label: string
 }
 
-// データベースの stumbles テーブルの実際のレコード型
+// stumbles テーブルのスキーマに基づく型定義
 type StumbleRecord = {
   id: string
-  user_id: string
-  post_id: string
+  user_id: string | null
+  post_id: string | null
   theorem_id: string | null
-  step_index: number
+  step_index: number | null
   created_at: string
-  input_nodes: GraphNode[]
-  inference_label: string
-  output_nodes: GraphNode[]
+  input_nodes: GraphNode[] | null
+  inference_label: string | null
+  output_nodes: GraphNode[] | null
 }
-
-// サンプルデータ
-const SAMPLE_STUMBLES: StumbleRecord[] = [
-  {
-    id: 'stumble-1',
-    user_id: 'user-123',
-    post_id: 'post-456',
-    theorem_id: 'law_buoyancy_archimedes',
-    step_index: 7,
-    created_at: '2026-05-10T10:00:00Z',
-    input_nodes: [
-      {
-        id: 'p1_1',
-        label: '頭部が水面上に $\\frac{1}{3}H$ 出ているとき、水没部の体積 $V = \\frac{2}{3}HS$',
-      },
-      {
-        id: 't1_1',
-        label: 'アルキメデスの原理（浮力）',
-      },
-    ],
-    inference_label: '水没部の体積から浮力 $F$ を計算する',
-    output_nodes: [
-      {
-        id: 'p1_2',
-        label: '浮力 $F = 1 \\cdot \\frac{2}{3}HS \\cdot g = \\frac{2}{3}HSg$',
-      },
-    ],
-  },
-]
 
 export default function StumbleAnalysisPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const stumbleId = searchParams.get('id') // 例: /stumble?id=xxx
+
+  const [stumble, setStumble] = useState<StumbleRecord | null>(null)
+  const [loading, setLoading] = useState(true)
   const [checked, setChecked] = useState(false)
-  const [showResult, setShowResult] = useState(false) // 導かれる結果の開閉フラグ
-  const [quizSelected, setQuizSelected] = useState<number | null>(null) // クイズの選択肢ID
+  const [showResult, setShowResult] = useState(false) // 導かれる結果の表示フラグ
+  const [quizSelected, setQuizSelected] = useState<number | null>(null)
 
-  const stumble = SAMPLE_STUMBLES[0]
+  const supabase = createClient()
 
-  const goToPost = (postId: string, stepIndex: number) => {
-    router.push(`/post/${postId}?step=${stepIndex}`)
+  // Supabaseからデータ取得
+  useEffect(() => {
+    async function fetchStumbleData() {
+      setLoading(true)
+      try {
+        let query = supabase.from('stumbles').select('*')
+
+        if (stumbleId) {
+          query = query.eq('id', stumbleId)
+        } else {
+          // ID指定がない場合は最新の1件を取得
+          query = query.order('created_at', { ascending: false }).limit(1)
+        }
+
+        const { data, error } = await query
+
+        if (error) {
+          console.error('Error fetching stumble:', error)
+        } else if (data && data.length > 0) {
+          setStumble(data[0] as StumbleRecord)
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStumbleData()
+  }, [stumbleId])
+
+  const goToPost = (postId: string | null, stepIndex: number | null) => {
+    if (!postId) return
+    router.push(`/post/${postId}${stepIndex !== null ? `?step=${stepIndex}` : ''}`)
   }
 
   const handleTheoremClick = (theoremId: string) => {
     router.push(`/theorems/${theoremId}`)
   }
 
-  // クイズ選択肢のデータ
+  // クイズ（定理・定義の前提チェック用ダミーデータ）
   const quizOptions = [
     { id: 0, text: '$F = \\rho_1 V_1 g$', isCorrect: false },
     { id: 1, text: '$F = \\rho V_1 g$', isCorrect: false },
     { id: 2, text: '$F = \\rho_1 V_2 g$', isCorrect: false },
     { id: 3, text: '$F = \\rho V_2 g$', isCorrect: true },
   ]
+
+  if (loading) {
+    return (
+      <main style={styles.page}>
+        <div style={{ ...styles.container, alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: '#2563eb' }} />
+          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '12px' }}>つまずきデータを読み込み中...</p>
+        </div>
+      </main>
+    )
+  }
+
+  if (!stumble) {
+    return (
+      <main style={styles.page}>
+        <div style={styles.container}>
+          <div style={styles.mainCard}>
+            <p style={{ color: '#64748b', textAlign: 'center', padding: '24px 0' }}>
+              該当するつまずき記録が見つかりませんでした。
+            </p>
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main style={styles.page}>
@@ -114,21 +148,17 @@ export default function StumbleAnalysisPage() {
                 要復習ステップ
               </span>
             </div>
-            <div style={styles.stumbleTag}>
-              <AlertTriangle size={14} />
-              つまずき記録
-            </div>
           </div>
 
           <h2 style={styles.cardTitle}>
             <FormattedText
-              text={stumble.inference_label}
+              text={stumble.inference_label || '名称なしのステップ'}
               onTheoremClick={handleTheoremClick}
             />
           </h2>
 
           {/* -------------------------------------------------- */}
-          {/* STEP 1: 定理・定義の事前確認（4択クイズ） */}
+          {/* STEP 1: 定理・定義の事前確認（クイズ） */}
           {/* -------------------------------------------------- */}
           <div style={styles.quizCard}>
             <div style={styles.quizHeader}>
@@ -166,7 +196,7 @@ export default function StumbleAnalysisPage() {
               })}
             </div>
 
-            {/* クイズ回答後のフィードバック */}
+            {/* クイズフィードバック */}
             {quizSelected !== null && (
               <div
                 style={{
@@ -214,11 +244,15 @@ export default function StumbleAnalysisPage() {
               <div style={styles.stepBox}>
                 <span style={styles.inputBadge}>使う前提・根拠</span>
                 <div style={styles.nodeList}>
-                  {stumble.input_nodes.map((node) => (
-                    <div key={node.id} style={styles.nodeItem}>
-                      • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
-                    </div>
-                  ))}
+                  {stumble.input_nodes && stumble.input_nodes.length > 0 ? (
+                    stumble.input_nodes.map((node) => (
+                      <div key={node.id} style={styles.nodeItem}>
+                        • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
+                      </div>
+                    ))
+                  ) : (
+                    <span style={{ color: '#94a3b8' }}>前提なし</span>
+                  )}
                 </div>
               </div>
 
@@ -227,7 +261,7 @@ export default function StumbleAnalysisPage() {
                 <span style={styles.inferenceBadge}>適用した考え方・定理</span>
                 <p style={styles.inferenceText}>
                   <FormattedText
-                    text={stumble.inference_label}
+                    text={stumble.inference_label || 'なし'}
                     onTheoremClick={handleTheoremClick}
                   />
                 </p>
@@ -247,11 +281,15 @@ export default function StumbleAnalysisPage() {
                   </button>
                 ) : (
                   <div style={styles.nodeList}>
-                    {stumble.output_nodes.map((node) => (
-                      <div key={node.id} style={styles.nodeItem}>
-                        • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
-                      </div>
-                    ))}
+                    {stumble.output_nodes && stumble.output_nodes.length > 0 ? (
+                      stumble.output_nodes.map((node) => (
+                        <div key={node.id} style={styles.nodeItem}>
+                          • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
+                        </div>
+                      ))
+                    ) : (
+                      <span style={{ color: '#94a3b8' }}>結果なし</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -289,16 +327,18 @@ export default function StumbleAnalysisPage() {
           </div>
 
           {/* 答案ページへの導線 */}
-          <div style={styles.cardFooterAction}>
-            <button
-              type="button"
-              style={styles.linkButton}
-              onClick={() => goToPost(stumble.post_id, stumble.step_index)}
-            >
-              元の答案解説を見る
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          {stumble.post_id && (
+            <div style={styles.cardFooterAction}>
+              <button
+                type="button"
+                style={styles.linkButton}
+                onClick={() => goToPost(stumble.post_id, stumble.step_index)}
+              >
+                元の答案解説を見る
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </section>
 
         {/* ================================================== */}
@@ -339,7 +379,7 @@ export default function StumbleAnalysisPage() {
               inputs={['水没部の体積 $V = \\frac{2}{3}HS$', 'アルキメデスの原理']}
               outputs={['浮力 $F = \\frac{2}{3}HSg$']}
               count={42}
-              onClick={() => goToPost('sample-1', 7)}
+              onClick={() => goToPost(stumble.post_id, stumble.step_index)}
               onTheoremClick={handleTheoremClick}
             />
           </div>
@@ -511,18 +551,6 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#eff6ff',
     padding: '4px 10px',
     borderRadius: '20px',
-  },
-  stumbleTag: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    color: '#d97706',
-    backgroundColor: '#fffbeb',
-    border: '1px solid #fef3c7',
-    padding: '4px 10px',
-    borderRadius: '8px',
   },
   cardTitle: {
     fontSize: '18px',
