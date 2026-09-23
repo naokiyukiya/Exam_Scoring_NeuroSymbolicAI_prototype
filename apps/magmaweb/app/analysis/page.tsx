@@ -23,10 +23,6 @@ import physicsData from '../../lib/constants/physics.json' // パスはプロジ
 
 import { PHYSICS_QUIZZES } from '../../lib/constants/physicsQuizzes'
 
-// コンポーネント内の処理（レンダリング前）
-const quizData = stumble.theorem_id ? PHYSICS_QUIZZES[stumble.theorem_id] : null
-const selectedOption = quizSelected !== null && quizData ? quizData.options[quizSelected] : null
-
 // ID（law_buoyancy_archimedes等）を日本語名（アルキメデスの原理等）に変換するヘルパー関数
 function getTheoremName(id: string | null): string {
   if (!id) return '名称なしのステップ'
@@ -213,6 +209,10 @@ function StumbleAnalysisContent() {
       </div>
     )
   }
+
+  const quizData = stumble.theorem_id ? PHYSICS_QUIZZES[stumble.theorem_id] : null
+  const selectedOption =
+    quizSelected !== null && quizData ? quizData.options[quizSelected] : null
 
   return (
     <div style={styles.container}>
