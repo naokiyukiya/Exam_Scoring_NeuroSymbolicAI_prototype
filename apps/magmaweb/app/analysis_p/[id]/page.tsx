@@ -150,7 +150,7 @@ const { data: { session } } = await supabase.auth.getSession()
 
 // 未ログインの場合は、現在のパスを `next` パラメーターに含めてログイン画面へ飛ばす
 if (!session) {
-  const currentPath = `/analysis/${params.id}`
+  const currentPath = `/analysis_p/${params.id}`
   router.push(`/login?next=${encodeURIComponent(currentPath)}`)
   return
 }
