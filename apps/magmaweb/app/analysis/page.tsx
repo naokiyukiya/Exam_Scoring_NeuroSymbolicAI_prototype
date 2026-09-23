@@ -9,12 +9,14 @@ import {
   CheckCircle2,
   ChevronRight,
   Compass,
+  Eye,
   HelpCircle,
   Lightbulb,
   RotateCcw,
   Zap,
+  XCircle,
 } from 'lucide-react'
-import FormattedText from '../../components/FormattedText'
+import FormattedText from '@/components/FormattedText'
 
 // ノード（前提・結果）のオブジェクト型
 type GraphNode = {
@@ -30,12 +32,12 @@ type StumbleRecord = {
   theorem_id: string | null
   step_index: number
   created_at: string
-  input_nodes: GraphNode[]     // 使う前提・根拠（オブジェクト配列）
-  inference_label: string      // 適用した考え方・定理
-  output_nodes: GraphNode[]    // 導かれる結果（オブジェクト配列）
+  input_nodes: GraphNode[]
+  inference_label: string
+  output_nodes: GraphNode[]
 }
 
-// データベースの実データに基づくサンプルデータ
+// サンプルデータ
 const SAMPLE_STUMBLES: StumbleRecord[] = [
   {
     id: 'stumble-1',
@@ -67,17 +69,26 @@ const SAMPLE_STUMBLES: StumbleRecord[] = [
 export default function StumbleAnalysisPage() {
   const router = useRouter()
   const [checked, setChecked] = useState(false)
+  const [showResult, setShowResult] = useState(false) // 導かれる結果の開閉フラグ
+  const [quizSelected, setQuizSelected] = useState<number | null>(null) // クイズの選択肢ID
+
   const stumble = SAMPLE_STUMBLES[0]
 
-  // 答案詳細ページへの遷移
   const goToPost = (postId: string, stepIndex: number) => {
     router.push(`/post/${postId}?step=${stepIndex}`)
   }
 
-  // 定理キーワードがクリックされたときの処理
   const handleTheoremClick = (theoremId: string) => {
     router.push(`/theorems/${theoremId}`)
   }
+
+  // クイズ選択肢のデータ（例: アルキメデスの原理）
+  const quizOptions = [
+    { id: 0, text: '$F = \\rho_1 V_1 g$', isCorrect: false },
+    { id: 1, text: '$F = \\rho V_1 g$', isCorrect: false },
+    { id: 2, text: '$F = \\rho_1 V_2 g$', isCorrect: false },
+    { id: 3, text: '$F = \\rho V_2 g$', isCorrect: true }, // 浮力 = 排除した流体の密度ρ × 水没体積V2 × g
+  ]
 
   return (
     <main style={styles.page}>
@@ -100,7 +111,7 @@ export default function StumbleAnalysisPage() {
             <div style={styles.eyebrowGroup}>
               <span style={styles.stepBadge}>
                 <Zap size={13} />
-                要復習ステップ (Step {stumble.step_index})
+                要復習ステップ
               </span>
             </div>
             <div style={styles.stumbleTag}>
@@ -116,11 +127,71 @@ export default function StumbleAnalysisPage() {
             />
           </h2>
 
-          {/* ステップ構造（stepGrid） */}
+          {/* -------------------------------------------------- */}
+          {/* STEP 1: 定理・定義の事前確認（4択クイズ） */}
+          {/* -------------------------------------------------- */}
+          <div style={styles.quizCard}>
+            <div style={styles.quizHeader}>
+              <BookOpen size={16} color="#2563eb" />
+              <span style={styles.quizTitle}>まず「定理・定義」の前提チェック！</span>
+            </div>
+
+            <p style={styles.quizQuestion}>
+              密度 $\rho_1$、体積 $V_1$ の物体を、水（密度 $\rho$）に浮かべると体積 $V_2$ 部分が水につかった。物体に働く浮力 $F$ の大きさは？（重力加速度を $g$ とする）
+            </p>
+
+            <div style={styles.quizGrid}>
+              {quizOptions.map((opt) => {
+                const isSelected = quizSelected === opt.id
+                let btnStyle = styles.quizOptionBtn
+                if (isSelected) {
+                  btnStyle = opt.isCorrect
+                    ? { ...styles.quizOptionBtn, ...styles.quizOptionCorrect }
+                    : { ...styles.quizOptionBtn, ...styles.quizOptionIncorrect }
+                }
+
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setQuizSelected(opt.id)}
+                    style={btnStyle}
+                  >
+                    <FormattedText text={opt.text} />
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* クイズ回答後のフィードバック */}
+            {quizSelected !== null && (
+              <div
+                style={{
+                  ...styles.quizFeedback,
+                  backgroundColor: quizOptions[quizSelected].isCorrect ? '#f0fdf4' : '#fff1f2',
+                  borderColor: quizOptions[quizSelected].isCorrect ? '#bbf7d0' : '#fecdd3',
+                }}
+              >
+                {quizOptions[quizSelected].isCorrect ? (
+                  <div style={styles.feedbackTitleCorrect}>
+                    <CheckCircle2 size={16} /> 正解！ 浮力は「押しのけた水（流体）の質量 $\rho V_2$ に働く重力」です。
+                  </div>
+                ) : (
+                  <div style={styles.feedbackTitleIncorrect}>
+                    <XCircle size={16} /> 残念！ 浮力で使う密度は「物体の密度 $\rho_1$」ではなく「水の密度 $\rho$」で、体積は「水没部 $V_2$」です。
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* -------------------------------------------------- */}
+          {/* STEP 2: このステップで使われている考え方 */}
+          {/* -------------------------------------------------- */}
           <div style={styles.stepCardInner}>
             <div style={styles.stepCardTitleHeader}>
               <Compass size={15} color="#64748b" />
-              <span style={styles.stepCardTitle}>このステップで行われている変形・推論</span>
+              <span style={styles.stepCardTitle}>このステップで使われている考え方</span>
             </div>
 
             <div style={styles.stepGrid}>
@@ -147,16 +218,27 @@ export default function StumbleAnalysisPage() {
                 </p>
               </div>
 
-              {/* 3. 導かれる結果 (Outputs) */}
+              {/* 3. 導かれる結果 (Outputs) ※タップで伏せ字解除 */}
               <div style={styles.stepBox}>
                 <span style={styles.outputBadge}>導かれる結果</span>
-                <div style={styles.nodeList}>
-                  {stumble.output_nodes.map((node) => (
-                    <div key={node.id} style={styles.nodeItem}>
-                      • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
-                    </div>
-                  ))}
-                </div>
+                {!showResult ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowResult(true)}
+                    style={styles.revealButton}
+                  >
+                    <Eye size={14} />
+                    タップして結果を表示
+                  </button>
+                ) : (
+                  <div style={styles.nodeList}>
+                    {stumble.output_nodes.map((node) => (
+                      <div key={node.id} style={styles.nodeItem}>
+                        • <FormattedText text={node.label} onTheoremClick={handleTheoremClick} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -178,7 +260,10 @@ export default function StumbleAnalysisPage() {
                 <span>復習完了！次の演習時にも意識してみましょう。</span>
                 <button
                   type="button"
-                  onClick={() => setChecked(false)}
+                  onClick={() => {
+                    setChecked(false)
+                    setShowResult(false)
+                  }}
                   style={styles.retryTextBtn}
                 >
                   <RotateCcw size={13} />
@@ -431,6 +516,83 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#0f172a',
     lineHeight: 1.4,
   },
+
+  /* --- クイズカード --- */
+  quizCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
+    padding: '16px',
+    border: '1px solid #e2e8f0',
+    marginBottom: '16px',
+  },
+  quizHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginBottom: '8px',
+  },
+  quizTitle: {
+    fontSize: '13px',
+    fontWeight: 'bold',
+    color: '#1e40af',
+  },
+  quizQuestion: {
+    fontSize: '13px',
+    color: '#334155',
+    lineHeight: 1.5,
+    margin: '0 0 12px 0',
+  },
+  quizGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+    gap: '8px',
+  },
+  quizOptionBtn: {
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid #cbd5e1',
+    backgroundColor: '#ffffff',
+    color: '#1e293b',
+    fontSize: '13px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    textAlign: 'center',
+  },
+  quizOptionCorrect: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#4ade80',
+    color: '#15803d',
+    fontWeight: 'bold',
+  },
+  quizOptionIncorrect: {
+    backgroundColor: '#ffe4e6',
+    borderColor: '#fb7185',
+    color: '#be123c',
+  },
+  quizFeedback: {
+    marginTop: '12px',
+    padding: '10px 12px',
+    borderRadius: '8px',
+    border: '1px solid',
+    fontSize: '12px',
+    lineHeight: 1.4,
+  },
+  feedbackTitleCorrect: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: '#15803d',
+    fontWeight: 'bold',
+  },
+  feedbackTitleIncorrect: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: '#be123c',
+    fontWeight: 'bold',
+  },
+
+  /* --- ステップ構造カード --- */
   stepCardInner: {
     backgroundColor: '#f8fafc',
     borderRadius: '12px',
@@ -516,6 +678,22 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     lineHeight: 1.4,
   },
+  revealButton: {
+    backgroundColor: '#f1f5f9',
+    border: '1px dashed #94a3b8',
+    borderRadius: '6px',
+    padding: '10px',
+    color: '#475569',
+    fontSize: '12px',
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    cursor: 'pointer',
+    width: '100%',
+  },
+
   primaryButton: {
     width: '100%',
     padding: '12px',
