@@ -105,20 +105,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // キャッシュチェック
+    // キャッシュチェック（preserved と双方のバージョン情報を取得）
     const { data: existingGraph } = await supabase
       .from('logic_graphs')
-      .select('graph_data, construction_process, prompt_version, theorem_version')
+      .select('graph_data, construction_process, prompt_version, theorem_version, preserved')
       .eq('post_id', answerId)
       .maybeSingle();
 
-    if (existingGraph && existingGraph.prompt_version === PROMPT_VERSION) {
-      return NextResponse.json({
-        imageUrl: answer.image_url,
-        graph: existingGraph.graph_data,
-        constructionProcess: existingGraph.construction_process,
-        metadata: { promptVersion: existingGraph.prompt_version, theoremVersion: existingGraph.theorem_version, cached: true }
-      });
+    if (existingGraph) {
+      // 1. preserved が true の場合はバージョンが古くても絶対上書きせず保護する
+      // 2. prompt_version と theorem_version の両方が完全に一致している場合もキャッシュを返す
+      // 逆に言うと、「プロンプトまたは physics.json のどちらかが更新された」かつ「preserved が false」ならキャッシュを使わずに作り直す
+      const isVersionMatch = (existingGraph.prompt_version === PROMPT_VERSION && existingGraph.theorem_version === theoremVersion);
+
+      if (existingGraph.preserved || isVersionMatch) {
+        return NextResponse.json({
+          imageUrl: answer.image_url,
+          graph: existingGraph.graph_data,
+          constructionProcess: existingGraph.construction_process,
+          metadata: { 
+            promptVersion: existingGraph.prompt_version, 
+            theoremVersion: existingGraph.theorem_version, 
+            cached: true,
+            preserved: existingGraph.preserved 
+          }
+        });
+      }
     }
 
     // physics.json からの定理整形
@@ -338,28 +350,30 @@ ${theoremListString}
         }
       }
     }
+
     // --- パース済みデータのデータ構造・文字列サニタイズ処理 ---
-if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes)) {
-  parsedData.graph.nodes = parsedData.graph.nodes.map((node: any) => {
-    // 1. ラベル内の特殊文字・制御文字を除去
-    if (typeof node.label === 'string') {
-      node.label = node.label.replace(/[\x00-\x1F\x7F]/g, '');
+    if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes)) {
+      parsedData.graph.nodes = parsedData.graph.nodes.map((node: any) => {
+        // 1. ラベル内の特殊文字・制御文字を除去
+        if (typeof node.label === 'string') {
+          node.label = node.label.replace(/[\x00-\x1F\x7F]/g, '');
+        }
+
+        // 2. inputs_used / outputs_derived が文字列で返ってきた場合の安全なオブジェクト化
+        ['inputs_used', 'outputs_derived'].forEach((key) => {
+          if (typeof node[key] === 'string') {
+            try {
+              node[key] = JSON.parse(node[key]);
+            } catch {
+              node[key] = { value: node[key] };
+            }
+          }
+        });
+
+        return node;
+      });
     }
 
-    // 2. inputs_used / outputs_derived が文字列で返ってきた場合の安全なオブジェクト化
-    ['inputs_used', 'outputs_derived'].forEach((key) => {
-      if (typeof node[key] === 'string') {
-        try {
-          node[key] = JSON.parse(node[key]);
-        } catch {
-          node[key] = { value: node[key] };
-        }
-      }
-    });
-
-    return node;
-  });
-}
     // 浮いている推論ノードへのセーフティ補填
     if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
       const currentNodes = [...parsedData.graph.nodes];
@@ -400,7 +414,13 @@ if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes)) {
     let dbSaveError: any = null;
     if (parsedData && parsedData.graph) {
       try {
-        const { data: existing } = await supabase.from('logic_graphs').select('id').eq('post_id', answerId).maybeSingle();
+        // 既存データの存在と preserved 状態を確認
+        const { data: existing } = await supabase
+          .from('logic_graphs')
+          .select('id, preserved')
+          .eq('post_id', answerId)
+          .maybeSingle();
+
         const payload = {
           graph_data: parsedData.graph,
           construction_process: parsedData.construction_process || [],
@@ -411,8 +431,13 @@ if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes)) {
         };
 
         if (existing) {
-          const { error } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id);
-          if (error) dbSaveError = error;
+          // すでに存在していて preserved が true の場合は上書きを完全ガード
+          if (existing.preserved) {
+            console.log(`[Info] post_id: ${answerId} は preserved が有効なため、更新をスキップしました。`);
+          } else {
+            const { error } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id);
+            if (error) dbSaveError = error;
+          }
         } else {
           const { error } = await supabase.from('logic_graphs').insert({ post_id: answerId, ...payload });
           if (error) dbSaveError = error;
