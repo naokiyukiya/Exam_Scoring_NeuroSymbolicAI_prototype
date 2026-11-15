@@ -116,3 +116,87 @@ def verify_expressions(req: VerifyRequest):
 
     except Exception as e:
         return {"error": str(e)}
+# ==========================================
+# ニューロシンボリックAI用: DAG更新 & 連立ソルバー
+# ==========================================
+class SolveRequest(BaseModel):
+    formula_ast: list  # LLMが出力したAST
+    symbol_registry: dict # 変数台帳
+    target_unknowns: list # 求めたい未知数（例: ["sym_v"]）
+    dag_equations: list # 今までDAGに貯めた方程式の文字列リスト
+
+def ast_to_sympy(ast_node, registry):
+    """ASTをSymPyの数式オブジェクトに変換する"""
+    if isinstance(ast_node, (int, float)):
+        return sympy.sympify(ast_node)
+    
+    if isinstance(ast_node, str):
+        try:
+            float(ast_node)
+            return sympy.sympify(ast_node)
+        except ValueError:
+            # symbol_idの場合は、表示名を取得して正の値としてSymbol化
+            if ast_node in registry:
+                display_name = registry[ast_node]["display_name"]
+                return sympy.Symbol(display_name, positive=True)
+            return sympy.Symbol(ast_node)
+            
+    if isinstance(ast_node, list) and len(ast_node) > 0:
+        operator = ast_node[0]
+        operands = [ast_to_sympy(child, registry) for child in ast_node[1:]]
+        
+        if operator == "Equal": return sympy.Eq(operands[0], operands[1])
+        elif operator == "Add": return sympy.Add(*operands)
+        elif operator == "Subtract": return operands[0] - operands[1]
+        elif operator == "Multiply": return sympy.Mul(*operands)
+        elif operator == "Divide": return operands[0] / operands[1]
+        elif operator == "Power": return operands[0] ** operands[1]
+        elif operator == "Sin": return sympy.sin(operands[0])
+        elif operator == "Cos": return sympy.cos(operands[0])
+        
+    return ast_node
+
+@app.post("/api/solve_dag")
+def solve_dag_equations(req: SolveRequest):
+    try:
+        registry = req.symbol_registry.get("symbols", {})
+        
+        # 1. 今回AIが作ったASTをSymPy化
+        new_equation = ast_to_sympy(req.formula_ast, registry)
+        
+        # 2. DAGに貯まっていた過去の方程式をSymPy化
+        # （文字列として送られてくるので parse_expr で変換）
+        transformations = standard_transformations + (implicit_multiplication_application, convert_equals_signs, rationalize)
+        all_equations = [new_equation]
+        for eq_str in req.dag_equations:
+            all_equations.append(parse_expr(eq_str, transformations=transformations).doit())
+            
+        # 3. 求めたいターゲット変数をSymbol化
+        target_symbols = []
+        for target_id in req.target_unknowns:
+            if target_id in registry:
+                target_symbols.append(sympy.Symbol(registry[target_id]["display_name"], positive=True))
+            else:
+                target_symbols.append(sympy.Symbol(target_id))
+                
+        # 4. 連立方程式を解く
+        solution = sympy.solve(all_equations, target_symbols, dict=True)
+        
+        # 5. 解の判定
+        is_fully_solved = False
+        parsed_solution = {}
+        if solution and len(solution) > 0:
+            if all(sym in solution[0] for sym in target_symbols):
+                is_fully_solved = True
+                # Symbolを文字列に変換してJSONで返せるようにする
+                parsed_solution = {str(k): str(v) for k, v in solution[0].items()}
+
+        return {
+            "status": "valid",
+            "new_equation_str": str(new_equation), # これをTypeScript側でDAGの履歴に足す
+            "is_fully_solved": is_fully_solved,
+            "solution": parsed_solution
+        }
+
+    except Exception as e:
+        return {"status": "error", "error_message": str(e)}
