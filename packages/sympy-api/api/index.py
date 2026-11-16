@@ -200,3 +200,83 @@ def solve_dag_equations(req: SolveRequest):
 
     except Exception as e:
         return {"status": "error", "error_message": str(e)}
+
+# ==========================================
+# ニューロシンボリックAI用: あなたの担当領域（ルールベースAST構築）
+# ==========================================
+from typing import Dict, Any, List
+
+class SituationData(BaseModel):
+    """Next.js(AI)から送られてくる状況データを受け取る型"""
+    objects: Optional[List[Dict[str, Any]]] = []
+    forces: Optional[List[Dict[str, Any]]] = []
+    states: Optional[Dict[str, Any]] = {}
+    motion_states: Optional[Dict[str, Any]] = {}
+    coordinate_system: Optional[Dict[str, Any]] = {}
+
+# --- AST構築用のヘルパー（レゴブロック） ---
+def ast_eq(lhs, rhs): return ["Equal", lhs, rhs]
+def ast_add(*args): return ["Add", *args]
+def ast_mul(*args): return ["Multiply", *args]
+def ast_div(num, den): return ["Divide", num, den]
+def ast_pow(base, exp): return ["Power", base, exp]
+
+@app.post("/api/build_physics_ast")
+def build_physics_ast(req: SituationData):
+    """
+    AIが抽出した状況データを受け取り、ルールベースで定理を選んでASTを返す
+    """
+    try:
+        ai_data = req.dict()
+        generated_asts = []
+        selected_theorems = []
+
+        # ==================================================
+        # ルール1：時間的な「状態(states)」があるか？ -> エネルギー保存則
+        # ==================================================
+        if ai_data.get("states") and "initial" in ai_data["states"]:
+            selected_theorems.append("力学的エネルギー保存則")
+            
+            # 【仮のAST構築ロジック（後であなたが拡張していく部分）】
+            initial_v = ai_data["states"]["initial"].get("velocity", 0)
+            final_v = ai_data["states"]["final"].get("velocity", 0)
+            
+            # (1/2)mv^2 = (1/2)mv^2 のようなASTを組み立てる
+            initial_k = ast_mul(ast_div(1, 2), "m", ast_pow(initial_v, 2)) if initial_v != 0 else 0
+            final_k = ast_mul(ast_div(1, 2), "m", ast_pow(final_v, 2)) if final_v != 0 else 0
+            
+            eq_ast = ast_eq(initial_k, final_k)
+            generated_asts.append({
+                "law": "力学的エネルギー保存則",
+                "ast": eq_ast
+            })
+
+        # ==================================================
+        # ルール2：運動状態(motion_states)があるか？ -> 運動方程式 or 力のつりあい
+        # ==================================================
+        if ai_data.get("motion_states"):
+            for axis, info in ai_data["motion_states"].items():
+                state = info.get("state")
+                
+                # 簡単な合力Fのモック（実際はforcesから成分分解して計算します）
+                f_net = "F_net_" + axis 
+
+                if state == "accelerating":
+                    selected_theorems.append(f"{axis}方向の運動方程式")
+                    a_sym = info.get("acceleration_symbol", "a")
+                    eq_ast = ast_eq(ast_mul("m", a_sym), f_net)
+                    generated_asts.append({"law": "運動方程式", "ast": eq_ast})
+                    
+                elif state == "stationary":
+                    selected_theorems.append(f"{axis}方向の力のつりあい")
+                    eq_ast = ast_eq(0, f_net)
+                    generated_asts.append({"law": "力のつりあい", "ast": eq_ast})
+
+        return {
+            "status": "success",
+            "selected_theorems": selected_theorems,
+            "generated_asts": generated_asts
+        }
+
+    except Exception as e:
+        return {"status": "error", "error_message": str(e)}
