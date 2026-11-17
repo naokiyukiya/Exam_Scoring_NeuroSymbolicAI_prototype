@@ -1,0 +1,787 @@
+{
+  "schema_version": "2.2.0",
+  "purpose": "physics.jsonが宣言する物理固有Vocabulary・Semantic Roles・定理規則を、共通AST・Sort・次元体系・型検査・SymPy/Z3変換規約に従って検証する汎用論理スキーマ。",
+  "design_invariants": [
+    "物理法則・定理の内容、物理固有の関数・述語の意味、適用条件はphysics.jsonに定義する。",
+    "本ファイルは共通Sort・AST構文・型検査・汎用演算意味論・次元合成・solver encodingを定義し、個別の物理定理を定義しない。",
+    "DAG由来の事実およびphysics.jsonが明示的に許可した一般domain axiomだけを前提として使用する。未記載の条件を補完しない。",
+    "display_nameは表示専用であり、シンボル同一性はsymbol_idのみで決める。",
+    "文字列をeval/sympifyして実行しない。JSON ASTを検証後に再帰的にSymPy/Z3へ変換する。",
+    "証明不能・未対応・情報不足はunknownとし、validへ昇格させない。",
+    "Sort（計算上の型）、physical_dimension（次元）、semantic_role（物理的意味）は別概念として管理し、相互に自動推定しない。",
+    "物理固有Function/Predicate宣言はphysics.json.physical_vocabularyを唯一の所有元とする。",
+    "Semantic Roleの語彙と物理的意味はphysics.json.semantic_rolesを唯一の所有元とする。",
+    "物理公理はphysics.json.physical_axiomsに明示されたものだけを、個別の適用条件とscopeの下で使用する。",
+    "適用条件DSLの構文・評価結果の扱いは本ファイルが定義し、条件の物理的内容はphysics.jsonが定義する。"
+  ],
+  "sorts": {
+    "Real": {
+      "description": "実数値",
+      "z3_encoding": {
+        "kind": "builtin_sort",
+        "name": "RealSort"
+      }
+    },
+    "Bool": {
+      "description": "真偽値。命題式の型",
+      "z3_encoding": {
+        "kind": "builtin_sort",
+        "name": "BoolSort"
+      }
+    },
+    "Object": {
+      "description": "物理的対象物体",
+      "z3_encoding": {
+        "kind": "uninterpreted_sort",
+        "name": "PhysicsObject"
+      }
+    },
+    "Time": {
+      "description": "時刻。初期実装では実数時間として表現する",
+      "alias_of": "Real",
+      "z3_encoding": {
+        "kind": "alias_sort",
+        "target": "Real"
+      }
+    }
+  },
+  "functions": {},
+  "predicates": {},
+  "formal_definitions": {},
+  "z3_encoding": {
+    "backend": "z3py",
+    "sort_mapping": {
+      "Real": "z3.RealSort()",
+      "Bool": "z3.BoolSort()",
+      "Object": "z3.DeclareSort(\"PhysicsObject\")",
+      "Time": "RealSort alias"
+    },
+    "function_mapping": {},
+    "predicate_mapping": {},
+    "formula_mapping": {
+      "eq": "==",
+      "neq": "!=",
+      "lt": "<",
+      "le": "<=",
+      "gt": ">",
+      "ge": ">=",
+      "and": "z3.And",
+      "or": "z3.Or",
+      "not": "z3.Not",
+      "implies": "z3.Implies",
+      "iff": "==",
+      "forall": "z3.ForAll",
+      "exists": "z3.Exists"
+    },
+    "literal_mapping": {
+      "rational": "z3.RealVal(\"numerator/denominator\")",
+      "pi": "unsupported in initial Z3 fragment"
+    },
+    "macro_expansion_order": [],
+    "unknown_policy": "Z3のunknown・未対応理論・タイムアウトは必ずunknownとして返す。",
+    "extension_policy": "物理固有Function/Predicateはphysics.json.physical_vocabularyの宣言を読み込み、signature・dimension・definitionを検証してからZ3へ登録する。logic_schemaは物理固有の名前や意味を予約しない。"
+  },
+  "validation_rules": {
+    "schema_validation": [
+      "JSON構文が正しい",
+      "必須トップレベルキーが存在する",
+      "sort/function/predicate名が一意である",
+      "全参照先が宣言済みである",
+      "physics.jsonから読み込んだFunction/Predicate宣言のsignature・definition参照が整合する",
+      "physics.json physical_vocabularyのfunction/predicate宣言が一意で、signatureとdimension declarationが整合する",
+      "physics.json semantic_rolesのrole_idが一意で、expected_sortが宣言済みSortである",
+      "formal_ruleのapplicability_conditionsがapplicability_condition_contractに適合する",
+      "physical_axiomsは明示的なactivation/evidence/scope契約を満たす"
+    ],
+    "dag_validation": [
+      "nodes/edges/symbol_registryが存在する",
+      "symbol_idが一意である",
+      "edge endpointが既存nodeを参照する",
+      "propositionにはformula_astがある",
+      "inferenceにはtheorem_idがある"
+    ],
+    "ast_validation": [
+      "kindごとの必須fieldと型を検査する",
+      "rational denominatorは0以外",
+      "add/mulは2項以上",
+      "pow_int exponentは整数",
+      "未登録function/predicateは禁止（physics.json physical_vocabularyを参照）",
+      "parameterはphysics.jsonのformal template/declaration definition内のみ",
+      "variableはFOL binder/declaration definition内のみ",
+      "forall/existsの変数Sortと束縛範囲を検査する"
+    ],
+    "type_validation": [
+      "function/predicateのarityと引数sortを検査する",
+      "比較演算のsortを検査する",
+      "論理演算のBool型を検査する",
+      "quantifier bodyがBool型であることを検査する",
+      "加減算・比較・等式におけるphysical_dimension整合性を検査する"
+    ],
+    "error_classes": {
+      "malformed_json": "input_error",
+      "undeclared_symbol_or_name": "input_error",
+      "type_mismatch": "input_error",
+      "unsupported_ast": "unknown",
+      "missing_physical_evidence": "unknown",
+      "solver_unknown": "unknown"
+    },
+    "no_implicit_repair": true
+  },
+  "ast": {
+    "expression_nodes": {
+      "symbol": {
+        "fields": [
+          "symbol_id"
+        ],
+        "source": "DAG symbol_registry"
+      },
+      "parameter": {
+        "fields": [
+          "name"
+        ],
+        "source": "physics.json theorem templates and typed declaration definitions only"
+      },
+      "variable": {
+        "fields": [
+          "name"
+        ],
+        "source": "bound variables in FOL binders and typed declaration definitions"
+      },
+      "rational": {
+        "fields": [
+          "numerator",
+          "denominator"
+        ],
+        "exact": true
+      },
+      "constant": {
+        "fields": [
+          "name"
+        ],
+        "allowed": [
+          "pi"
+        ]
+      },
+      "function": {
+        "fields": [
+          "name",
+          "args"
+        ],
+        "source": "physics.json.physical_vocabulary.functions"
+      },
+      "add": {
+        "fields": [
+          "args"
+        ],
+        "min_args": 2
+      },
+      "sub": {
+        "fields": [
+          "left",
+          "right"
+        ]
+      },
+      "mul": {
+        "fields": [
+          "args"
+        ],
+        "min_args": 2
+      },
+      "div": {
+        "fields": [
+          "numerator",
+          "denominator"
+        ]
+      },
+      "pow_int": {
+        "fields": [
+          "base",
+          "exponent"
+        ],
+        "exponent_type": "integer"
+      },
+      "sqrt": {
+        "fields": [
+          "argument"
+        ]
+      },
+      "sin": {
+        "fields": [
+          "argument"
+        ]
+      },
+      "cos": {
+        "fields": [
+          "argument"
+        ]
+      }
+    },
+    "formula_nodes": {
+      "eq": [
+        "lhs",
+        "rhs"
+      ],
+      "neq": [
+        "lhs",
+        "rhs"
+      ],
+      "lt": [
+        "lhs",
+        "rhs"
+      ],
+      "le": [
+        "lhs",
+        "rhs"
+      ],
+      "gt": [
+        "lhs",
+        "rhs"
+      ],
+      "ge": [
+        "lhs",
+        "rhs"
+      ],
+      "predicate": {
+        "fields": [
+          "name",
+          "args"
+        ],
+        "source": "physics.json.physical_vocabulary.predicates"
+      },
+      "and": [
+        "args"
+      ],
+      "or": [
+        "args"
+      ],
+      "not": [
+        "argument"
+      ],
+      "implies": [
+        "antecedent",
+        "consequent"
+      ],
+      "iff": [
+        "left",
+        "right"
+      ],
+      "forall": [
+        "variables",
+        "body"
+      ],
+      "exists": [
+        "variables",
+        "body"
+      ]
+    },
+    "numeric_semantics": {
+      "rational": "分子・分母は整数。分母0は禁止。浮動小数へ変換しない。",
+      "div": "分母が0でないことを証明できない場合unknown。分母=0が明示される場合invalid。",
+      "sqrt": "実数領域では被開平数>=0が必要。負が明示される場合invalid、非負を確認できない場合unknown。",
+      "pow_int": "指数は整数。負指数では底が0でないことを要する。",
+      "sin_cos": "SymPyでの式変形には使用可能。Z3の初期論理 fragment では未対応とし、論理含意が必要な場合unknown。",
+      "pi": "SymPyの厳密定数pi。Z3への直接変換は初期fragment外。"
+    }
+  },
+  "dag_contract": {
+    "required_top_level_fields": [
+      "nodes",
+      "edges",
+      "symbol_registry",
+      "contract_version",
+      "evidence_sources"
+    ],
+    "symbol_registry": {
+      "required_fields": [
+        "registry_id",
+        "symbols"
+      ],
+      "symbol_required_fields": [
+        "symbol_id",
+        "display_name",
+        "sort",
+        "semantic_role"
+      ],
+      "allowed_sorts": [
+        "Real",
+        "Bool",
+        "Object",
+        "Time"
+      ],
+      "optional_symbol_fields": [
+        "subject_symbol_id",
+        "temporal_behavior",
+        "unit",
+        "physical_dimension",
+        "semantic_role_evidence"
+      ],
+      "temporal_behavior_values": [
+        "constant",
+        "time_dependent",
+        "unspecified"
+      ],
+      "assumptions_policy": "K>0等の物理条件はsymbol_registryに埋め込まず、DAG propositionノードとして保持する。physics_library由来の一般条件は明示されたrule IDと適用範囲を持つevidence_sources参照を必要とする。",
+      "identity_policy": "symbol_idのみを同一性キーとし、display_name一致で同一視しない。",
+      "scalar_policy": "Realシンボルは明示されたtemporal_behaviorに従う。定数性が必要な定理でunspecifiedならunknown。",
+      "subject_binding_policy": "物体に属する物理パラメータはsubject_symbol_idで対象物体を関連付けられる。関連付けが必要な場合に欠落していればunknown。"
+    },
+    "node_types": {
+      "proposition": {
+        "required_fields": [
+          "id",
+          "type",
+          "label",
+          "formula_ast"
+        ],
+        "optional_fields": [
+          "validity_scope",
+          "scope_evidence",
+          "provenance",
+          "verification_status"
+        ],
+        "formula_ast_policy": {
+          "field_required": true,
+          "nullable": true,
+          "null_semantics": "文章命題、判読不能、または登録済みAST語彙で表現不能の場合に限りnullを許可する。nullは検証不能を意味し、validとして扱わずunknownとする。",
+          "non_null_semantics": "logic_schema.astに定義されたkindとfield構造を満たし、symbol参照はsymbol_registryに存在しなければならない。"
+        }
+      },
+      "inference": {
+        "required_fields": [
+          "id",
+          "type",
+          "theorem_id"
+        ],
+        "optional_fields": [
+          "subject_symbol_id"
+        ]
+      },
+      "theorem": {
+        "purpose": "表示・説明用参照ノード。theorem_idとlabelはphysics.jsonのcanonical theoremと一致させる。実行規則はinference.theorem_idからphysics.jsonで取得する。",
+        "required_fields": [
+          "id",
+          "type",
+          "theorem_id",
+          "label"
+        ]
+      }
+    },
+    "edges": {
+      "canonical_fields": [
+        "from",
+        "to"
+      ],
+      "semantics": "入力前提はpropositionからinferenceへ、推論結論はinferenceからpropositionへ接続する。",
+      "validation": [
+        "全endpointが既存node idを参照する",
+        "循環・重複辺を検出する",
+        "定理ごとの前提数・結論数要件を満たす"
+      ],
+      "migration_policy": "source/targetは正規形式ではない。存在する旧データのみmigration adapterでfrom/toへ変換する。"
+    },
+    "evidence_sources": {
+      "required_fields": [
+        "id",
+        "source_kind",
+        "text"
+      ],
+      "source_kind_values": [
+        "problem_statement",
+        "given_fact",
+        "derived_fact",
+        "physics_library",
+        "test_fixture"
+      ],
+      "reference_fields": [
+        "source_node_ids",
+        "source_ids",
+        "fixture_source_ids"
+      ],
+      "policy": "source_kindはevidence_sourcesの参照先で管理する。test_fixtureはtest_mode専用。physics_libraryはphysics.jsonで明示されたrule ID・version・applicability scopeを必要とし、問題固有の事実を暗黙に補完しない。"
+    }
+  },
+  "typing_rules": [
+    "symbolはsymbol_registryに存在し、sortが宣言されていること。semantic_roleはphysics.jsonのrole catalogに存在し、根拠が検証された場合のみ確定扱いとする。",
+    "function/predicateはphysics.json.physical_vocabularyに登録され、arityと引数sortが定義と一致すること。",
+    "加減乗除・sqrt・pow_intはReal Sortに対してのみ許可する。",
+    "physical_dimensionはphysical_dimension_systemの合成規則に従って別途検査する。",
+    "大小比較はReal同士かつphysical_dimensionが一致する場合に許可する。",
+    "eq/neqは同一Sortかつ比較可能なphysical_dimension同士に限る。",
+    "and/or/not/implies/iffの各引数はBoolであること。",
+    "forall/existsの束縛変数は宣言済みSortを持ち、量化子のbodyはBoolであること。",
+    "parameterはphysics.jsonのテンプレート内のみ、variableはFOL binder内のみ許可する。",
+    "physics.json physical_vocabularyのfunction/predicate宣言のみを物理固有名として解決する。",
+    "semantic_roleはphysics.json semantic_rolesに登録済みで、evidenceが検証された場合のみ確定する。",
+    "primitive predicateの宣言はその命題を真と仮定する根拠にならない。",
+    "function/predicateのdefinitionを展開する場合は循環定義を拒否し、展開不能はunknownとする。"
+  ],
+  "theorem_binding": {
+    "rule_source": "physics.json.theorems[].formal_rule",
+    "dag_declares_authoritative_bindings": false,
+    "method": "検証器がASTの構造・型・semantic_role・scopeを照合し、bindingを内部生成する。",
+    "requirements": [
+      "Sort一致",
+      "physics.jsonで宣言されたsemantic_roleとの一致およびsemantic_role_evidenceの検証",
+      "subject_symbol_idの整合",
+      "複合式のSort・physical_dimensionは汎用合成規則で検査",
+      "semantic_roleの複合式bindingはphysics.jsonの明示的規則がある場合のみ",
+      "scope要件とscope_evidenceを満たす",
+      "bindingが一意である",
+      "applicability_conditionsの各DSL条件が満たされ、根拠が追跡可能であること",
+      "複合式のsemantic_roleは明示的な定理固有導出規則がある場合のみ認定する"
+    ],
+    "forbidden": [
+      "display_nameのみでの同一視",
+      "LLMが出力したbindingの無検証採用",
+      "自由形式文字列のeval/sympify",
+      "未記載の物理法則・条件の補完"
+    ]
+  },
+  "solver_contract": {
+    "sympy": {
+      "responsibilities": [
+        "検証済みexpression ASTの再帰変換",
+        "厳密有理数を保つ正規化・展開・因数分解",
+        "代入・消去・連立式からの代数的帰結",
+        "式の同値性確認",
+        "定理テンプレートが指定した場合の多項式係数抽出・係数比較"
+      ],
+      "not_responsible_for": [
+        "物理定理の選択",
+        "物理的適用条件の創作",
+        "物理的意味役割の推測",
+        "係数候補への物理的semantic_role付与",
+        "係数の正値性・時間一定性など物理条件の認定"
+      ],
+      "unsupported_result": "unknown"
+    },
+    "z3": {
+      "responsibilities": [
+        "Sort・Function・Predicateの宣言",
+        "前提集合の充足可能性確認",
+        "適用条件と結論の論理的含意判定",
+        "SATモデルの反例抽出",
+        "physics.jsonから渡された型付き物理条件・定義の論理的検証",
+        "physics.jsonで宣言された型付きpredicate/function定義の登録と、primitive宣言の未解釈扱い",
+        "前提集合の充足可能性を結論含意判定より先に確認する"
+      ],
+      "entailment_query": "premises AND theorem_rule AND theorem_conditions AND NOT(conclusion)",
+      "result_mapping": {
+        "unsat": "entailed only if premises are independently satisfiable and all evidence checks passed",
+        "sat": "counterexample",
+        "unknown": "undetermined"
+      },
+      "unsupported_result": "unknown",
+      "precheck": "Check premises satisfiable first; if unsat, return unknown and do not report vacuous entailment."
+    },
+    "initial_theory_fragment": {
+      "enabled": [
+        "量化子なしのReal等式・不等式",
+        "厳密有理数",
+        "and/or/not/implies",
+        "Object uninterpreted sort",
+        "登録済みBool述語",
+        "宣言済み関数"
+      ],
+      "quantifiers": "FOL定義としては許可。Z3実行時にunknownとなる可能性があり、unknownを保持する。",
+      "nonlinear_real_arithmetic": "K*x等はZ3へ渡せるが完全決定性を保証しない。unknownはunknown。",
+      "unsupported": [
+        "未登録関数・述語",
+        "三角関数を含むZ3制約",
+        "任意の微分演算",
+        "未形式化の物理定理"
+      ]
+    }
+  },
+  "scope_semantics": {
+    "values": [
+      "pointwise",
+      "throughout_motion_domain",
+      "interval",
+      "unspecified"
+    ],
+    "evidence_fields": [
+      "source_node_ids",
+      "source_ids",
+      "fixture_source_ids"
+    ],
+    "source_kind_values": [
+      "problem_statement",
+      "given_fact",
+      "derived_fact",
+      "physics_library",
+      "test_fixture"
+    ],
+    "global_scope_rule": "throughout_motion_domainを採用するには独立した根拠ノードまたは外部evidence sourceとscopeの整合性が必要。ラベルだけでは証拠にならない。",
+    "propagation": "導出式のscopeは使用した前提の最も弱いscopeを引き継ぐ。",
+    "classification": {
+      "pointwise": "全領域を要求する定理では明示的違反",
+      "throughout_motion_domain": "根拠が検証できる場合のみ充足",
+      "interval": "要求領域を包含すると証明できなければunknown",
+      "unspecified": "unknown"
+    },
+    "source_kind_policy": "source_kindはevidence_sources側を参照する。test_fixtureはtest_mode専用。physics_libraryはphysics.jsonで明示された規則の根拠のみを示し、問題固有条件を補完しない。 test_fixtureはtest_mode専用で本番検証では拒否する。"
+  },
+  "verification_status": {
+    "values": [
+      "valid",
+      "invalid",
+      "unknown"
+    ],
+    "valid": "前提が充足可能で、定理の全必須条件が明示的根拠により満たされ、前提から結論が導かれる。",
+    "invalid": "必須条件への明示的違反、意味役割の明示的不一致、または充足可能な前提の下で結論の反例が得られる。",
+    "unknown": "必要条件の欠落、曖昧なbinding、scope/evidence不足、前提矛盾、未対応AST、solver unknown。",
+    "precedence": [
+      "前提矛盾はunknown（vacuous entailmentを禁止）",
+      "必須条件への明示的違反はinvalid",
+      "条件の欠落はunknown",
+      "全条件確認後に反例SATならinvalid",
+      "全条件確認後に反例UNSATならvalid"
+    ]
+  },
+  "response_contract": {
+    "inference_fields": [
+      "verification_status",
+      "error_reason",
+      "verification_evidence"
+    ],
+    "evidence_fields": [
+      "theorem_id",
+      "matched_bindings",
+      "checked_premise_node_ids",
+      "checked_condition_ids",
+      "evidence_source_ids",
+      "semantic_role_evidence_refs",
+      "upstream_inference_ids",
+      "solver",
+      "solver_result",
+      "counterexample"
+    ],
+    "counterexample": "SATモデルが得られた場合のみ、必要変数に限定して格納する。"
+  },
+  "declaration_contract": {
+    "purpose": "physics.jsonが物理固有Function/Predicateを宣言するための共通構造。",
+    "source_paths": {
+      "functions": "physical_vocabulary.functions",
+      "predicates": "physical_vocabulary.predicates"
+    },
+    "function_fields": [
+      "name",
+      "args",
+      "returns",
+      "meaning",
+      "physical_dimension_rule",
+      "definition"
+    ],
+    "predicate_fields": [
+      "name",
+      "args",
+      "meaning",
+      "definition",
+      "primitive",
+      "evidence_required"
+    ],
+    "argument_shape": {
+      "required_fields": [
+        "name",
+        "sort"
+      ],
+      "optional_fields": [
+        "physical_dimension"
+      ]
+    },
+    "signature_policy": "引数Sort・戻りSort・arityをAST型検査に使用する。",
+    "definition_policy": "definitionはlogic_schemaで定義されたASTのみ。未宣言名・循環定義は禁止。primitive=trueは未解釈宣言を意味し、真であることを意味しない。 定義展開時はparameterを宣言引数に、variableを量化子に束縛する。定義は物理法則の公理追加ではなく、宣言された語彙の略記として扱う。",
+    "ownership": "物理固有宣言と意味はphysics.json。共通構文・型検査・solver encodingはlogic_schema。"
+  },
+  "semantic_role_contract": {
+    "purpose": "physics.json.semantic_roles.rolesが定義する意味役割の構造と検証原則。",
+    "source_path": "physics.json.semantic_roles.roles",
+    "fields": [
+      "role_id",
+      "description",
+      "expected_sort",
+      "physical_dimension",
+      "evidence_required"
+    ],
+    "optional_fields": [
+      "allow_composite_expression"
+    ],
+    "unresolved_value": "unresolved",
+    "policy": "symbol_registry.semantic_roleは候補。semantic_role_evidenceを検証するまで確定しない。Sort・次元一致のみでは意味役割を証明しない。",
+    "derivation_policy": "複合式の意味役割はphysics.jsonの定理固有規則・明示的導出規則だけで付与する。",
+    "missing_policy": "定理が要求する役割の根拠不足はunknown。明示的不一致はinvalid。"
+  },
+  "physical_dimension_system": {
+    "purpose": "物理次元の合成・整合性検査を行う。これはsemantic_role分類とは独立した汎用型検査である。",
+    "base_dimensions": [
+      "M",
+      "L",
+      "T",
+      "I",
+      "Theta",
+      "N",
+      "J"
+    ],
+    "representation": "各量の次元をbase_dimensions順の整数または有理数指数ベクトルとして表す。dimensionlessは全指数0。",
+    "rules": {
+      "rational_constant": "無次元",
+      "add_sub": "両辺・全項のphysical_dimensionが一致しなければtype error。",
+      "mul": "各基本次元の指数を加算する。",
+      "div": "各基本次元の指数を減算する。",
+      "pow_int": "各基本次元の指数に整数指数を乗算する。",
+      "sqrt": "各基本次元の指数を1/2倍する。",
+      "sin_cos": "引数は無次元でなければならない。",
+      "comparison": "大小比較はphysical_dimensionが一致する量同士に限る。",
+      "unknown_dimension": "必要な次元が不明ならdimension checkはunknown。"
+    },
+    "separation_policy": "physical_dimensionは式の次元整合性を表す。例えばv^2はReal Sortかつ次元L^2 T^-2となるが、特定のsemantic_roleを自動的に付与しない。"
+  },
+  "applicability_condition_contract": {
+    "purpose": "theorem formal_rule.applicability_conditionsの汎用DSL契約。",
+    "supported_kinds": {
+      "semantic_role": {
+        "required_fields": [
+          "id",
+          "kind",
+          "parameter",
+          "required_role"
+        ],
+        "optional_fields": [
+          "explicit_mismatch",
+          "missing"
+        ]
+      },
+      "logical_formula": {
+        "required_fields": [
+          "id",
+          "kind",
+          "premise_id"
+        ],
+        "optional_fields": [
+          "explicit_mismatch",
+          "missing"
+        ]
+      },
+      "symbol_invariant": {
+        "required_fields": [
+          "id",
+          "kind",
+          "parameter",
+          "required_value"
+        ],
+        "optional_fields": [
+          "explicit_mismatch",
+          "missing",
+          "expression_policy",
+          "evidence_policy"
+        ]
+      },
+      "validity_scope": {
+        "required_fields": [
+          "id",
+          "kind",
+          "required_value"
+        ],
+        "optional_fields": [
+          "pointwise",
+          "unspecified",
+          "missing_evidence"
+        ]
+      }
+    },
+    "result_policy": {
+      "satisfied": "continue",
+      "explicit_violation": "invalid",
+      "missing_or_unverifiable": "unknown"
+    },
+    "evidence_policy": "条件の充足はDAG node/sourceまたは明示的な導出規則への参照で裏付ける。LLMの説明文のみでは証拠としない。",
+    "expression_invariant_policy": {
+      "single_symbol": "validate symbol temporal_behavior and evidence",
+      "composite_expression": "derive temporal behavior from every constituent and explicit expression-level evidence; do not infer constancy from physical dimension or algebraic form alone",
+      "conflicting_evidence": "invalid",
+      "missing_evidence": "unknown"
+    }
+  },
+  "formal_rule_contract": {
+    "source_path": "physics.json.theorems[].formal_rule",
+    "required_fields": [
+      "rule_version",
+      "verification_enabled",
+      "parameters",
+      "input_patterns",
+      "premises",
+      "applicability_conditions",
+      "conclusions"
+    ],
+    "parameter_fields": [
+      "sort",
+      "semantic_role"
+    ],
+    "policy": "formal_ruleが存在しverification_enabled=trueの規則だけを物理的推論に使う。parameter bindingは検証器がAST・registry・evidenceから再構成する。",
+    "input_to_premise": "入力式を論理前提へ昇格する変換は明示的なlifting/substitution/scope evidenceを要求する。",
+    "no_implicit_assumptions": true,
+    "coefficient_binding": {
+      "purpose": "allow theorem templates to bind a coefficient parameter to a symbol or composite expression",
+      "requirements": [
+        "coefficient extraction/unification must be specified by the theorem",
+        "subject association must be checked at the relation level",
+        "semantic_role must be explicitly derived/validated",
+        "temporal invariance must be independently verified"
+      ],
+      "policy": "Do not require every factor in a composite coefficient to share the target object binding. A conflicting object binding is invalid; missing association evidence is unknown."
+    },
+    "input_to_premise_contract": {
+      "required_fields": [
+        "source_input_pattern_ids",
+        "target_formula",
+        "lifting"
+      ],
+      "lifting_required_fields": [
+        "quantifier",
+        "variable",
+        "domain_guard",
+        "substitutions",
+        "requires_validity_scope",
+        "requires_scope_evidence"
+      ],
+      "semantics": "A target predicate may be established only when the matched source formula, after typed substitution, is proven over the entire declared quantification domain and the required independent scope evidence is validated.",
+      "policy_field": "Human-readable only; executable meaning must be represented by AST and declared transformation fields."
+    }
+  },
+  "physical_axiom_contract": {
+    "source_path": "physics.json.physical_axioms.items",
+    "required_fields": [
+      "id",
+      "formula",
+      "applicability",
+      "validity_scope",
+      "evidence_policy"
+    ],
+    "default_activation": "disabled",
+    "policy": "宣言されただけで全問題へ適用しない。domain・scope・evidenceがすべて確認できる場合にのみ使用する。test_fixtureはtest_mode専用。"
+  },
+  "compatibility": {
+    "dag_contract_version": "2.2.0",
+    "edge_fields": [
+      "from",
+      "to"
+    ],
+    "symbol_registry_location": "graph.symbol_registry",
+    "evidence_sources_location": "graph.evidence_sources",
+    "policy": "DAG contract 2.2の構造を前提とする。semantic_role=\"unresolved\"は未確定値として受理し、定理が必要とする場合はunknownとする。",
+    "dag_v2_2_neural_generation": {
+      "prompt_version": "dag_v2_2_neural_catalog_v1",
+      "legacy_ui_fields_preserved": [
+        "label",
+        "sub_question",
+        "is_final_answer",
+        "inputs_used",
+        "outputs_derived",
+        "construction_process"
+      ],
+      "algebraic_fallback": "既存の自動代数定理ノード補填を維持し、補填されたinferenceにもtheorem_id=algebraic_simplificationを付与する。これは既存SymPy検証の動作を変更しない。",
+      "formula_ast_null": "表現不能・非数式命題はnullを許容し、検証結果はunknownとする。"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "version": "2.5.0_sympy_complete_mechanics",
+  "version": "3.1.0_formal_symbolic_contract",
   "domain": "physics_mechanics",
-  "description": "高校物理・力学分野の完全構造化思考モデルライブラリ（3層構造分離版）",
+  "description": "高校物理・力学分野の物理知識ライブラリ。既存41定理のGemini向けprompt/UI情報と構造化ASTを保持し、物理固有Vocabulary・Semantic Roles・適用条件・形式規則を宣言する。物理的推論は明示されたformal_ruleだけを適用する。",
   "theorems": [
     {
       "id": "meta_focus_object_forces",
@@ -23,16 +23,39 @@
           "target_object": "m"
         },
         "outputs": {
-          "acting_forces": ["m * g", "N", "T", "F_k", "F_b", "F_f", "F_centrifugal", "F_inertial"]
+          "acting_forces": [
+            "m * g",
+            "N",
+            "T",
+            "F_k",
+            "F_b",
+            "F_f",
+            "F_centrifugal",
+            "F_inertial"
+          ]
         }
       },
       "symbolic_verification": {
         "sympy_equations": [],
-        "constraints": []
+        "constraints": [],
+        "ast_equations": [],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "no_symbolic_template",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "no_symbolic_template",
+        "symbolic_equation_verification_enabled": false,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -57,16 +80,36 @@
         "outputs": {
           "origin": "x_0",
           "positive_direction_unit": "e_x",
-          "variables": ["x", "delta_x", "v", "a", "F_x"]
+          "variables": [
+            "x",
+            "delta_x",
+            "v",
+            "a",
+            "F_x"
+          ]
         }
       },
       "symbolic_verification": {
         "sympy_equations": [],
-        "constraints": []
+        "constraints": [],
+        "ast_equations": [],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "no_symbolic_template",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "no_symbolic_template",
+        "symbolic_equation_verification_enabled": false,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -88,12 +131,44 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(a, 0)"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(a, 0)"
+        ],
+        "constraints": [],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "a"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -115,12 +190,86 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(V, S * h)"],
-        "constraints": ["S > 0", "h > 0"]
+        "sympy_equations": [
+          "Eq(V, S * h)"
+        ],
+        "constraints": [
+          "S > 0",
+          "h > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "V"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "S"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "h"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "S"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "h"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -142,12 +291,86 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(m, rho * V)"],
-        "constraints": ["rho > 0", "V > 0"]
+        "sympy_equations": [
+          "Eq(m, rho * V)"
+        ],
+        "constraints": [
+          "rho > 0",
+          "V > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "rho"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "V"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "rho"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "V"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -169,12 +392,50 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(delta_x, x - x_0)"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(delta_x, x - x_0)"
+        ],
+        "constraints": [],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "delta_x"
+              },
+              "rhs": {
+                "kind": "sub",
+                "left": {
+                  "kind": "parameter",
+                  "name": "x"
+                },
+                "right": {
+                  "kind": "parameter",
+                  "name": "x_0"
+                }
+              }
+            }
+          }
+        ],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -197,12 +458,42 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(v, diff(x, t))", "Eq(a, diff(v, t))"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(v, diff(x, t))",
+          "Eq(a, diff(v, t))"
+        ],
+        "constraints": [],
+        "ast_equations": [],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "partial",
+          "unsupported_items": [
+            {
+              "kind": "equation",
+              "source_index": 0,
+              "source": "Eq(v, diff(x, t))",
+              "reason": "derivative AST is outside current formal fragment"
+            },
+            {
+              "kind": "equation",
+              "source_index": 1,
+              "source": "Eq(a, diff(v, t))",
+              "reason": "derivative AST is outside current formal fragment"
+            }
+          ],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "partial",
+        "symbolic_equation_verification_enabled": false,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -234,11 +525,187 @@
           "Eq(x, v_0 * t + S(1)/2 * a * t**2)",
           "Eq(v**2 - v_0**2, 2 * a * x)"
         ],
-        "constraints": ["t >= 0"]
+        "constraints": [
+          "t >= 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "v"
+              },
+              "rhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "v_0"
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "a"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "t"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "x"
+              },
+              "rhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "v_0"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "t"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "div",
+                            "numerator": {
+                              "kind": "rational",
+                              "numerator": 1,
+                              "denominator": 1
+                            },
+                            "denominator": {
+                              "kind": "rational",
+                              "numerator": 2,
+                              "denominator": 1
+                            }
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "a"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "pow_int",
+                        "base": {
+                          "kind": "parameter",
+                          "name": "t"
+                        },
+                        "exponent": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 2,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "sub",
+                "left": {
+                  "kind": "pow_int",
+                  "base": {
+                    "kind": "parameter",
+                    "name": "v"
+                  },
+                  "exponent": 2
+                },
+                "right": {
+                  "kind": "pow_int",
+                  "base": {
+                    "kind": "parameter",
+                    "name": "v_0"
+                  },
+                  "exponent": 2
+                }
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "rational",
+                        "numerator": 2,
+                        "denominator": 1
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "a"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "x"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "t"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -260,12 +727,50 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(v_AB, v_A - v_B)"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(v_AB, v_A - v_B)"
+        ],
+        "constraints": [],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "v_AB"
+              },
+              "rhs": {
+                "kind": "sub",
+                "left": {
+                  "kind": "parameter",
+                  "name": "v_A"
+                },
+                "right": {
+                  "kind": "parameter",
+                  "name": "v_B"
+                }
+              }
+            }
+          }
+        ],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -287,12 +792,86 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(W, m * g)"],
-        "constraints": ["m > 0", "g > 0"]
+        "sympy_equations": [
+          "Eq(W, m * g)"
+        ],
+        "constraints": [
+          "m > 0",
+          "g > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "W"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "m"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "g"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "g"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -318,12 +897,120 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(p, p_0 + rho * g * h)"],
-        "constraints": ["rho > 0", "g > 0", "h >= 0"]
+        "sympy_equations": [
+          "Eq(p, p_0 + rho * g * h)"
+        ],
+        "constraints": [
+          "rho > 0",
+          "g > 0",
+          "h >= 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "p"
+              },
+              "rhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "p_0"
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "parameter",
+                            "name": "rho"
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "g"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "h"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "rho"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "g"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 2,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "h"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -347,12 +1034,111 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_b, rho * V * g)"],
-        "constraints": ["rho > 0", "V >= 0", "g > 0"]
+        "sympy_equations": [
+          "Eq(F_b, rho * V * g)"
+        ],
+        "constraints": [
+          "rho > 0",
+          "V >= 0",
+          "g > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_b"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "rho"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "V"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "g"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "rho"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "V"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 2,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "g"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -374,12 +1160,70 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_k, k * x)"],
-        "constraints": ["k > 0"]
+        "sympy_equations": [
+          "Eq(F_k, k * x)"
+        ],
+        "constraints": [
+          "k > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_k"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "k"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "x"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "k"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -405,12 +1249,82 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_parallel, F * cos(theta))", "Eq(F_perpendicular, F * sin(theta))"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(F_parallel, F * cos(theta))",
+          "Eq(F_perpendicular, F * sin(theta))"
+        ],
+        "constraints": [],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_parallel"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "F"
+                  },
+                  {
+                    "kind": "cos",
+                    "argument": {
+                      "kind": "parameter",
+                      "name": "theta"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_perpendicular"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "F"
+                  },
+                  {
+                    "kind": "sin",
+                    "argument": {
+                      "kind": "parameter",
+                      "name": "theta"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -435,12 +1349,86 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_max, mu * N)"],
-        "constraints": ["mu > 0", "N >= 0"]
+        "sympy_equations": [
+          "Eq(F_max, mu * N)"
+        ],
+        "constraints": [
+          "mu > 0",
+          "N >= 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_max"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "mu"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "N"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "mu"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "N"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -462,12 +1450,86 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_k, mu_prime * N)"],
-        "constraints": ["mu_prime > 0", "N >= 0"]
+        "sympy_equations": [
+          "Eq(F_k, mu_prime * N)"
+        ],
+        "constraints": [
+          "mu_prime > 0",
+          "N >= 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_k"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "mu_prime"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "N"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "mu_prime"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "N"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -481,19 +1543,62 @@
           "F_net": "対象の軸方向にはたらく合力（すべての力の総和）"
         },
         "inputs": {
-          "forces_list": ["F_1", "F_2"]
+          "forces_list": [
+            "F_1",
+            "F_2"
+          ]
         },
         "outputs": {
           "net_force": "F_net = F_1 + F_2"
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_net, F_1 + F_2)"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(F_net, F_1 + F_2)"
+        ],
+        "constraints": [],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_net"
+              },
+              "rhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "F_1"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "F_2"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -515,12 +1620,44 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_net, 0)"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(F_net, 0)"
+        ],
+        "constraints": [],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_net"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -543,12 +1680,70 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(m * a, F_net)"],
-        "constraints": ["m > 0"]
+        "sympy_equations": [
+          "Eq(m * a, F_net)"
+        ],
+        "constraints": [
+          "m > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "m"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "a"
+                  }
+                ]
+              },
+              "rhs": {
+                "kind": "parameter",
+                "name": "F_net"
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -572,12 +1767,70 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(M, F * l)"],
-        "constraints": ["l >= 0"]
+        "sympy_equations": [
+          "Eq(M, F * l)"
+        ],
+        "constraints": [
+          "l >= 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "M"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "F"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "l"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "l"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -597,18 +1850,47 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(M_net, 0)"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(M_net, 0)"
+        ],
+        "constraints": [],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "M_net"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
-    
-    
-    
-{
+    {
       "id": "def_kinetic_energy",
       "name": "運動エネルギーの定義",
       "prompt_data": {
@@ -627,12 +1909,108 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(K, S(1)/2 * m * v**2)"],
-        "constraints": ["m > 0", "v >= 0"]
+        "sympy_equations": [
+          "Eq(K, S(1)/2 * m * v**2)"
+        ],
+        "constraints": [
+          "m > 0",
+          "v >= 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "K"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "div",
+                        "numerator": {
+                          "kind": "rational",
+                          "numerator": 1,
+                          "denominator": 1
+                        },
+                        "denominator": {
+                          "kind": "rational",
+                          "numerator": 2,
+                          "denominator": 1
+                        }
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "m"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "pow_int",
+                    "base": {
+                      "kind": "parameter",
+                      "name": "v"
+                    },
+                    "exponent": 2
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "v"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -656,12 +2034,95 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(U_g, m * g * h)"],
-        "constraints": ["m > 0", "g > 0"]
+        "sympy_equations": [
+          "Eq(U_g, m * g * h)"
+        ],
+        "constraints": [
+          "m > 0",
+          "g > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "U_g"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "m"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "g"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "h"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "g"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -683,12 +2144,92 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(U_k, S(1)/2 * k * x**2)"],
-        "constraints": ["k > 0"]
+        "sympy_equations": [
+          "Eq(U_k, S(1)/2 * k * x**2)"
+        ],
+        "constraints": [
+          "k > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "U_k"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "div",
+                        "numerator": {
+                          "kind": "rational",
+                          "numerator": 1,
+                          "denominator": 1
+                        },
+                        "denominator": {
+                          "kind": "rational",
+                          "numerator": 2,
+                          "denominator": 1
+                        }
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "k"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "pow_int",
+                    "base": {
+                      "kind": "parameter",
+                      "name": "x"
+                    },
+                    "exponent": 2
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "k"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -712,12 +2253,98 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(W, F * s * cos(theta))"],
-        "constraints": ["F >= 0", "s >= 0"]
+        "sympy_equations": [
+          "Eq(W, F * s * cos(theta))"
+        ],
+        "constraints": [
+          "F >= 0",
+          "s >= 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "W"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "F"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "s"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "cos",
+                    "argument": {
+                      "kind": "parameter",
+                      "name": "theta"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "s"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -740,12 +2367,50 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(K_2 - K_1, W_total)"],
-        "constraints": []
+        "sympy_equations": [
+          "Eq(K_2 - K_1, W_total)"
+        ],
+        "constraints": [],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "sub",
+                "left": {
+                  "kind": "parameter",
+                  "name": "K_2"
+                },
+                "right": {
+                  "kind": "parameter",
+                  "name": "K_1"
+                }
+              },
+              "rhs": {
+                "kind": "parameter",
+                "name": "W_total"
+              }
+            }
+          }
+        ],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -764,8 +2429,16 @@
         },
         "inputs": {
           "condition": "W_non_cons == 0",
-          "state_1": { "v": "v_1", "x": "x_1", "h": "h_1" },
-          "state_2": { "v": "v_2", "x": "x_2", "h": "h_2" }
+          "state_1": {
+            "v": "v_1",
+            "x": "x_1",
+            "h": "h_1"
+          },
+          "state_2": {
+            "v": "v_2",
+            "x": "x_2",
+            "h": "h_2"
+          }
         },
         "outputs": {
           "equation": "(1/2)*m*v_1**2 + m*g*h_1 + (1/2)*k*x_1**2 == (1/2)*m*v_2**2 + m*g*h_2 + (1/2)*k*x_2**2"
@@ -775,11 +2448,286 @@
         "sympy_equations": [
           "Eq(S(1)/2*m*v_1**2 + m*g*h_1 + S(1)/2*k*x_1**2, S(1)/2*m*v_2**2 + m*g*h_2 + S(1)/2*k*x_2**2)"
         ],
-        "constraints": ["m > 0", "g > 0", "k > 0"]
+        "constraints": [
+          "m > 0",
+          "g > 0",
+          "k > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "add",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "mul",
+                            "args": [
+                              {
+                                "kind": "div",
+                                "numerator": {
+                                  "kind": "rational",
+                                  "numerator": 1,
+                                  "denominator": 1
+                                },
+                                "denominator": {
+                                  "kind": "rational",
+                                  "numerator": 2,
+                                  "denominator": 1
+                                }
+                              },
+                              {
+                                "kind": "parameter",
+                                "name": "m"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "pow_int",
+                            "base": {
+                              "kind": "parameter",
+                              "name": "v_1"
+                            },
+                            "exponent": 2
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "mul",
+                            "args": [
+                              {
+                                "kind": "parameter",
+                                "name": "m"
+                              },
+                              {
+                                "kind": "parameter",
+                                "name": "g"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "h_1"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "div",
+                            "numerator": {
+                              "kind": "rational",
+                              "numerator": 1,
+                              "denominator": 1
+                            },
+                            "denominator": {
+                              "kind": "rational",
+                              "numerator": 2,
+                              "denominator": 1
+                            }
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "k"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "pow_int",
+                        "base": {
+                          "kind": "parameter",
+                          "name": "x_1"
+                        },
+                        "exponent": 2
+                      }
+                    ]
+                  }
+                ]
+              },
+              "rhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "add",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "mul",
+                            "args": [
+                              {
+                                "kind": "div",
+                                "numerator": {
+                                  "kind": "rational",
+                                  "numerator": 1,
+                                  "denominator": 1
+                                },
+                                "denominator": {
+                                  "kind": "rational",
+                                  "numerator": 2,
+                                  "denominator": 1
+                                }
+                              },
+                              {
+                                "kind": "parameter",
+                                "name": "m"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "pow_int",
+                            "base": {
+                              "kind": "parameter",
+                              "name": "v_2"
+                            },
+                            "exponent": 2
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "mul",
+                            "args": [
+                              {
+                                "kind": "parameter",
+                                "name": "m"
+                              },
+                              {
+                                "kind": "parameter",
+                                "name": "g"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "h_2"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "div",
+                            "numerator": {
+                              "kind": "rational",
+                              "numerator": 1,
+                              "denominator": 1
+                            },
+                            "denominator": {
+                              "kind": "rational",
+                              "numerator": 2,
+                              "denominator": 1
+                            }
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "k"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "pow_int",
+                        "base": {
+                          "kind": "parameter",
+                          "name": "x_2"
+                        },
+                        "exponent": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "g"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 2,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "k"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -801,8 +2749,14 @@
           "condition": "W_external == 0",
           "vibration_center": "x_c = 0",
           "restoring_constant": "K",
-          "state_1": { "v": "v_1", "x": "x_1" },
-          "state_2": { "v": "v_2", "x": "x_2" }
+          "state_1": {
+            "v": "v_1",
+            "x": "x_1"
+          },
+          "state_2": {
+            "v": "v_2",
+            "x": "x_2"
+          }
         },
         "outputs": {
           "potential_energy_shm": "U_shm = (1/2) * K * x**2",
@@ -814,11 +2768,261 @@
           "Eq(U_shm, S(1)/2 * K * x**2)",
           "Eq(S(1)/2*m*v_1**2 + S(1)/2*K*x_1**2, S(1)/2*m*v_2**2 + S(1)/2*K*x_2**2)"
         ],
-        "constraints": ["m > 0", "K > 0"]
+        "constraints": [
+          "m > 0",
+          "K > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "U_shm"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "div",
+                        "numerator": {
+                          "kind": "rational",
+                          "numerator": 1,
+                          "denominator": 1
+                        },
+                        "denominator": {
+                          "kind": "rational",
+                          "numerator": 2,
+                          "denominator": 1
+                        }
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "K"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "pow_int",
+                    "base": {
+                      "kind": "parameter",
+                      "name": "x"
+                    },
+                    "exponent": 2
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "div",
+                            "numerator": {
+                              "kind": "rational",
+                              "numerator": 1,
+                              "denominator": 1
+                            },
+                            "denominator": {
+                              "kind": "rational",
+                              "numerator": 2,
+                              "denominator": 1
+                            }
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "m"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "pow_int",
+                        "base": {
+                          "kind": "parameter",
+                          "name": "v_1"
+                        },
+                        "exponent": 2
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "div",
+                            "numerator": {
+                              "kind": "rational",
+                              "numerator": 1,
+                              "denominator": 1
+                            },
+                            "denominator": {
+                              "kind": "rational",
+                              "numerator": 2,
+                              "denominator": 1
+                            }
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "K"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "pow_int",
+                        "base": {
+                          "kind": "parameter",
+                          "name": "x_1"
+                        },
+                        "exponent": 2
+                      }
+                    ]
+                  }
+                ]
+              },
+              "rhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "div",
+                            "numerator": {
+                              "kind": "rational",
+                              "numerator": 1,
+                              "denominator": 1
+                            },
+                            "denominator": {
+                              "kind": "rational",
+                              "numerator": 2,
+                              "denominator": 1
+                            }
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "m"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "pow_int",
+                        "base": {
+                          "kind": "parameter",
+                          "name": "v_2"
+                        },
+                        "exponent": 2
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "mul",
+                        "args": [
+                          {
+                            "kind": "div",
+                            "numerator": {
+                              "kind": "rational",
+                              "numerator": 1,
+                              "denominator": 1
+                            },
+                            "denominator": {
+                              "kind": "rational",
+                              "numerator": 2,
+                              "denominator": 1
+                            }
+                          },
+                          {
+                            "kind": "parameter",
+                            "name": "K"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "pow_int",
+                        "base": {
+                          "kind": "parameter",
+                          "name": "x_2"
+                        },
+                        "exponent": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "K"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -827,25 +3031,542 @@
       "prompt_data": {
         "type": "pattern",
         "variables": {
-          "F_net": "中心からの変位 x において物体にはたらく合力",
-          "x": "中心（つりあい位置）からの変位",
-          "K": "比例定数（合成復元力定数）"
+          "F_net": "対象物体にはたらく合力",
+          "K": "運動領域内で一定の正の復元力比例定数",
+          "xi": "つりあい位置からの変位",
+          "object": "単振動を判定する対象物体",
+          "x_raw": "位置座標（つりあい位置を原点としない表現で使用）",
+          "x0": "つりあい位置の座標（つりあい位置を原点としない表現で使用）"
         },
         "inputs": {
-          "net_force_equation": "F_net == -K * x"
+          "accepted_forms": [
+            "F_net == -K * xi",
+            "F_net == -K * (x_raw - x0)"
+          ],
+          "target_object": "object",
+          "required_scope": "throughout_motion_domain"
         },
         "outputs": {
-          "motion_type": "simple_harmonic_motion",
-          "restoring_constant": "K"
+          "motion_type": "simple_harmonic_motion"
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_net, -K * x)"],
-        "constraints": ["K > 0"]
+        "sympy_equations": [
+          "Eq(F_net, -K * xi)"
+        ],
+        "constraints": [
+          "K > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_net"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "rational",
+                    "numerator": -1,
+                    "denominator": 1
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "K"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "xi"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "K"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": true,
+        "formalization_status": "formalized",
+        "reason": "正準の単振動同定規則。"
+      },
+      "formal_rule": {
+        "rule_version": "2.0.0",
+        "verification_enabled": true,
+        "verification_profile": "physics_theorem",
+        "parameters": {
+          "object": {
+            "sort": "Object",
+            "semantic_role": "physical_object",
+            "source": "inference.subject_symbol_id"
+          },
+          "F_net": {
+            "sort": "Real",
+            "semantic_role": "net_force"
+          },
+          "K": {
+            "sort": "Real",
+            "semantic_role": "restoring_constant",
+            "temporal_behavior": "constant",
+            "subject_binding_required": true,
+            "invariant": "constant_over_motion_domain",
+            "binding_policy": "input_patternの係数parameterとして式全体をbinding可能。SymPyによる係数抽出後、係数全体のrestoring_constant役割・対象物体との関係・時間一定性を独立に検証する。",
+            "subject_binding_policy": {
+              "scope": "inference.subject_symbol_id",
+              "single_symbol": "symbol_registry entry may explicitly bind the symbol to the target object",
+              "composite_expression": "the coefficient is associated with the target object through the matched net-force/displacement relation; do not require every factor to have the same subject_symbol_id",
+              "conflicting_subject_binding": "invalid",
+              "missing_or_ambiguous_binding": "unknown"
+            },
+            "temporal_invariance_policy": {
+              "single_symbol": "requires temporal_behavior=constant or independently verified invariant evidence",
+              "composite_expression": "all time-varying constituents must be shown to combine into a time-independent expression; if every constituent is explicitly constant, the expression is constant",
+              "explicit_time_dependence": "invalid",
+              "insufficient_evidence": "unknown"
+            }
+          },
+          "xi": {
+            "sort": "Real",
+            "semantic_role": "displacement_from_equilibrium",
+            "allow_composite_expression": true
+          }
+        },
+        "input_patterns": [
+          {
+            "id": "equilibrium_origin",
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_net"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "rational",
+                    "numerator": -1,
+                    "denominator": 1
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "K"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "xi"
+                  }
+                ]
+              }
+            },
+            "binding_constraints": {
+              "F_net": {
+                "semantic_role": "net_force"
+              },
+              "K": {
+                "semantic_role": "restoring_constant",
+                "temporal_behavior": "constant"
+              },
+              "xi": {
+                "semantic_role": "displacement_from_equilibrium",
+                "allow_registered_derivation": true
+              }
+            }
+          },
+          {
+            "id": "shifted_equilibrium",
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_net"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "rational",
+                    "numerator": -1,
+                    "denominator": 1
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "K"
+                  },
+                  {
+                    "kind": "sub",
+                    "left": {
+                      "kind": "parameter",
+                      "name": "x_raw"
+                    },
+                    "right": {
+                      "kind": "parameter",
+                      "name": "x0"
+                    }
+                  }
+                ]
+              }
+            },
+            "local_parameters": {
+              "x_raw": {
+                "sort": "Real",
+                "semantic_role": "position_coordinate"
+              },
+              "x0": {
+                "sort": "Real",
+                "semantic_role": "equilibrium_position"
+              }
+            },
+            "normalization": {
+              "bind_parameter": "xi",
+              "expression": {
+                "kind": "sub",
+                "left": {
+                  "kind": "parameter",
+                  "name": "x_raw"
+                },
+                "right": {
+                  "kind": "parameter",
+                  "name": "x0"
+                }
+              },
+              "result_role": "displacement_from_equilibrium"
+            },
+            "binding_constraints": {
+              "F_net": {
+                "semantic_role": "net_force"
+              },
+              "K": {
+                "semantic_role": "restoring_constant",
+                "temporal_behavior": "constant"
+              }
+            }
+          }
+        ],
+        "input_to_premise": [
+          {
+            "id": "lift_shorthand_relation_to_net_force_law",
+            "source_input_pattern_ids": [
+              "equilibrium_origin",
+              "shifted_equilibrium"
+            ],
+            "target_formula": {
+              "kind": "predicate",
+              "name": "NetForceLaw",
+              "args": [
+                {
+                  "kind": "parameter",
+                  "name": "object"
+                },
+                {
+                  "kind": "parameter",
+                  "name": "K"
+                }
+              ]
+            },
+            "lifting": {
+              "quantifier": "forall",
+              "variable": {
+                "name": "t",
+                "sort": "Time"
+              },
+              "domain_guard": {
+                "kind": "predicate",
+                "name": "InMotionDomain",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "object"
+                  },
+                  {
+                    "kind": "variable",
+                    "name": "t"
+                  }
+                ]
+              },
+              "substitutions": {
+                "F_net": {
+                  "kind": "function",
+                  "name": "NetForce",
+                  "args": [
+                    {
+                      "kind": "parameter",
+                      "name": "object"
+                    },
+                    {
+                      "kind": "variable",
+                      "name": "t"
+                    }
+                  ]
+                },
+                "K": {
+                  "kind": "parameter",
+                  "name": "K"
+                },
+                "xi": {
+                  "kind": "sub",
+                  "left": {
+                    "kind": "function",
+                    "name": "Position",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "object"
+                      },
+                      {
+                        "kind": "variable",
+                        "name": "t"
+                      }
+                    ]
+                  },
+                  "right": {
+                    "kind": "function",
+                    "name": "EquilibriumPosition",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "object"
+                      }
+                    ]
+                  }
+                }
+              },
+              "requires_validity_scope": "throughout_motion_domain",
+              "requires_scope_evidence": true,
+              "assertion_policy": "NetForceLaw(object,K)は、対応するinput_patternを置換した式が、InMotionDomain(object,t)の全時刻tで成立し、要求scopeの独立した根拠が検証された場合にのみ確立する。",
+              "source_formula": "matched_input_pattern_after_substitution",
+              "target_predicate_definition": "physical_vocabulary.predicates[NetForceLaw].definition"
+            },
+            "policy": "この明示的なlifting規則と根拠がある場合に限り、略記された関係式を運動領域全体のNetForceLawへ変換する。"
+          }
+        ],
+        "premises": [
+          {
+            "id": "premise_net_force_law",
+            "formula": {
+              "kind": "predicate",
+              "name": "NetForceLaw",
+              "args": [
+                {
+                  "kind": "parameter",
+                  "name": "object"
+                },
+                {
+                  "kind": "parameter",
+                  "name": "K"
+                }
+              ]
+            },
+            "evidence_source": "input_to_premise.lift_shorthand_relation_to_net_force_law",
+            "required_validity_scope": "throughout_motion_domain",
+            "scope_evidence_required": true,
+            "description": "対象物体について、係数Kの復元合力関係が運動領域全体で成立する。"
+          },
+          {
+            "id": "premise_positive_K",
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "K"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            },
+            "evidence_source": "dag_proposition",
+            "missing_policy": "unknown",
+            "explicit_contradiction_policy": "invalid",
+            "description": "復元力比例定数Kが正である。"
+          }
+        ],
+        "applicability_conditions": [
+          {
+            "id": "condition_net_force_role",
+            "kind": "semantic_role",
+            "parameter": "F_net",
+            "required_role": "net_force",
+            "explicit_mismatch": "invalid",
+            "missing": "unknown"
+          },
+          {
+            "id": "condition_displacement_role",
+            "kind": "semantic_role",
+            "parameter": "xi",
+            "required_role": "displacement_from_equilibrium",
+            "explicit_mismatch": "invalid",
+            "missing": "unknown"
+          },
+          {
+            "id": "condition_positive_constant",
+            "kind": "logical_formula",
+            "premise_id": "premise_positive_K",
+            "explicit_mismatch": "invalid",
+            "missing": "unknown"
+          },
+          {
+            "id": "condition_constant_over_domain",
+            "kind": "symbol_invariant",
+            "parameter": "K",
+            "required_value": "constant_over_motion_domain",
+            "explicit_mismatch": "invalid",
+            "missing": "unknown"
+          },
+          {
+            "id": "condition_global_scope",
+            "kind": "validity_scope",
+            "required_value": "throughout_motion_domain",
+            "pointwise": "invalid",
+            "unspecified": "unknown",
+            "missing_evidence": "unknown"
+          }
+        ],
+        "conclusions": [
+          {
+            "formula": {
+              "kind": "predicate",
+              "name": "SimpleHarmonicMotion",
+              "args": [
+                {
+                  "kind": "parameter",
+                  "name": "object"
+                }
+              ]
+            }
+          }
+        ],
+        "derivation_policy": {
+          "algebraic_preprocessing": "SymPy may derive the accepted input pattern from other DAG equations, e.g. F_net=2*m*a and 2*m*a=-K*xi. Derived scope is the weakest scope among all source premises.",
+          "newton_second_law": "not_embedded; use a separate theorem inference to derive force relations involving acceleration.",
+          "no_implicit_assumptions": true
+        },
+        "applicability_notes": [
+          "F_net must denote the resultant/net force on the target object, not an individual force.",
+          "xi must be displacement measured from the equilibrium position.",
+          "K must be a positive real constant throughout the target motion domain.",
+          "The force relation must hold throughout the target motion domain, not merely at one instant.",
+          "The shifted-coordinate form F_net=-K*(x_raw-x0) is normalized to xi=x_raw-x0; it is not a separate physical theorem.",
+          "Newton's second law is not a premise of this theorem.",
+          "Mass, acceleration, angular frequency, period, and differential-equation solutions are outside this theorem."
+        ],
+        "coefficient_binding": {
+          "target_parameter": "K",
+          "source_relation": "F_net = -K * xi",
+          "allow_composite_expression": true,
+          "subject_association": "inference.subject_symbol_id is inherited from the matched net_force and displacement_from_equilibrium relation; constituent factors need not individually be object-bound",
+          "role_assignment": "restoring_constant is assigned only after successful coefficient extraction, dimension check, and role evidence validation",
+          "temporal_invariance": "must be independently established for the whole coefficient expression",
+          "ambiguous_binding": "unknown"
+        }
+      },
+      "verification_specification": {
+        "profile": "shm_identification_v1",
+        "required_pipeline": [
+          "validate_dag_ast_and_symbol_registry",
+          "resolve_subject_and_semantic_role_evidence",
+          "match_or_derive_accepted_force_relation_with_sympy",
+          "normalize_displacement_from_equilibrium",
+          "bind_restoring_coefficient_K_including_composite_expressions",
+          "verify_scope_and_temporal_invariance_evidence",
+          "verify_K_positive_from_explicit_proposition",
+          "check_premise_consistency_with_z3",
+          "check_theorem_rule_entailment_with_z3",
+          "emit_status_and_verification_evidence"
+        ],
+        "sympy": {
+          "operations": [
+            "AST-only recursive construction",
+            "algebraic substitution and elimination",
+            "exact rational normalization",
+            "accepted-pattern matching",
+            "coefficient extraction/unification"
+          ],
+          "must_not": [
+            "execute legacy strings",
+            "infer semantic roles",
+            "infer positivity",
+            "upgrade pointwise scope to global"
+          ]
+        },
+        "z3": {
+          "operations": [
+            "typed declaration registration",
+            "premise satisfiability check",
+            "explicit K > 0 condition",
+            "theorem applicability implication/entailment",
+            "counterexample extraction when supported"
+          ],
+          "unknown_cases": [
+            "unsupported quantified/nonlinear fragment",
+            "solver unknown or timeout",
+            "missing evidence or ambiguous binding"
+          ]
+        },
+        "acceptance_cases": [
+          {
+            "case_id": "shm_valid_net_force_relation",
+            "expected": "valid",
+            "description": "合力・変位・Kの役割、K>0、時間一定性、運動領域全体のscopeが根拠付きで成立。"
+          },
+          {
+            "case_id": "shm_invalid_non_net_force",
+            "expected": "invalid",
+            "description": "左辺が個別の力であり、合力ではないことが明示される。"
+          },
+          {
+            "case_id": "shm_unknown_missing_positive_evidence",
+            "expected": "unknown",
+            "description": "K>0の根拠がない。"
+          },
+          {
+            "case_id": "shm_invalid_nonpositive_K",
+            "expected": "invalid",
+            "description": "K<=0が明示される。"
+          },
+          {
+            "case_id": "shm_unknown_pointwise_only",
+            "expected": "unknown",
+            "description": "点ごとの関係しか根拠がなく、運動領域全体の成立を確認できない。"
+          },
+          {
+            "case_id": "shm_unknown_missing_role_evidence",
+            "expected": "unknown",
+            "description": "必須Semantic Roleの根拠がない。"
+          }
+        ]
       }
     },
     {
@@ -875,11 +3596,133 @@
           "Eq(m * a, -K * (x - x_c))",
           "Eq(omega, sqrt(K / m))"
         ],
-        "constraints": ["m > 0", "K > 0"]
+        "constraints": [
+          "m > 0",
+          "K > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "m"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "a"
+                  }
+                ]
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "rational",
+                        "numerator": -1,
+                        "denominator": 1
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "K"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "sub",
+                    "left": {
+                      "kind": "parameter",
+                      "name": "x"
+                    },
+                    "right": {
+                      "kind": "parameter",
+                      "name": "x_c"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "omega"
+              },
+              "rhs": {
+                "kind": "sqrt",
+                "argument": {
+                  "kind": "div",
+                  "numerator": {
+                    "kind": "parameter",
+                    "name": "K"
+                  },
+                  "denominator": {
+                    "kind": "parameter",
+                    "name": "m"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "K"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "status": "legacy_alias",
+        "canonical_replacement": "pattern_restoring_force_direct",
+        "verification_enabled": false,
+        "physical_rule_verification_enabled": false,
+        "reason": "旧定義はma=-K(x-x_c)と角振動数を一体化していた。運動方程式による式導出はprinciple_equation_of_motion等の独立推論として扱い、単振動同定はpattern_restoring_force_directへ統一する。"
       }
     },
     {
@@ -901,12 +3744,106 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(T, 2 * pi * sqrt(m / K))"],
-        "constraints": ["m > 0", "K > 0"]
+        "sympy_equations": [
+          "Eq(T, 2 * pi * sqrt(m / K))"
+        ],
+        "constraints": [
+          "m > 0",
+          "K > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "T"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "rational",
+                        "numerator": 2,
+                        "denominator": 1
+                      },
+                      {
+                        "kind": "constant",
+                        "name": "pi"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "sqrt",
+                    "argument": {
+                      "kind": "div",
+                      "numerator": {
+                        "kind": "parameter",
+                        "name": "m"
+                      },
+                      "denominator": {
+                        "kind": "parameter",
+                        "name": "K"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "K"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -944,11 +3881,207 @@
           "Eq(v_max, A * omega)",
           "Eq(a_max, A * omega**2)"
         ],
-        "constraints": ["A > 0", "omega > 0"]
+        "constraints": [
+          "A > 0",
+          "omega > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "x"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "A"
+                  },
+                  {
+                    "kind": "sin",
+                    "argument": {
+                      "kind": "add",
+                      "args": [
+                        {
+                          "kind": "mul",
+                          "args": [
+                            {
+                              "kind": "parameter",
+                              "name": "omega"
+                            },
+                            {
+                              "kind": "parameter",
+                              "name": "t"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "parameter",
+                          "name": "phi"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "v"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "A"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "omega"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "cos",
+                    "argument": {
+                      "kind": "add",
+                      "args": [
+                        {
+                          "kind": "mul",
+                          "args": [
+                            {
+                              "kind": "parameter",
+                              "name": "omega"
+                            },
+                            {
+                              "kind": "parameter",
+                              "name": "t"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "parameter",
+                          "name": "phi"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 2,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "v_max"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "A"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "omega"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 3,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "a_max"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "A"
+                  },
+                  {
+                    "kind": "pow_int",
+                    "base": {
+                      "kind": "parameter",
+                      "name": "omega"
+                    },
+                    "exponent": 2
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "A"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "omega"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -970,12 +4103,70 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(I, F * delta_t)"],
-        "constraints": ["delta_t > 0"]
+        "sympy_equations": [
+          "Eq(I, F * delta_t)"
+        ],
+        "constraints": [
+          "delta_t > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "I"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "F"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "delta_t"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "delta_t"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -1000,12 +4191,86 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(m * v_2 - m * v_1, I)"],
-        "constraints": ["m > 0"]
+        "sympy_equations": [
+          "Eq(m * v_2 - m * v_1, I)"
+        ],
+        "constraints": [
+          "m > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "sub",
+                "left": {
+                  "kind": "mul",
+                  "args": [
+                    {
+                      "kind": "parameter",
+                      "name": "m"
+                    },
+                    {
+                      "kind": "parameter",
+                      "name": "v_2"
+                    }
+                  ]
+                },
+                "right": {
+                  "kind": "mul",
+                  "args": [
+                    {
+                      "kind": "parameter",
+                      "name": "m"
+                    },
+                    {
+                      "kind": "parameter",
+                      "name": "v_1"
+                    }
+                  ]
+                }
+              },
+              "rhs": {
+                "kind": "parameter",
+                "name": "I"
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -1024,8 +4289,16 @@
         },
         "inputs": {
           "condition": "F_ext_sum == 0",
-          "objects": { "m_A": "m_A", "m_B": "m_B" },
-          "states": { "v_A": "v_A", "v_B": "v_B", "v_A_prime": "v_A_prime", "v_B_prime": "v_B_prime" }
+          "objects": {
+            "m_A": "m_A",
+            "m_B": "m_B"
+          },
+          "states": {
+            "v_A": "v_A",
+            "v_B": "v_B",
+            "v_A_prime": "v_A_prime",
+            "v_B_prime": "v_B_prime"
+          }
         },
         "outputs": {
           "equation": "m_A * v_A + m_B * v_B == m_A * v_A_prime + m_B * v_B_prime"
@@ -1035,11 +4308,128 @@
         "sympy_equations": [
           "Eq(m_A * v_A + m_B * v_B, m_A * v_A_prime + m_B * v_B_prime)"
         ],
-        "constraints": ["m_A > 0", "m_B > 0"]
+        "constraints": [
+          "m_A > 0",
+          "m_B > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "m_A"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "v_A"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "m_B"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "v_B"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "rhs": {
+                "kind": "add",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "m_A"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "v_A_prime"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "m_B"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "v_B_prime"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m_A"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m_B"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -1056,20 +4446,122 @@
         },
         "inputs": {
           "restitution_coefficient": "e",
-          "initial_velocities": { "v_A": "v_A", "v_B": "v_B" },
-          "final_velocities": { "v_A_prime": "v_A_prime", "v_B_prime": "v_B_prime" }
+          "initial_velocities": {
+            "v_A": "v_A",
+            "v_B": "v_B"
+          },
+          "final_velocities": {
+            "v_A_prime": "v_A_prime",
+            "v_B_prime": "v_B_prime"
+          }
         },
         "outputs": {
           "equation": "e == -(v_A_prime - v_B_prime) / (v_A - v_B)"
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(e, -(v_A_prime - v_B_prime) / (v_A - v_B))"],
-        "constraints": ["e >= 0", "e <= 1"]
+        "sympy_equations": [
+          "Eq(e, -(v_A_prime - v_B_prime) / (v_A - v_B))"
+        ],
+        "constraints": [
+          "e >= 0",
+          "e <= 1"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "e"
+              },
+              "rhs": {
+                "kind": "div",
+                "numerator": {
+                  "kind": "mul",
+                  "args": [
+                    {
+                      "kind": "rational",
+                      "numerator": -1,
+                      "denominator": 1
+                    },
+                    {
+                      "kind": "sub",
+                      "left": {
+                        "kind": "parameter",
+                        "name": "v_A_prime"
+                      },
+                      "right": {
+                        "kind": "parameter",
+                        "name": "v_B_prime"
+                      }
+                    }
+                  ]
+                },
+                "denominator": {
+                  "kind": "sub",
+                  "left": {
+                    "kind": "parameter",
+                    "name": "v_A"
+                  },
+                  "right": {
+                    "kind": "parameter",
+                    "name": "v_B"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "e"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "le",
+              "lhs": {
+                "kind": "parameter",
+                "name": "e"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 1,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -1100,11 +4592,119 @@
           "Eq(a_c, v**2 / r)",
           "Eq(a_c, r * omega**2)"
         ],
-        "constraints": ["r > 0"]
+        "constraints": [
+          "r > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "v"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "r"
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "omega"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "a_c"
+              },
+              "rhs": {
+                "kind": "div",
+                "numerator": {
+                  "kind": "pow_int",
+                  "base": {
+                    "kind": "parameter",
+                    "name": "v"
+                  },
+                  "exponent": 2
+                },
+                "denominator": {
+                  "kind": "parameter",
+                  "name": "r"
+                }
+              }
+            }
+          },
+          {
+            "source_index": 2,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "a_c"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "r"
+                  },
+                  {
+                    "kind": "pow_int",
+                    "base": {
+                      "kind": "parameter",
+                      "name": "omega"
+                    },
+                    "exponent": 2
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "r"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -1128,12 +4728,99 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_centrifugal, m * r * omega**2)"],
-        "constraints": ["m > 0", "r >= 0"]
+        "sympy_equations": [
+          "Eq(F_centrifugal, m * r * omega**2)"
+        ],
+        "constraints": [
+          "m > 0",
+          "r >= 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_centrifugal"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "parameter",
+                        "name": "m"
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "r"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "pow_int",
+                    "base": {
+                      "kind": "parameter",
+                      "name": "omega"
+                    },
+                    "exponent": 2
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "ge",
+              "lhs": {
+                "kind": "parameter",
+                "name": "r"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -1155,12 +4842,80 @@
         }
       },
       "symbolic_verification": {
-        "sympy_equations": ["Eq(F_inertial, -m * a_frame)"],
-        "constraints": ["m > 0"]
+        "sympy_equations": [
+          "Eq(F_inertial, -m * a_frame)"
+        ],
+        "constraints": [
+          "m > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_inertial"
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "mul",
+                    "args": [
+                      {
+                        "kind": "rational",
+                        "numerator": -1,
+                        "denominator": 1
+                      },
+                      {
+                        "kind": "parameter",
+                        "name": "m"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "a_frame"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -1192,11 +4947,184 @@
           "Eq(F_g, G * M * m / r**2)",
           "Eq(U_G, -G * M * m / r)"
         ],
-        "constraints": ["G > 0", "M > 0", "m > 0", "r > 0"]
+        "constraints": [
+          "G > 0",
+          "M > 0",
+          "m > 0",
+          "r > 0"
+        ],
+        "ast_equations": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "F_g"
+              },
+              "rhs": {
+                "kind": "div",
+                "numerator": {
+                  "kind": "mul",
+                  "args": [
+                    {
+                      "kind": "mul",
+                      "args": [
+                        {
+                          "kind": "parameter",
+                          "name": "G"
+                        },
+                        {
+                          "kind": "parameter",
+                          "name": "M"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "parameter",
+                      "name": "m"
+                    }
+                  ]
+                },
+                "denominator": {
+                  "kind": "pow_int",
+                  "base": {
+                    "kind": "parameter",
+                    "name": "r"
+                  },
+                  "exponent": 2
+                }
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "parameter",
+                "name": "U_G"
+              },
+              "rhs": {
+                "kind": "div",
+                "numerator": {
+                  "kind": "mul",
+                  "args": [
+                    {
+                      "kind": "mul",
+                      "args": [
+                        {
+                          "kind": "mul",
+                          "args": [
+                            {
+                              "kind": "rational",
+                              "numerator": -1,
+                              "denominator": 1
+                            },
+                            {
+                              "kind": "parameter",
+                              "name": "G"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "parameter",
+                          "name": "M"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "parameter",
+                      "name": "m"
+                    }
+                  ]
+                },
+                "denominator": {
+                  "kind": "parameter",
+                  "name": "r"
+                }
+              }
+            }
+          }
+        ],
+        "ast_constraints": [
+          {
+            "source_index": 0,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "G"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 1,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "M"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 2,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "m"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          },
+          {
+            "source_index": 3,
+            "formula": {
+              "kind": "gt",
+              "lhs": {
+                "kind": "parameter",
+                "name": "r"
+              },
+              "rhs": {
+                "kind": "rational",
+                "numerator": 0,
+                "denominator": 1
+              }
+            }
+          }
+        ],
+        "ast_migration": {
+          "status": "complete",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "complete",
+        "symbolic_equation_verification_enabled": true,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     },
     {
@@ -1217,12 +5145,502 @@
       },
       "symbolic_verification": {
         "sympy_equations": [],
-        "constraints": []
+        "constraints": [],
+        "ast_equations": [],
+        "ast_constraints": [],
+        "ast_migration": {
+          "status": "no_symbolic_template",
+          "unsupported_items": [],
+          "execution_policy": "AST only; legacy strings must never be eval/sympify executed."
+        }
       },
       "ui_data": {
         "explanation_html": "",
         "render_script": ""
+      },
+      "verification_metadata": {
+        "symbolic_template_status": "no_symbolic_template",
+        "symbolic_equation_verification_enabled": false,
+        "physical_rule_verification_enabled": false,
+        "formalization_status": "not_formalized",
+        "reason": "物理的な適用条件とFOL推論規則がまだformal_ruleとして形式化されていない。数式テンプレートとの代数照合は可能だが、物理定理の適用判定はunknownとする。"
       }
     }
-  ]
+  ],
+  "schema_contract": {
+    "logic_schema_version": "2.2.0",
+    "theorem_record_required_fields": [
+      "id",
+      "name",
+      "prompt_data",
+      "symbolic_verification",
+      "ui_data"
+    ],
+    "formal_rule_policy": "formal_ruleが存在しverification_enabled=trueの定理だけを物理的な論理推論規則として適用する。",
+    "legacy_policy": "旧sympy_equations/constraints文字列は表示・移行互換用。実行器はast_equations/ast_constraintsのみを実行し、未変換文字列を評価しない。",
+    "missing_physics_policy": "physics.jsonに明示されない前提条件・法則は補完しない。形式化されていない定理の物理的正しさはunknown。",
+    "verification_layers": {
+      "sympy": "ast_equationsの代数的同値性・式変形・帰結を検証",
+      "z3": "formal_ruleのFOL前提・適用条件・結論を検証",
+      "combined": "SymPyで式の形を照合・導出し、Z3で物理条件と論理的含意を検証"
+    },
+    "physical_knowledge_ownership": {
+      "physical_vocabulary": "physics.json.physical_vocabulary",
+      "semantic_roles": "physics.json.semantic_roles",
+      "theorems_and_formal_rules": "physics.json.theorems[].formal_rule",
+      "physical_axioms": "physics.json.physical_axioms",
+      "generic_ast_types_dimensions_and_solver_contract": "logic_schema.json"
+    },
+    "unknown_policy": "必要な物理的意味・根拠・scope・bindingが不足する場合、または未対応演算/solver unknownの場合はunknown。未形式化定理を物理的にvalidと判定しない。"
+  },
+  "formalization_index": {
+    "formalized_theorem_ids": [
+      "pattern_restoring_force_direct"
+    ],
+    "legacy_aliases": {
+      "pattern_restoring_force": "pattern_restoring_force_direct"
+    },
+    "symbolic_ast_migrated_ids": [
+      "meta_keyword_quasistatic_motion",
+      "geometry_volume_calculation",
+      "law_mass_from_density",
+      "kinematics_coordinate_displacement",
+      "kinematics_uniform_accelerated_motion",
+      "kinematics_relative_velocity",
+      "law_gravity_force",
+      "law_fluid_pressure",
+      "law_buoyancy_archimedes",
+      "law_hooke",
+      "law_force_components",
+      "law_static_friction",
+      "law_kinetic_friction",
+      "law_resultant_force_calculation",
+      "principle_force_equilibrium",
+      "principle_equation_of_motion",
+      "law_torque_definition",
+      "principle_torque_equilibrium",
+      "def_kinetic_energy",
+      "def_gravitational_potential_energy",
+      "def_elastic_potential_energy",
+      "def_work",
+      "principle_work_energy_theorem",
+      "law_mechanical_energy_conservation_spring_natural",
+      "law_mechanical_energy_conservation_shm_equilibrium",
+      "pattern_restoring_force_direct",
+      "pattern_restoring_force",
+      "formula_simple_harmonic_period",
+      "formula_simple_harmonic_kinematics",
+      "def_impulse",
+      "principle_momentum_impulse_theorem",
+      "law_momentum_conservation",
+      "law_coefficient_of_restitution",
+      "kinematics_circular_motion",
+      "principle_centrifugal_force",
+      "principle_inertial_force",
+      "law_universal_gravitation"
+    ],
+    "not_formalized_ids": [
+      "meta_focus_object_forces",
+      "meta_focus_coordinate_system",
+      "meta_keyword_quasistatic_motion",
+      "geometry_volume_calculation",
+      "law_mass_from_density",
+      "kinematics_coordinate_displacement",
+      "kinematics_calculus_relations",
+      "kinematics_uniform_accelerated_motion",
+      "kinematics_relative_velocity",
+      "law_gravity_force",
+      "law_fluid_pressure",
+      "law_buoyancy_archimedes",
+      "law_hooke",
+      "law_force_components",
+      "law_static_friction",
+      "law_kinetic_friction",
+      "law_resultant_force_calculation",
+      "principle_force_equilibrium",
+      "principle_equation_of_motion",
+      "law_torque_definition",
+      "principle_torque_equilibrium",
+      "def_kinetic_energy",
+      "def_gravitational_potential_energy",
+      "def_elastic_potential_energy",
+      "def_work",
+      "principle_work_energy_theorem",
+      "law_mechanical_energy_conservation_spring_natural",
+      "law_mechanical_energy_conservation_shm_equilibrium",
+      "formula_simple_harmonic_period",
+      "formula_simple_harmonic_kinematics",
+      "def_impulse",
+      "principle_momentum_impulse_theorem",
+      "law_momentum_conservation",
+      "law_coefficient_of_restitution",
+      "kinematics_circular_motion",
+      "principle_centrifugal_force",
+      "principle_inertial_force",
+      "law_universal_gravitation",
+      "algebraic_simplification"
+    ],
+    "policy": "AST移行済みであることは物理的正当性の形式化を意味しない。formal_rule未定義の定理による推論はunknown。"
+  },
+  "physical_vocabulary": {
+    "version": "1.0.0",
+    "description": "形式化済み定理が参照する物理固有関数・述語。未使用の概念を網羅的に登録しない。",
+    "functions": [
+      {
+        "name": "Position",
+        "args": [
+          {
+            "name": "object",
+            "sort": "Object"
+          },
+          {
+            "name": "time",
+            "sort": "Time"
+          }
+        ],
+        "returns": "Real",
+        "meaning": "対象物体の時刻timeにおける位置座標。",
+        "physical_dimension_rule": {
+          "kind": "fixed",
+          "vector": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "definition": null
+      },
+      {
+        "name": "EquilibriumPosition",
+        "args": [
+          {
+            "name": "object",
+            "sort": "Object"
+          }
+        ],
+        "returns": "Real",
+        "meaning": "対象物体の運動について定義されたつりあい位置の座標。",
+        "physical_dimension_rule": {
+          "kind": "fixed",
+          "vector": [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "definition": null
+      },
+      {
+        "name": "NetForce",
+        "args": [
+          {
+            "name": "object",
+            "sort": "Object"
+          },
+          {
+            "name": "time",
+            "sort": "Time"
+          }
+        ],
+        "returns": "Real",
+        "meaning": "対象物体に時刻timeではたらく合力の、対象とする一次元座標方向成分。",
+        "physical_dimension_rule": {
+          "kind": "fixed",
+          "vector": [
+            1,
+            1,
+            -2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "definition": null
+      }
+    ],
+    "predicates": [
+      {
+        "name": "InMotionDomain",
+        "args": [
+          {
+            "name": "object",
+            "sort": "Object"
+          },
+          {
+            "name": "time",
+            "sort": "Time"
+          }
+        ],
+        "meaning": "時刻timeが対象物体の検証対象となる運動領域に属する。",
+        "definition": null,
+        "primitive": true,
+        "evidence_required": true
+      },
+      {
+        "name": "NetForceLaw",
+        "args": [
+          {
+            "name": "object",
+            "sort": "Object"
+          },
+          {
+            "name": "K",
+            "sort": "Real",
+            "physical_dimension": [
+              1,
+              0,
+              -2,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "meaning": "対象物体の運動領域全体で、合力が係数Kとつりあい位置からの変位に比例し、逆向きとなる関係。",
+        "definition": {
+          "kind": "forall",
+          "variables": [
+            {
+              "name": "t",
+              "sort": "Time"
+            }
+          ],
+          "body": {
+            "kind": "implies",
+            "antecedent": {
+              "kind": "predicate",
+              "name": "InMotionDomain",
+              "args": [
+                {
+                  "kind": "parameter",
+                  "name": "object"
+                },
+                {
+                  "kind": "variable",
+                  "name": "t"
+                }
+              ]
+            },
+            "consequent": {
+              "kind": "eq",
+              "lhs": {
+                "kind": "function",
+                "name": "NetForce",
+                "args": [
+                  {
+                    "kind": "parameter",
+                    "name": "object"
+                  },
+                  {
+                    "kind": "variable",
+                    "name": "t"
+                  }
+                ]
+              },
+              "rhs": {
+                "kind": "mul",
+                "args": [
+                  {
+                    "kind": "rational",
+                    "numerator": -1,
+                    "denominator": 1
+                  },
+                  {
+                    "kind": "parameter",
+                    "name": "K"
+                  },
+                  {
+                    "kind": "sub",
+                    "left": {
+                      "kind": "function",
+                      "name": "Position",
+                      "args": [
+                        {
+                          "kind": "parameter",
+                          "name": "object"
+                        },
+                        {
+                          "kind": "variable",
+                          "name": "t"
+                        }
+                      ]
+                    },
+                    "right": {
+                      "kind": "function",
+                      "name": "EquilibriumPosition",
+                      "args": [
+                        {
+                          "kind": "parameter",
+                          "name": "object"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "primitive": false,
+        "evidence_required": true,
+        "established_by": "theorem-specific input_to_premise lifting; requires formula and scope evidence",
+        "definition_semantics": "この定義はNetForceLawという関係の略記であり、物理法則を無条件に追加する公理ではない。真偽は入力式・scope evidenceから確立する。"
+      },
+      {
+        "name": "SimpleHarmonicMotion",
+        "args": [
+          {
+            "name": "object",
+            "sort": "Object"
+          }
+        ],
+        "meaning": "対象物体の運動が単振動である。",
+        "definition": null,
+        "primitive": true,
+        "evidence_required": false,
+        "derivable_by_theorem_ids": [
+          "pattern_restoring_force_direct"
+        ]
+      }
+    ]
+  },
+  "semantic_roles": {
+    "version": "1.0.0",
+    "description": "DAG symbol_registryが参照する物理的意味役割。role候補は根拠検証後にのみ確定する。",
+    "unresolved_value": "unresolved",
+    "roles": [
+      {
+        "role_id": "physical_object",
+        "description": "物理的な対象物体。",
+        "expected_sort": "Object",
+        "physical_dimension": null,
+        "evidence_required": true,
+        "allow_composite_expression": false
+      },
+      {
+        "role_id": "net_force",
+        "description": "対象物体にはたらく合力。個別の力とは区別する。",
+        "expected_sort": "Real",
+        "physical_dimension": [
+          1,
+          1,
+          -2,
+          0,
+          0,
+          0,
+          0
+        ],
+        "evidence_required": true,
+        "allow_composite_expression": false
+      },
+      {
+        "role_id": "restoring_constant",
+        "description": "復元力とつりあい位置からの変位を比例させる正の係数。式としての複合表現を許す。",
+        "expected_sort": "Real",
+        "physical_dimension": [
+          1,
+          0,
+          -2,
+          0,
+          0,
+          0,
+          0
+        ],
+        "evidence_required": true,
+        "allow_composite_expression": true
+      },
+      {
+        "role_id": "displacement_from_equilibrium",
+        "description": "つりあい位置を基準とした変位。",
+        "expected_sort": "Real",
+        "physical_dimension": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "evidence_required": true,
+        "allow_composite_expression": true
+      },
+      {
+        "role_id": "position_coordinate",
+        "description": "座標系で表された位置座標。",
+        "expected_sort": "Real",
+        "physical_dimension": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "evidence_required": true,
+        "allow_composite_expression": false
+      },
+      {
+        "role_id": "equilibrium_position",
+        "description": "対象運動のつりあい位置を表す座標。",
+        "expected_sort": "Real",
+        "physical_dimension": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "evidence_required": true,
+        "allow_composite_expression": false
+      }
+    ],
+    "policy": {
+      "candidate_authority": "DAG symbol_registry.semantic_role is a candidate, not an authoritative fact.",
+      "acceptance": "role is accepted only when semantic_role_evidence references valid independent evidence or an explicit registered derivation.",
+      "dimension_separation": "Sort and physical_dimension never imply semantic_role.",
+      "composite_expression": "A composite expression receives a role only through an explicit theorem-specific derivation/binding rule.",
+      "missing": "Missing or unresolved role required by a theorem yields unknown; explicit contradiction yields invalid."
+    }
+  },
+  "physical_axioms": {
+    "version": "1.0.0",
+    "items": [],
+    "policy": {
+      "default_activation": "none",
+      "meaning": "一般物理知識を無条件に問題へ追加しない。",
+      "requirements": [
+        "各公理に一意なidと型付きformulaを持たせる",
+        "適用domain・scope・evidence要件を明示する",
+        "問題固有の値や条件を公理から補完しない",
+        "適用可能性が証明できない公理は使用しない"
+      ],
+      "test_fixture_policy": "test fixtureはtest_modeでのみ使用し、本番の物理的根拠に昇格させない。"
+    }
+  },
+  "verification_policy": {
+    "status_values": [
+      "valid",
+      "invalid",
+      "unknown"
+    ],
+    "sympy": "検証済みASTの代数処理・式変形・係数抽出を担当。物理的意味や条件を推測しない。",
+    "z3": "型付き前提の充足可能性・条件・論理的含意・反例探索を担当。未対応理論やsolver unknownはunknown。",
+    "controller": "SymPyとZ3の結果を統合し、根拠・scope・上流statusを追跡する。",
+    "consistency": "前提集合の矛盾を先に検査し、矛盾からのvacuous entailmentをvalidとしない。",
+    "unformalized_theorem": "formal_ruleがない定理の物理的適用判定はunknown。"
+  }
 }
