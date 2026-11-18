@@ -1,57 +1,54 @@
 import { NextResponse } from 'next/server';
 
 // =========================================================================
-// 1. 型定義
+// 1. 型定義 / 既存UIのverification_statusを保持
 // =========================================================================
 type NodeType = 'proposition' | 'inference' | 'theorem';
+type SymbolicStatus = 'valid' | 'invalid' | 'unknown';
 
 interface GraphNode {
   id: string;
   type: NodeType;
   label?: string;
   text?: string;
+  theorem_id?: string | null;
+  formula_ast?: Record<string, unknown> | null;
+  ast_validation?: string;
   verification_status?: '問題なし' | '問題あり' | '未検証';
+  symbolic_status?: SymbolicStatus;
   error_reason?: string;
+  [key: string]: any;
 }
-
 interface GraphEdge {
   source?: string;
   target?: string;
   from?: string;
   to?: string;
 }
-
 interface LogicGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  symbol_registry?: Record<string, unknown>;
+  evidence_sources?: Array<Record<string, unknown>>;
+  contract_version?: string;
 }
 
 // =========================================================================
-// 2. SymPy向け 数式整形ヘルパー (方程式・完全安全版)
+// 2. SymPy向け 数式整形ヘルパー（旧API用に保持）
+// この文字列処理は一般的なLaTeXパーサーではないため、新しい検証APIには渡さない。
 // =========================================================================
 function formatForSympy(str: string): string {
   if (!str) return '';
-  
   let s = str.replace(/\(\s*[①-⑳]\s*\)/g, '').replace(/[①-⑳]/g, '').replace(/[…・]/g, '').trim();
-
-  // 【追加】AIがうっかり出力したLaTeX表記 (\sqrt{...} や \sqrt) を強制的に無効化する
   s = s.replace(/\\sqrt\{([^}]+)\}/g, 'sqrt($1)');
   s = s.replace(/\\sqrt/g, 'sqrt');
-  s = s.replace(/\\/g, ''); // 残ったバックスラッシュをすべて削除
-
+  s = s.replace(/\\/g, '');
   s = s.replace(/\^/g, '**');
-
-  s = s.replace(/≦/g, '<=').replace(/≧/g, '>=');
-  s = s.replace(/≤/g, '<=').replace(/≥/g, '>=');
-
-  // 【追加】方程式 (A = B) を Eq(A, B) に安全に変換する (不等号の = は巻き込まない)
-  // P(x) = ... のような関数定義も Eq(P(x), ...) に変換されるため安全です
+  s = s.replace(/≦/g, '<=').replace(/≧/g, '>=').replace(/≤/g, '<=').replace(/≥/g, '>=');
   const eqParts = s.split(/(?<![<>=!])=(?![<>=])/);
   if (eqParts.length === 2 && !s.includes('または') && !s.includes('かつ') && !s.includes(',')) {
     s = `Eq(${eqParts[0].trim()}, ${eqParts[1].trim()})`;
   }
-
-  // 「または」「かつ」を最優先で分割し、それぞれを再帰的に翻訳する
   if (s.includes('または')) {
     const parts = s.split(/\s*または\s*/);
     return `Or(${parts.map(p => formatForSympy(p)).join(', ')})`;
@@ -60,18 +57,10 @@ function formatForSympy(str: string): string {
     const parts = s.split(/\s*かつ\s*|，|,/);
     return `And(${parts.map(p => formatForSympy(p)).join(', ')})`;
   }
-
-  // 連立不等式 (A < B < C) を And(A < B, B < C) に安全に分割
   const compRegex = /([^<>=]+)\s*(<=|<|>=|>)\s*([^<>=]+)\s*(<=|<|>=|>)\s*([^<>=]+)/;
-  if (compRegex.test(s)) {
-    s = s.replace(compRegex, 'And($1 $2 $3, $3 $4 $5)');
-  }
-
-  // ノットイコール ≠ および != を Ne(A, B) に安全に変換
+  if (compRegex.test(s)) s = s.replace(compRegex, 'And($1 $2 $3, $3 $4 $5)');
   const notEqRegex = /([^=<>≠!]+)\s*(?:≠|!=)\s*([^=<>≠!]+)/g;
   s = s.replace(notEqRegex, 'Ne($1, $2)');
-
-  // 微積・シグマ・対数などの変換
   s = s.replace(/Σ\[([a-zA-Z]+)=([^\s\]]+)\s+to\s+([^\]]+)\]\s*([a-zA-Z0-9_]+|\([^)]+\))/g, 'Sum($4, ($1, $2, $3))');
   s = s.replace(/∫\[([^\]]+)\s+to\s+([^\]]+)\]\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($3, ($4, $1, $2))');
   s = s.replace(/∫\s*(.+?)\s*d([a-zA-Z])/g, 'Integral($1, $2)');
@@ -82,11 +71,44 @@ function formatForSympy(str: string): string {
   s = s.replace(/\|([^|]+)\|/g, 'Abs($1)');
   s = s.replace(/C\(([^,]+),\s*([^)]+)\)/g, 'binomial($1, $2)');
   s = s.replace(/P\(([^,]+),\s*([^)]+)\)/g, '(factorial($1)/factorial($1-$2))');
-
   return s;
 }
+
+function uiStatus(status: SymbolicStatus): GraphNode['verification_status'] {
+  return status === 'valid' ? '問題なし' : status === 'invalid' ? '問題あり' : '未検証';
+}
+
+function safeUnknown(node: GraphNode, reason: string): void {
+  node.symbolic_status = 'unknown';
+  node.verification_status = '未検証';
+  node.error_reason = reason;
+}
+
+function graphForSolver(graph: LogicGraph) {
+  const edges = graph.edges.map(e => ({ from: e.from ?? e.source, to: e.to ?? e.target }));
+  return {
+    contract_version: graph.contract_version || '2.2.0',
+    nodes: graph.nodes.map(node => ({
+      id: node.id, type: node.type, theorem_id: node.theorem_id ?? null,
+      formula_ast: node.formula_ast ?? null,
+      ast_validation: node.ast_validation || 'unknown',
+      theorem_assignment: node.theorem_assignment || null,
+      validity_scope: node.validity_scope ?? 'unspecified',
+      scope_evidence: node.scope_evidence ?? [],
+      provenance: node.provenance ?? null,
+      subject_symbol_id: node.subject_symbol_id ?? null,
+      inputs_used: node.inputs_used ?? null,
+      outputs_derived: node.outputs_derived ?? null
+    })),
+    edges,
+    symbol_registry: graph.symbol_registry || { registry_id: 'unknown', symbols: [] },
+    evidence_sources: graph.evidence_sources || []
+  };
+}
+
 // =========================================================================
-// 3. APIルートハンドラ (SymPy通信版)
+// 3. APIルートハンドラ
+// 新方式では式の文字列やAI候補だけでvalidを付けず、構造化ASTだけを検証する。
 // =========================================================================
 export async function POST(req: Request) {
   try {
@@ -94,100 +116,61 @@ export async function POST(req: Request) {
     if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
       return NextResponse.json({ error: 'Invalid Graph Payload' }, { status: 400 });
     }
+    const updatedNodes: GraphNode[] = graph.nodes.map(node => ({ ...node }));
+    const nodeMap = new Map(updatedNodes.map(n => [n.id, n]));
+    if (nodeMap.size !== updatedNodes.length) {
+      return NextResponse.json({ error: 'Duplicate node IDs' }, { status: 400 });
+    }
+    const edges = graph.edges.map(e => ({ from: e.from ?? e.source, to: e.to ?? e.target }));
+    if (edges.some(e => !e.from || !e.to || !nodeMap.has(e.from) || !nodeMap.has(e.to))) {
+      return NextResponse.json({ error: 'Invalid edge endpoints' }, { status: 400 });
+    }
 
+    const inferenceNodes = updatedNodes.filter(n => n.type === 'inference');
     const sympyApiUrl = process.env.SYMPY_API_URL;
     if (!sympyApiUrl) {
-      throw new Error('SYMPY_API_URL is not configured');
+      for (const node of inferenceNodes) safeUnknown(node, 'SYMPY_API_URL未設定のため未判定');
+      return NextResponse.json({ nodes: updatedNodes });
     }
 
-    const updatedNodes = [...graph.nodes];
-    const nodeMap = new Map<string, GraphNode>();
-    updatedNodes.forEach(node => nodeMap.set(node.id, node));
-
-    // 全てのノードをループし、推論(inference)ノードを探す
-    for (const node of updatedNodes) {
-      if (node.type === 'inference') {
-        const sourceEdges = graph.edges.filter(e => (e.target || e.to) === node.id);
-        const sourceNodes = sourceEdges.map(e => nodeMap.get(e.source || e.from as string)).filter(Boolean) as GraphNode[];
-        const sourcePropositions = sourceNodes.filter(n => n.type === 'proposition');
-
-        const targetEdges = graph.edges.filter(e => (e.source || e.from) === node.id);
-        const targetNodes = targetEdges.map(e => nodeMap.get(e.target || e.to as string)).filter(Boolean) as GraphNode[];
-        const targetPropositions = targetNodes.filter(n => n.type === 'proposition');
-
-        // 入力と出力の命題が正しく接続されているか確認
-        if (sourcePropositions.length > 0 && targetPropositions.length === 1) {
-          
-          // ★ label ではなく、AIが作った裏側の純粋な数式 (math_expr) を最優先で使うように変更！
-          let sourceStrs = sourcePropositions.map(p => (p as any).math_expr || p.label || p.text || '');
-          const targetStr = (targetPropositions[0] as any).math_expr || targetPropositions[0].label || targetPropositions[0].text || '';
-
-          // 前提条件（ドメイン）の自動分離
-          let domainStr = '';
-          let realSourceStrs = sourceStrs;
-          
-          if (sourceStrs.length > 1) {
-            const domainRegex = /^[a-zA-Z0-9\s\-]+[<>≠]\s*-?[0-9a-zA-Z\s\/]+$/;
-            const foundDomainIdx = sourceStrs.findIndex(s => domainRegex.test(s));
-            if (foundDomainIdx !== -1) {
-              domainStr = sourceStrs[foundDomainIdx];
-              realSourceStrs = sourceStrs.filter((_, idx) => idx !== foundDomainIdx);
-            }
-          }
-
-          // 個々の式を翻訳
-          const formattedSources = realSourceStrs.map(s => formatForSympy(s)).map(s => `(${s})`);
-          
-          // 【修正】AND結合とOR結合の両方を作成してPythonに送る
-          const expr1_and = formattedSources.join(' & ');
-          const expr1_or = formattedSources.join(' | ');
-          const expr2 = formatForSympy(targetStr);
-          const domainExpr = domainStr ? formatForSympy(domainStr) : '';
-
-          try {
-            const response = await fetch(`${sympyApiUrl}/api/verify`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              // expr1_or を新たに追加して送信
-              body: JSON.stringify({ expr1: expr1_and, expr1_or: expr1_or, expr2, domain: domainExpr }),
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              
-              if (data.is_equal) {
-                node.verification_status = '問題なし';
-                delete node.error_reason; // 成功時はエラー理由を消去
-              } else {
-                node.verification_status = '問題あり';
-                // 【変更】Python側でエラーが起きた場合は、そのエラー内容をそのまま表示する！
-                node.error_reason = data.error 
-                  ? `SymPyエラー: ${data.error}` 
-                  : `SymPy解析: 数学的に等価ではありません (変形ミスまたは論理の飛躍)`;
-              }
-            } else {
-              node.verification_status = '問題あり';
-              node.error_reason = `SymPyサーバーエラー (Status: ${response.status})`;
-            }
-          } catch (apiErr: any) {
-            node.verification_status = '問題あり';
-            node.error_reason = `SymPy通信エラー: ${apiErr.message}`;
-          }
-
-        } else {
-          node.verification_status = '問題あり';
-          node.error_reason = `グラフ構造エラー (入力: ${sourcePropositions.length}個, 出力: ${targetPropositions.length}個)`;
-        }
+    // If graph has no validated ASTs (legacy records), do not turn sampled
+    // numerical agreement or text parsing failures into correctness claims.
+    const graphPayload = graphForSolver({ ...graph, nodes: updatedNodes });
+    let response: Response;
+    try {
+      response = await fetch(`${sympyApiUrl.replace(/\/$/, '')}/api/verify_ast`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ graph: graphPayload }),
+        cache: 'no-store', signal: AbortSignal.timeout(12000)
+      });
+    } catch (err: any) {
+      for (const node of inferenceNodes) safeUnknown(node, `検証API通信失敗: ${err?.message || String(err)}`);
+      return NextResponse.json({ nodes: updatedNodes });
+    }
+    if (!response.ok) {
+      const errText = (await response.text().catch(() => '')).slice(0, 200);
+      for (const node of inferenceNodes) safeUnknown(node, `検証APIエラー (${response.status}): ${errText}`);
+      return NextResponse.json({ nodes: updatedNodes });
+    }
+    const data = await response.json();
+    const results = new Map<string, any>((data?.inferences || []).map((r: any) => [r.node_id, r]));
+    for (const node of inferenceNodes) {
+      const result = results.get(node.id);
+      if (!result || !['valid','invalid','unknown'].includes(result.status)) {
+        safeUnknown(node, '検証器が有効な結果を返しませんでした');
+        continue;
       }
+      const status = result.status as SymbolicStatus;
+      node.symbolic_status = status;
+      node.verification_status = uiStatus(status);
+      node.verification_evidence = result.counterexample || null;
+      if (status === 'valid') delete node.error_reason;
+      else node.error_reason = result.reason || (status === 'invalid' ? '反例が確認されました' : '現状の情報では判定できません');
     }
-
     return NextResponse.json({ nodes: updatedNodes });
-
   } catch (error: any) {
     console.error('[API Error] Failed to process verification logic:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error during verification', details: error?.message || String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal Server Error during verification',
+      details: error?.message || String(error) }, { status: 500 });
   }
 }

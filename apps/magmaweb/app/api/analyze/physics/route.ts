@@ -6,10 +6,18 @@ import physicsLibrary from '../../../../lib/constants/physics.json';
 export const maxDuration = 60;
 
 const physicsData: any = physicsLibrary;
-const theoremVersion = physicsData?.version || "2.4.2";
-const PROMPT_VERSION = `${theoremVersion}_dag_v2_2_neural_catalog_v1`;
-
+const theoremVersion = physicsData?.version || '2.4.2';
+const PROMPT_VERSION = `${theoremVersion}_dag_v2_2_hybrid_ast_evidence_v2`;
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+
+type AstNormalization = {
+  propositions: Array<{
+    node_id: string;
+    formula_ast: Record<string, unknown> | null;
+    status: 'validated_by_parser' | 'validated_by_parser_and_ai' | 'candidate_unconfirmed' | 'unknown';
+    reason?: string;
+  }>;
+};
 
 async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 2000) {
   let delay = initialDelayMs;
@@ -18,190 +26,177 @@ async function generateWithRetry(params: any, maxRetries = 5, initialDelayMs = 2
       return await ai.models.generateContent(params);
     } catch (err: any) {
       const errMsg = err?.message || String(err);
-      const isOverloaded = err?.status === 503 || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('503') || err?.status === 429 || errMsg.includes('429');
-
+      const isOverloaded = err?.status === 503 || errMsg.includes('high demand') ||
+        errMsg.includes('UNAVAILABLE') || errMsg.includes('503') ||
+        err?.status === 429 || errMsg.includes('429');
       if (isOverloaded && attempt < maxRetries) {
         console.warn(`[Gemini API Overloaded] リトライ (${attempt}/${maxRetries})... ${delay}ms待機`);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2;
-      } else {
-        throw err;
-      }
+      } else throw err;
     }
   }
 }
 
+// JSONの途中切れを「正しい数式」として受け入れない。
+// 構文修復は既存処理の互換用だが、後続の構造検査は常に行う。
 function repairTruncatedJson(jsonStr: string): string {
   let cleaned = jsonStr.trim();
-  const lastValidIndex = Math.max(
-    cleaned.lastIndexOf('}'),
-    cleaned.lastIndexOf(']'),
-    cleaned.lastIndexOf('"')
-  );
-  if (lastValidIndex !== -1 && lastValidIndex < cleaned.length - 1) {
-    cleaned = cleaned.substring(0, lastValidIndex + 1);
-  }
-  cleaned = cleaned.replace(/,\s*"[^"]*"\s*:\s*"?[^"]*$/, '');
-  cleaned = cleaned.replace(/,\s*$/, '');
-
-  let inString = false;
-  let escape = false;
+  const lastValidIndex = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'), cleaned.lastIndexOf('"'));
+  if (lastValidIndex !== -1 && lastValidIndex < cleaned.length - 1) cleaned = cleaned.slice(0, lastValidIndex + 1);
+  cleaned = cleaned.replace(/,\s*"[^"]*"\s*:\s*"?[^"]*$/, '').replace(/,\s*$/, '');
+  let inString = false, escape = false;
   const stack: string[] = [];
-
-  for (let i = 0; i < cleaned.length; i++) {
-    const char = cleaned[i];
+  for (const char of cleaned) {
     if (escape) { escape = false; continue; }
     if (char === '\\') { escape = true; continue; }
     if (char === '"') { inString = !inString; continue; }
     if (!inString) {
       if (char === '{' || char === '[') stack.push(char);
-      else if (char === '}') {
-        if (stack.length > 0 && stack[stack.length - 1] === '{') stack.pop();
-      } else if (char === ']') {
-        if (stack.length > 0 && stack[stack.length - 1] === '[') stack.pop();
-      }
+      else if (char === '}' && stack[stack.length - 1] === '{') stack.pop();
+      else if (char === ']' && stack[stack.length - 1] === '[') stack.pop();
     }
   }
-
-  while (stack.length > 0) {
-    const open = stack.pop();
-    if (open === '{') cleaned += '}';
-    else if (open === '[') cleaned += ']';
-  }
+  if (inString) cleaned += '"';
+  while (stack.length) cleaned += stack.pop() === '{' ? '}' : ']';
   return cleaned;
+}
+
+function assertGraphShape(graph: any) {
+  if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges) ||
+      !Array.isArray(graph.symbol_registry?.symbols) || !Array.isArray(graph.evidence_sources)) {
+    throw new Error('Geminiの出力がDAG v2.2の必須構造を満たしていません');
+  }
+  const ids = new Set<string>();
+  for (const node of graph.nodes) {
+    if (!node || typeof node.id !== 'string' || ids.has(node.id) ||
+        !['proposition', 'theorem', 'inference'].includes(node.type)) {
+      throw new Error('DAGに不正または重複したノードがあります');
+    }
+    ids.add(node.id);
+  }
+  const seenEdges = new Set<string>();
+  for (const edge of graph.edges) {
+    const key = JSON.stringify([edge.from, edge.to]);
+    if (!ids.has(edge.from) || !ids.has(edge.to) || seenEdges.has(key)) {
+      throw new Error('DAGに参照不明または重複した辺があります');
+    }
+    seenEdges.add(key);
+  }
+  // Cycle detection. Without this an output node can be its own premise.
+  const indegree = new Map([...ids].map(id => [id, 0]));
+  const outgoing = new Map([...ids].map(id => [id, [] as string[]]));
+  for (const edge of graph.edges) {
+    indegree.set(edge.to, (indegree.get(edge.to) || 0) + 1);
+    outgoing.get(edge.from)!.push(edge.to);
+  }
+  const q = [...ids].filter(id => indegree.get(id) === 0);
+  let visited = 0;
+  while (q.length) {
+    const id = q.pop()!; visited++;
+    for (const next of outgoing.get(id) || []) {
+      indegree.set(next, (indegree.get(next) || 0) - 1);
+      if (indegree.get(next) === 0) q.push(next);
+    }
+  }
+  if (visited !== ids.size) throw new Error('DAGに循環が存在します');
+}
+
+async function normalizePropositions(graph: any): Promise<string | null> {
+  const url = process.env.SYMPY_API_URL;
+  if (!url) {
+    for (const n of graph.nodes) if (n.type === 'proposition') n.ast_validation = 'unknown';
+    return 'SYMPY_API_URL未設定: ASTは未検証です';
+  }
+  try {
+    const response = await fetch(`${url.replace(/\/$/, '')}/api/normalize_ast`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ graph }), cache: 'no-store', signal: AbortSignal.timeout(12000)
+    });
+    if (!response.ok) throw new Error(`normalizer HTTP ${response.status}`);
+    const data = await response.json() as AstNormalization;
+    const byId = new Map(data.propositions.map(p => [p.node_id, p]));
+    for (const n of graph.nodes) {
+      if (n.type !== 'proposition') continue;
+      const r = byId.get(n.id);
+      n.formula_ast = r?.formula_ast ?? null;
+      n.ast_validation = r?.status ?? 'unknown';
+      n.ast_validation_reason = r?.reason ?? null;
+    }
+    return null;
+  } catch (err: any) {
+    for (const n of graph.nodes) if (n.type === 'proposition') n.ast_validation = 'unknown';
+    return `AST正規化APIの呼び出しに失敗: ${err.message || String(err)}`;
+  }
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const answerId = searchParams.get('answerId');
-
-  if (!answerId) {
-    return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
-  }
-
+  if (!answerId) return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
   try {
-    const { data: answer, error: answerError } = await supabase
-      .from('posts')
-      .select('id, image_url, parent_id')
-      .eq('id', answerId)
-      .single();
-
+    const { data: answer, error: answerError } = await supabase.from('posts')
+      .select('id, image_url, parent_id').eq('id', answerId).single();
     if (answerError || !answer?.image_url) {
       console.error('[API Error] 答案画像URL取得失敗:', answerError);
       return NextResponse.json({ error: '答案画像URLを取得できませんでした' }, { status: 404 });
     }
-
     let problemImageUrl = answer.image_url;
     if (answer.parent_id) {
-      const { data: problem } = await supabase
-        .from('posts')
-        .select('image_url')
-        .eq('id', answer.parent_id)
-        .maybeSingle();
-
-      if (problem?.image_url) {
-        problemImageUrl = problem.image_url;
-      }
+      const { data: problem } = await supabase.from('posts').select('image_url')
+        .eq('id', answer.parent_id).maybeSingle();
+      if (problem?.image_url) problemImageUrl = problem.image_url;
     }
 
-    // キャッシュチェック（preserved と双方のバージョン情報を取得）
-    const { data: existingGraph } = await supabase
-      .from('logic_graphs')
+    // preserved=true の既存グラフは上書きしない。
+    const { data: existingGraph } = await supabase.from('logic_graphs')
       .select('graph_data, construction_process, prompt_version, theorem_version, preserved')
-      .eq('post_id', answerId)
-      .maybeSingle();
-
+      .eq('post_id', answerId).maybeSingle();
     if (existingGraph) {
-      // preserved=true のデータはバージョンにかかわらず保護する。
-      // それ以外は prompt_version と theorem_version が一致する場合のみキャッシュを返す。
-      const isVersionMatch = (
-        existingGraph.prompt_version === PROMPT_VERSION &&
-        existingGraph.theorem_version === theoremVersion
-      );
-
+      const isVersionMatch = existingGraph.prompt_version === PROMPT_VERSION &&
+        existingGraph.theorem_version === theoremVersion;
       if (existingGraph.preserved || isVersionMatch) {
         return NextResponse.json({
-          imageUrl: answer.image_url,
-          graph: existingGraph.graph_data,
+          imageUrl: answer.image_url, graph: existingGraph.graph_data,
           constructionProcess: existingGraph.construction_process,
-          metadata: {
-            promptVersion: existingGraph.prompt_version,
+          metadata: { promptVersion: existingGraph.prompt_version,
             theoremVersion: existingGraph.theorem_version,
-            cached: true,
-            preserved: existingGraph.preserved
-          }
+            cached: true, preserved: existingGraph.preserved }
         });
       }
     }
 
-    // physics.json からGemini向けcanonical定理カタログを生成する。
-    // legacy_alias のみを除外し、その他のcanonical theoremは候補に残す。
+    // Geminiには物理定理の識別用情報だけを渡す。FOL/Z3実装は渡さない。
     const geminiTheoremCatalog = (physicsData?.theorems || [])
       .filter((t: any) => t.verification_metadata?.status !== 'legacy_alias')
       .map((t: any) => {
-        const data = t.prompt_data || {};
-        return {
-          id: t.id,
-          name: t.name,
-          category: data.type || 'unknown',
-          variables: data.variables || {},
-          inputs: data.inputs || {},
-          outputs: data.outputs || {}
-        };
+        const d = t.prompt_data || {};
+        return { id: t.id, name: t.name, category: d.type || 'unknown',
+          variables: d.variables || {}, inputs: d.inputs || {}, outputs: d.outputs || {} };
       });
-
-    // Geminiへ送るカタログはcompact JSONにする。
     const theoremListString = JSON.stringify(geminiTheoremCatalog);
-
-    const [problemRes, answerRes] = await Promise.all([
-      fetch(problemImageUrl),
-      fetch(answer.image_url)
-    ]);
-
+    const [problemRes, answerRes] = await Promise.all([fetch(problemImageUrl), fetch(answer.image_url)]);
     if (!problemRes.ok || !answerRes.ok) {
-      console.error('[API Error] 画像のダウンロードに失敗しました', {
-        problemStatus: problemRes.status,
-        answerStatus: answerRes.status
-      });
-      return NextResponse.json({
-        error: '画像の取得に失敗しました',
-        details: `Problem HTTP ${problemRes.status}, Answer HTTP ${answerRes.status}`
-      }, { status: 500 });
+      return NextResponse.json({ error: '画像の取得に失敗しました',
+        details: `Problem HTTP ${problemRes.status}, Answer HTTP ${answerRes.status}` }, { status: 500 });
     }
-
+    const [problemBuffer, answerBuffer] = await Promise.all([problemRes.arrayBuffer(), answerRes.arrayBuffer()]);
+    const problemBase64 = Buffer.from(problemBuffer).toString('base64');
+    const answerBase64 = Buffer.from(answerBuffer).toString('base64');
     const problemMimeType = problemRes.headers.get('content-type') || 'image/jpeg';
     const answerMimeType = answerRes.headers.get('content-type') || 'image/jpeg';
 
-    const [problemBuffer, answerBuffer] = await Promise.all([
-      problemRes.arrayBuffer(),
-      answerRes.arrayBuffer()
-    ]);
-
-    const problemBase64 = Buffer.from(problemBuffer).toString('base64');
-    const answerBase64 = Buffer.from(answerBuffer).toString('base64');
-
-    // Geminiにはニューラル側に必要な意味情報のみを渡す。
     const semanticRoleCatalog = (physicsData?.semantic_roles?.roles || []).map((r: any) => ({
-      role_id: r.role_id,
-      description: r.description,
-      expected_sort: r.expected_sort
+      role_id: r.role_id, description: r.description, expected_sort: r.expected_sort
     }));
-    const semanticRoleCatalogString = JSON.stringify(semanticRoleCatalog);
-
     const physicalVocabularyCatalog = {
       functions: (physicsData?.physical_vocabulary?.functions || []).map((f: any) => ({
-        name: f.name,
-        args: f.args,
-        returns: f.returns,
-        meaning: f.meaning
+        name: f.name, args: f.args, returns: f.returns, meaning: f.meaning
       })),
       predicates: (physicsData?.physical_vocabulary?.predicates || []).map((p: any) => ({
-        name: p.name,
-        args: p.args,
-        meaning: p.meaning
+        name: p.name, args: p.args, meaning: p.meaning
       }))
     };
-    const physicalVocabularyCatalogString = JSON.stringify(physicalVocabularyCatalog);
 
     const promptText = `
 [役割 (Persona)]
@@ -228,6 +223,7 @@ export async function GET(request: NextRequest) {
    - inputs_usedには、その推論で実際に使われた直前の命題・与件・変数を記録してください。
    - outputs_derivedには、その推論によって新たに得られた式・関係・値を記録してください。
    - 答案に書かれていない入力や中間結果を補ってはいけません。
+   - 使用した命題node_idをinputs_used.node_ids、導出した命題node_idをoutputs_derived.node_idsへ必ず記録してください。
 
 4. 【LaTeX表現と小問の一貫性】
    - 数式を含むlabelはLaTeXで記述してください（例: $E = \\frac{1}{2}mv^2$）。
@@ -252,92 +248,62 @@ export async function GET(request: NextRequest) {
 - 定理候補の入力条件を答案・問題文から確認できない場合、適用条件を満たすと断定しないでください。DAGには確認できた式と証拠だけを記録します。
 
 [DAG contract v2.2.0]
-Graphには次のフィールドを必ず含めてください。
-- contract_version: "2.2.0"
-- nodes: ノード配列
-- edges: 有向辺配列
-- symbol_registry: この問題・答案に固有のシンボル登録簿
-- evidence_sources: 与件・答案記述の根拠一覧
-
-【ノード共通】
-- idはgraph内で一意な文字列にしてください。
-- typeはproposition / theorem / inferenceのいずれかです。
-- sub_questionは従来どおり設定してください（小問がない場合は"共通"）。
-- is_final_answerは従来どおりbooleanで設定してください。
+Graphにはcontract_version="2.2.0", nodes, edges, symbol_registry, evidence_sourcesを必ず含めてください。edgesのキーはfrom/toです。
+idは全ノードで一意、typeはproposition / theorem / inference。sub_questionを小問ごとに設定し、is_final_answerは答案上の最終答のみtrue。
 
 【propositionノード】
-- id, type, label, formula_astを含めてください。theorem_idはnullにしてください。
-- labelは答案または問題文に基づく命題の表示です。
-- formula_astは下記AST仕様に従ってください。
-- ASTへ安全に変換できない文章的命題、判読不能な式、登録語彙で表現できない内容では、formula_astをnullにしてください。未知の述語や関数を創作してはいけません。
-- validity_scopeは根拠がある場合のみ設定し、値はpointwise / throughout_motion_domain / interval / unspecifiedのいずれかです。
-- scope_evidenceは、その範囲が問題文・答案のどの記述に基づくかを示すevidence_sourcesのID配列です。根拠がなければ空配列にしてください。
-- provenanceにはsource_kindとsource_idsを記録してください。source_kindはproblem_statement / answer / derivedのいずれかです。
-- is_final_answer等の既存UIフィールドも保持してください。
+- labelは表示用の文章・LaTeXのまま正確に記録してください。
+- 数式が1つ特定できる場合、math_exprに数式部分のみをLaTeXで入れてください（両辺を含む式：例 F_{net}=-Sgx）。数式でない場合null。
+- formula_ast_jsonは任意のAI候補です。ASTを確実に書ける場合だけ、JSONオブジェクトをシリアライズした文字列を入れてください。難しい場合はnullにしてください。
+- AI候補は後でプログラムがLaTeXを独立解析し、照合します。候補のJSONを正しいと断定してはいけません。
+- validity_scopeはpointwise / throughout_motion_domain / interval / unspecified。根拠不明ならunspecified。
+- scope_evidenceはその成立範囲を裏づけるevidence_sourcesのID配列。根拠がなければ[]。
+- provenanceはsource_kind（problem_statement / answer / derived）とsource_ids（evidence_sourcesのID）を記録してください。
+- 答案が導出した式を、検証前に独立した与件として扱わないでください。
 
 【inferenceノード】
-- id, type, theorem_idを必ず含めてください。formula_astはnullにしてください。
-- label, sub_question, is_final_answer, inputs_used, outputs_derivedも従来どおり保持してください。
-- theorem_idは使用した定理カタログのIDと完全一致させてください。
-- subject_symbol_idは対象物体を答案・問題文から一意に対応づけられる場合だけ設定してください。
-- construction_processの各ステップとDAGのノード・辺は矛盾しないようにしてください。
+- label、theorem_id、inputs_used、outputs_derived、subject_symbol_idを記録してください。
+- 入力・出力のnode_idsとgraph.edgesの接続は必ず対応させてください。
+- 1つのinferenceで単振動の同定、復元力定数Kの係数比較、周期の計算をまとめないでください。答案に実際に書かれた段階を別ノードにします。
 
 【theoremノード】
-- id, type, theorem_id, label, sub_question, is_final_answerを含めてください。formula_astはnullにしてください。
-- theorem_idとlabelは定理カタログに完全一致させてください。
-- theoremノードは表示・参照用です。推論の実行対象は対応するinferenceノードのtheorem_idです。
+- id、theorem_id、labelは定理カタログのcanonical定義と一致させてください。
+- inferenceに使用したtheoremノードをtheorem→inferenceで接続してください。
 
 【symbol_registry】
-- registry_idとsymbolsを含めてください。
-- symbolsは答案・問題文中に現れる、または明示的に定義された物理量・対象物体だけを登録してください。
-- 各symbolはsymbol_id, display_name, sort, semantic_roleを含めてください。
-- sortはReal / Bool / Object / Timeから選んでください。
-- semantic_roleは、下記の許可されたrole_id、またはunresolvedを設定してください。
-- 変数名の見た目、単位、次元、式の形だけからsemantic_roleを確定してはいけません。意味が根拠から明らかな場合のみ候補を設定し、曖昧ならunresolvedにしてください。
-- 必要に応じてsubject_symbol_id, temporal_behavior, unit, physical_dimension, semantic_role_evidenceを設定してください。
-- temporal_behaviorはconstant / time_dependent / unspecifiedから選んでください。答案・問題文に根拠がなければunspecifiedです。
-- K>0、質量が正、摩擦なし等の物理的仮定をsymbol_registryへ勝手に埋め込んではいけません。明示された条件はpropositionとして記録してください。
-- symbol_idは一意にし、display_nameの一致だけで異なる記号を同一視してはいけません。
+- registry_idとsymbols配列。各symbolはsymbol_id, display_name, sort, semantic_roleを含めてください。
+- sortはReal / Bool / Object / Time。semantic_roleは許可role_idまたはunresolved。
+- roleの根拠は問題文の記載、記号の定義、検証済みの先行推論に求めてください。
+- semantic_role_evidenceには根拠となるevidence_sourcesのIDを入れてください。証拠なしなら[]。
+- たとえばxが単なる位置座標か、つりあい位置からの変位かを曖昧にしないでください。
+- 時間依存と位置依存を混同しないでください。temporal_behaviorはconstant/time_dependent/unspecifiedのみ。分からなければunspecified。
+- K>0や摩擦なし等を暗黙の前提としてsymbol_registryへ追加せず、画像に明示されていればproposition化してください。
+- 各記号のdisplay_nameはLaTeXパーサーが読める簡潔な表記を優先します。symbol_idは一意にしてください。
 
-【evidence_sources】
-- 各要素はid, source_kind, textを含めてください。
-- source_kindはproblem_statement / given_fact / derived_fact / physics_libraryから選んでください。
-- textには画像から実際に読み取れる短い根拠記述を記録してください。
-- 問題文・答案にない事実を根拠として作ってはいけません。
-- physics_libraryを使う場合は、該当する定理IDとその適用対象を明記してください。
-- evidence_sourcesのIDはgraph内で一意にしてください。
+【evidence_sourcesと循環防止】
+- id, source_kind, textを記録してください。source_kindはproblem_statement / given_fact / derived_fact / physics_library。
+- derived_factには元となるsource_node_idsを付与してください。答案自身の結論は独立した与件ではありません。
+- 今まさに検証する推論の結論を、その推論の適用条件の証拠に使用してはいけません。
+- 物理定理の利用には定理カタログのidを参照してください。問題に書いていない条件を法則から勝手に補わないでください。
 
-[formula_ast仕様]
-ASTはJSONオブジェクトで、各ノードにkindを設定してください。
+【単振動の厳密化】
+- 単振動同定は対象物体の合力F_netと、つりあい位置からの変位xi（またはx-x0）についての関係です。
+- F_net=-Kxi、K>0、運動領域全体での成立、Kの時間一定性、対象物体との対応が必要です。
+- 物理的に判定できない条件を捏造せず、scope_evidenceを具体的に記録してください。
+- 単振動定理の結論はSimpleHarmonicMotion(object)のみ。Kの係数抽出は別の代数操作、周期公式の適用は別の物理定理です。
+- 「ma=-Kx」を単振動同定定理の直接入力にしてはいけません。合力の関係を別の推論で導く必要があります。
 
-式ノード:
-- symbol: {"kind":"symbol","symbol_id":"登録済みsymbol_id"}
-- rational: {"kind":"rational","numerator":整数,"denominator":0以外の整数}
-- constant: {"kind":"constant","name":"pi"}
-- function: {"kind":"function","name":"登録済み関数名","args":[式AST...]}
-- add: {"kind":"add","args":[式AST,式AST,...]}
-- sub: {"kind":"sub","left":式AST,"right":式AST}
-- mul: {"kind":"mul","args":[式AST,式AST,...]}
-- div: {"kind":"div","numerator":式AST,"denominator":式AST}
-- pow_int: {"kind":"pow_int","base":式AST,"exponent":整数}
-- sqrt: {"kind":"sqrt","argument":式AST}
-- sin / cos: {"kind":"sin"または"cos","argument":式AST}
-
-論理式ノード:
-- eq / neq / lt / le / gt / ge: {"kind":"eq","lhs":式AST,"rhs":式AST}（kindは対応する演算子）
-- predicate: {"kind":"predicate","name":"登録済み述語名","args":[式AST...]}
-- and / or: {"kind":"and"または"or","args":[論理AST,...]}
-- not: {"kind":"not","argument":論理AST}
-
-DAGのformula_astでは、問題固有の記号は必ずsymbolノードで参照してください。parameterは定理テンプレート専用であり、DAGでは使用禁止です。variableは量化された束縛変数専用であり、通常の答案記号には使用禁止です。
-
-この段階ではformula_astを構文的に生成するだけです。物理的な意味役割、正値性、定数性、運動範囲全体での成立、定理適用の正しさを独断で証明してはいけません。
+【AIによるAST候補の書き方（任意）】
+式F_{net}=-Kxの候補:
+{"kind":"eq","lhs":{"kind":"symbol","symbol_id":"F_net"},"rhs":{"kind":"mul","args":[{"kind":"rational","numerator":-1,"denominator":1},{"kind":"symbol","symbol_id":"K"},{"kind":"symbol","symbol_id":"x"}]}}
+kindはeq/neq/lt/le/gt/ge、symbol、rational、constant、add、sub、mul、div、pow_int、sqrt、sin、cosを使用できます。
+AST候補を出すために画像に書かれていない式を補わないこと。候補がない場合、formula_ast_json=nullです。
 
 [許可された意味役割ID]
-${semanticRoleCatalogString}
+${JSON.stringify(semanticRoleCatalog)}
 
 [利用可能な物理関数・述語]
-${physicalVocabularyCatalogString}
+${JSON.stringify(physicalVocabularyCatalog)}
 
 [出力形式]
 JSONのみを出力してください。Markdownコードフェンスや説明文を付けないでください。
@@ -348,251 +314,228 @@ ${theoremListString}
 
     const response = await generateWithRetry({
       model: 'gemini-3.6-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: "【1枚目画像: 問題文】" },
-            { inlineData: { mimeType: problemMimeType, data: problemBase64 } },
-            { text: "【2枚目画像: 解答答案】" },
-            { inlineData: { mimeType: answerMimeType, data: answerBase64 } },
-            { text: promptText }
-          ]
-        }
-      ],
+      contents: [{ role: 'user', parts: [
+        { text: '【1枚目画像: 問題文】' },
+        { inlineData: { mimeType: problemMimeType, data: problemBase64 } },
+        { text: '【2枚目画像: 解答答案】' },
+        { inlineData: { mimeType: answerMimeType, data: answerBase64 } },
+        { text: promptText }
+      ] }],
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            graph: {
-              type: 'OBJECT',
-              properties: {
-                contract_version: { type: 'STRING', enum: ['2.2.0'] },
-                symbol_registry: {
-                  type: 'OBJECT',
-                  properties: {
-                    registry_id: { type: 'STRING' },
-                    symbols: {
-                      type: 'ARRAY',
-                      items: {
-                        type: 'OBJECT',
-                        properties: {
-                          symbol_id: { type: 'STRING' },
-                          display_name: { type: 'STRING' },
-                          sort: { type: 'STRING', enum: ['Real', 'Bool', 'Object', 'Time'] },
-                          semantic_role: { type: 'STRING' },
-                          subject_symbol_id: { type: 'STRING', nullable: true },
-                          temporal_behavior: { type: 'STRING', enum: ['constant', 'time_dependent', 'unspecified'], nullable: true },
-                          unit: { type: 'STRING', nullable: true },
-                          physical_dimension: { type: 'ARRAY', items: { type: 'INTEGER' }, nullable: true },
-                          semantic_role_evidence: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true }
-                        },
-                        required: ['symbol_id', 'display_name', 'sort', 'semantic_role']
-                      }
-                    }
-                  },
-                  required: ['registry_id', 'symbols']
-                },
-                evidence_sources: {
-                  type: 'ARRAY',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      id: { type: 'STRING' },
-                      source_kind: { type: 'STRING', enum: ['problem_statement', 'given_fact', 'derived_fact', 'physics_library'] },
-                      text: { type: 'STRING' }
-                    },
-                    required: ['id', 'source_kind', 'text']
-                  }
-                },
-                nodes: {
-                  type: 'ARRAY',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      id: { type: 'STRING' },
-                      type: { type: 'STRING', enum: ['proposition', 'theorem', 'inference'] },
-                      label: { type: 'STRING' },
-                      theorem_id: { type: 'STRING', nullable: true },
-                      sub_question: { type: 'STRING' },
-                      is_final_answer: { type: 'BOOLEAN' },
-                      inputs_used: { type: 'OBJECT', nullable: true },
-                      outputs_derived: { type: 'OBJECT', nullable: true },
-                      subject_symbol_id: { type: 'STRING', nullable: true },
-                      formula_ast: { type: 'OBJECT', nullable: true },
-                      validity_scope: { type: 'STRING', enum: ['pointwise', 'throughout_motion_domain', 'interval', 'unspecified'], nullable: true },
-                      scope_evidence: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
-                      provenance: {
-                        type: 'OBJECT',
-                        properties: {
-                          source_kind: { type: 'STRING', enum: ['problem_statement', 'answer', 'derived'] },
-                          source_ids: { type: 'ARRAY', items: { type: 'STRING' } }
-                        },
-                        required: ['source_kind', 'source_ids'],
-                        nullable: true
-                      }
-                    },
-                    required: ['id', 'type', 'label', 'sub_question', 'theorem_id', 'formula_ast']
-                  }
-                },
-                edges: {
-                  type: 'ARRAY',
-                  items: {
-                    type: 'OBJECT',
-                    properties: {
-                      from: { type: 'STRING' },
-                      to: { type: 'STRING' }
-                    },
-                    required: ['from', 'to']
-                  }
-                }
-              },
-              required: ['contract_version', 'symbol_registry', 'evidence_sources', 'nodes', 'edges']
-            },
-            construction_process: {
-              type: 'ARRAY',
-              items: { type: 'STRING' }
-            }
-          },
-          required: ['graph', 'construction_process']
+          type: 'OBJECT', properties: {
+            graph: { type: 'OBJECT', properties: {
+              contract_version: { type: 'STRING', enum: ['2.2.0'] },
+              symbol_registry: { type: 'OBJECT', properties: {
+                registry_id: { type: 'STRING' },
+                symbols: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
+                  symbol_id: { type: 'STRING' }, display_name: { type: 'STRING' },
+                  sort: { type: 'STRING', enum: ['Real','Bool','Object','Time'] },
+                  semantic_role: { type: 'STRING' },
+                  subject_symbol_id: { type: 'STRING', nullable: true },
+                  temporal_behavior: { type: 'STRING', enum: ['constant','time_dependent','unspecified'], nullable: true },
+                  unit: { type: 'STRING', nullable: true },
+                  physical_dimension: { type: 'ARRAY', items: { type: 'INTEGER' }, nullable: true },
+                  semantic_role_evidence: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true }
+                }, required: ['symbol_id','display_name','sort','semantic_role'] } }
+              }, required: ['registry_id','symbols'] },
+              evidence_sources: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
+                id: { type: 'STRING' },
+                source_kind: { type: 'STRING', enum: ['problem_statement','given_fact','derived_fact','physics_library'] },
+                text: { type: 'STRING' },
+                source_node_ids: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true }
+              }, required: ['id','source_kind','text'] } },
+              nodes: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
+                id: { type: 'STRING' },
+                type: { type: 'STRING', enum: ['proposition','theorem','inference'] },
+                label: { type: 'STRING' },
+                theorem_id: { type: 'STRING', nullable: true },
+                sub_question: { type: 'STRING' }, is_final_answer: { type: 'BOOLEAN' },
+                math_expr: { type: 'STRING', nullable: true },
+                formula_ast_json: { type: 'STRING', nullable: true },
+                inputs_used: { type: 'OBJECT', properties: {
+                  node_ids: { type: 'ARRAY', items: { type: 'STRING' } },
+                  expressions: { type: 'ARRAY', items: { type: 'STRING' } }
+                }, required: ['node_ids', 'expressions'], nullable: true },
+                outputs_derived: { type: 'OBJECT', properties: {
+                  node_ids: { type: 'ARRAY', items: { type: 'STRING' } },
+                  expressions: { type: 'ARRAY', items: { type: 'STRING' } }
+                }, required: ['node_ids', 'expressions'], nullable: true },
+                subject_symbol_id: { type: 'STRING', nullable: true },
+                validity_scope: { type: 'STRING', enum: ['pointwise','throughout_motion_domain','interval','unspecified'], nullable: true },
+                scope_evidence: { type: 'ARRAY', items: { type: 'STRING' }, nullable: true },
+                provenance: { type: 'OBJECT', properties: {
+                  source_kind: { type: 'STRING', enum: ['problem_statement','answer','derived'] },
+                  source_ids: { type: 'ARRAY', items: { type: 'STRING' } }
+                }, required: ['source_kind','source_ids'], nullable: true }
+              }, required: ['id','type','label','sub_question','is_final_answer','theorem_id'] } },
+              edges: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
+                from: { type: 'STRING' }, to: { type: 'STRING' }
+              }, required: ['from','to'] } }
+            }, required: ['contract_version','symbol_registry','evidence_sources','nodes','edges'] },
+            construction_process: { type: 'ARRAY', items: { type: 'STRING' } }
+          }, required: ['graph','construction_process']
         },
         temperature: 0.1,
         maxOutputTokens: 16384
       }
     });
 
-    const rawText = response.text || '';
-    let parsedData: any = null;
-
+    const rawText = response?.text || '';
+    let parsedData: any;
     let cleanText = rawText.trim();
     if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim();
     else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim();
-
     try {
       parsedData = JSON.parse(cleanText);
-    } catch (parseErr1) {
-      try {
-        const fixedText = cleanText.replace(/\\/g, '\\\\').replace(/\\\\"|\\\\'|\\\\n/g, (match) => match.substring(2));
-        parsedData = JSON.parse(fixedText);
-      } catch (parseErr2) {
-        try {
-          const repairedText = repairTruncatedJson(cleanText);
-          parsedData = JSON.parse(repairedText);
-        } catch (parseErr3) {
-          console.error('[API Error] Gemini JSON Parse 失敗:', rawText);
-          return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText: rawText }, { status: 500 });
-        }
+    } catch {
+      try { parsedData = JSON.parse(repairTruncatedJson(cleanText)); }
+      catch {
+        return NextResponse.json({ error: 'Geminiの出力データがJSONとして不適正です', rawText }, { status: 500 });
+      }
+    }
+    const graph = parsedData?.graph;
+    assertGraphShape(graph);
+    graph.contract_version = '2.2.0';
+    const theoremById = new Map<string, any>((physicsData?.theorems || []).map((t: any) => [t.id, t]));
+    const evidenceIds = new Set(graph.evidence_sources.map((x: any) => x.id));
+    const symbolIds = new Set(graph.symbol_registry.symbols.map((x: any) => x.symbol_id));
+    const allowedRoles = new Set((physicsData?.semantic_roles?.roles || []).map((r: any) => r.role_id));
+    const allowedSorts = new Set(['Real', 'Bool', 'Object', 'Time']);
+    const symbolIdList = graph.symbol_registry.symbols.map((x: any) => x.symbol_id);
+    if (symbolIds.size !== symbolIdList.length ||
+        graph.symbol_registry.symbols.some((x: any) =>
+          typeof x.symbol_id !== 'string' || !allowedSorts.has(x.sort))) {
+      throw new Error('symbol_registry のsymbol_idが重複またはsortが不正です');
+    }
+    for (const symbol of graph.symbol_registry.symbols) {
+      const rawEvidence = Array.isArray(symbol.semantic_role_evidence) ? symbol.semantic_role_evidence : [];
+      const independentEvidence = rawEvidence.filter((id: string) =>
+        evidenceIds.has(id) && graph.evidence_sources.some((e: any) =>
+          e.id === id && ['problem_statement', 'given_fact'].includes(e.source_kind)));
+      symbol.semantic_role_evidence = rawEvidence.filter((id: string) => evidenceIds.has(id));
+      if (!allowedRoles.has(symbol.semantic_role) || independentEvidence.length === 0) {
+        symbol.semantic_role = 'unresolved';
+        symbol.semantic_role_validation = 'unknown';
+      } else symbol.semantic_role_validation = 'candidate_grounded_in_given';
+    }
+    for (const ev of graph.evidence_sources) {
+      if (ev.source_kind === 'derived_fact' &&
+          (!Array.isArray(ev.source_node_ids) || ev.source_node_ids.length === 0)) {
+        ev.evidence_validation = 'unconfirmed_derived_fact';
       }
     }
 
-    // --- パース済みデータのデータ構造・文字列サニタイズ処理 ---
-    // TODO(DAG v2.2): formula_ast の再帰validatorを logic_schema.json v2.2.0 に
-    // 照らして実装する。現時点ではこのrouteでASTの意味・型安全性を保証しない。
-    if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes)) {
-      parsedData.graph.nodes = parsedData.graph.nodes.map((node: any) => {
-        if (typeof node.label === 'string') {
-          node.label = node.label.replace(/[\x00-\x1F\x7F]/g, '');
+    // 元々の行単位のノードや表示用LaTeXは維持し、検証用メタデータだけ正規化する。
+    for (const node of graph.nodes) {
+      if (typeof node.label === 'string') node.label = node.label.replace(/[\x00-\x1F\x7F]/g, '');
+      if (node.type === 'proposition') {
+        node.formula_ast = null;
+        if (typeof node.formula_ast_json === 'string') {
+          try { node.formula_ast = JSON.parse(node.formula_ast_json); } catch { node.formula_ast = null; }
         }
-
-        ['inputs_used', 'outputs_derived'].forEach((key) => {
+        delete node.formula_ast_json;
+        node.ast_validation = 'unknown';
+        if (!node.provenance || !Array.isArray(node.provenance.source_ids) ||
+            !node.provenance.source_ids.every((id: string) => evidenceIds.has(id))) {
+          node.provenance = null;
+          node.provenance_validation = 'unknown';
+        }
+        node.scope_evidence = Array.isArray(node.scope_evidence) ?
+          node.scope_evidence.filter((id: string) => evidenceIds.has(id)) : [];
+        node.validity_scope = node.validity_scope || 'unspecified';
+        if (node.validity_scope !== 'unspecified' && node.scope_evidence.length === 0) {
+          node.validity_scope = 'unspecified';
+          node.scope_validation = 'unknown';
+        }
+      } else node.formula_ast = null;
+      if (node.type === 'inference') {
+        for (const key of ['inputs_used', 'outputs_derived']) {
           if (typeof node[key] === 'string') {
-            try {
-              node[key] = JSON.parse(node[key]);
-            } catch {
-              node[key] = { value: node[key] };
-            }
+            try { node[key] = JSON.parse(node[key]); } catch { node[key] = { value: node[key] }; }
           }
-        });
-
-        return node;
-      });
-    }
-
-    // theoremノードが接続されていないinferenceに限り、代数定理ノードを補填する。
-    if (parsedData && parsedData.graph && Array.isArray(parsedData.graph.nodes) && Array.isArray(parsedData.graph.edges)) {
-      const currentNodes = [...parsedData.graph.nodes];
-      const edges = parsedData.graph.edges;
-      const additionalNodes: any[] = [];
-      let autoTheoremCount = 1;
-
-      currentNodes.forEach((node: any) => {
-        if (node.type === 'inference') {
-          const hasTheorem = edges.some((e: any) => {
-            if (e.to === node.id) {
-              const fromNode = currentNodes.find((n: any) => n.id === e.from);
-              return fromNode && fromNode.type === 'theorem';
-            }
-            return false;
-          });
-
-          if (!hasTheorem) {
-            const newTheoremId = `t_auto_${autoTheoremCount++}`;
-            node.theorem_id = 'algebraic_simplification';
-            additionalNodes.push({
-              id: newTheoremId,
-              type: 'theorem',
-              theorem_id: 'algebraic_simplification',
-              label: '代数計算・連立方程式の消去',
-              sub_question: node.sub_question || '共通',
-              is_final_answer: false
-            });
-            edges.push({ from: newTheoremId, to: node.id });
-          }
+          if (!node[key] || typeof node[key] !== 'object') node[key] = {};
+          if (!Array.isArray(node[key].node_ids)) node[key].node_ids = [];
+          if (!Array.isArray(node[key].expressions)) node[key].expressions = [];
         }
-      });
-
-      parsedData.graph.nodes = [...currentNodes, ...additionalNodes];
+        if (node.subject_symbol_id && !symbolIds.has(node.subject_symbol_id)) node.subject_symbol_id = null;
+      }
+      if (node.type === 'theorem') {
+        const t = theoremById.get(node.theorem_id);
+        if (t && t.verification_metadata?.status !== 'legacy_alias') node.label = t.name;
+      }
     }
+
+    // Existing fallback: inference without an incoming theorem gets an algebraic theorem.
+    // Preserve legacy UI behavior, but record that the ID is a fallback, not confirmed physics.
+    const currentNodes = [...graph.nodes];
+    const additionalNodes: any[] = [];
+    const usedIds = new Set(currentNodes.map((n: any) => n.id));
+    let autoTheoremCount = 1;
+    for (const node of currentNodes) {
+      if (node.type !== 'inference') continue;
+      const hasTheorem = graph.edges.some((e: any) => e.to === node.id &&
+        currentNodes.some((n: any) => n.id === e.from && n.type === 'theorem'));
+      if (hasTheorem) continue;
+      let newTheoremId = `t_auto_${autoTheoremCount++}`;
+      while (usedIds.has(newTheoremId)) newTheoremId = `t_auto_${autoTheoremCount++}`;
+      usedIds.add(newTheoremId);
+      node.theorem_id_original = node.theorem_id || null;
+      node.theorem_id = 'algebraic_simplification';
+      node.theorem_assignment = 'fallback_unconfirmed';
+      additionalNodes.push({ id: newTheoremId, type: 'theorem',
+        theorem_id: 'algebraic_simplification', label: '代数計算・連立方程式の消去',
+        sub_question: node.sub_question || '共通', is_final_answer: false, formula_ast: null });
+      graph.edges.push({ from: newTheoremId, to: node.id });
+    }
+    graph.nodes.push(...additionalNodes);
+    assertGraphShape(graph);
+    // Rebuild node references from actual edges, not from AI-provided free text.
+    // This records the dependency already present in the graph; no new step is invented.
+    const nodeById = new Map<string, any>(graph.nodes.map((n: any) => [n.id, n]));
+    for (const inf of graph.nodes.filter((n: any) => n.type === 'inference')) {
+      const inputIds = graph.edges.filter((e: any) => e.to === inf.id &&
+        nodeById.get(e.from)?.type === 'proposition').map((e: any) => e.from);
+      const outputIds = graph.edges.filter((e: any) => e.from === inf.id &&
+        nodeById.get(e.to)?.type === 'proposition').map((e: any) => e.to);
+      inf.inputs_used.node_ids = inputIds;
+      inf.outputs_derived.node_ids = outputIds;
+      inf.inputs_used.expressions = inputIds.map((id: string) =>
+        nodeById.get(id)?.math_expr || nodeById.get(id)?.label || '');
+      inf.outputs_derived.expressions = outputIds.map((id: string) =>
+        nodeById.get(id)?.math_expr || nodeById.get(id)?.label || '');
+      inf.dependency_validation = inputIds.length > 0 && outputIds.length > 0
+        ? 'connected' : 'incomplete';
+    }
+    const astWarning = await normalizePropositions(graph);
 
     let dbSaveError: any = null;
-    if (parsedData && parsedData.graph) {
-      try {
-        const { data: existing } = await supabase
-          .from('logic_graphs')
-          .select('id, preserved')
-          .eq('post_id', answerId)
-          .maybeSingle();
-
-        const payload = {
-          graph_data: parsedData.graph,
-          construction_process: parsedData.construction_process || [],
-          status: 'unverified',
-          prompt_version: PROMPT_VERSION,
-          theorem_version: theoremVersion,
-          updated_at: new Date().toISOString()
-        };
-
-        if (existing) {
-          if (existing.preserved) {
-            console.log(`[Info] post_id: ${answerId} は preserved が有効なため、更新をスキップしました。`);
-          } else {
-            const { error } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id);
-            if (error) dbSaveError = error;
-          }
-        } else {
-          const { error } = await supabase.from('logic_graphs').insert({ post_id: answerId, ...payload });
+    try {
+      const { data: existing } = await supabase.from('logic_graphs')
+        .select('id, preserved').eq('post_id', answerId).maybeSingle();
+      const payload = { graph_data: graph, construction_process: parsedData.construction_process || [],
+        status: 'unverified', prompt_version: PROMPT_VERSION, theorem_version: theoremVersion,
+        updated_at: new Date().toISOString() };
+      if (existing) {
+        if (!existing.preserved) {
+          const { error } = await supabase.from('logic_graphs').update(payload).eq('id', existing.id);
           if (error) dbSaveError = error;
         }
-      } catch (dbEx) {
-        dbSaveError = dbEx;
+      } else {
+        const { error } = await supabase.from('logic_graphs').insert({ post_id: answerId, ...payload });
+        if (error) dbSaveError = error;
       }
-    }
-
-    return NextResponse.json({
-      imageUrl: answer.image_url,
-      graph: parsedData.graph,
+    } catch (e: any) { dbSaveError = e; }
+    return NextResponse.json({ imageUrl: answer.image_url, graph,
       constructionProcess: parsedData.construction_process || [],
-      metadata: { promptVersion: PROMPT_VERSION, theoremVersion: theoremVersion, cached: false },
-      dbSaved: !dbSaveError,
-      dbError: dbSaveError ? (dbSaveError.message || String(dbSaveError)) : null
-    });
-
+      metadata: { promptVersion: PROMPT_VERSION, theoremVersion, cached: false,
+        astWarning, verifiedAstCount: graph.nodes.filter((n: any) =>
+          n.type === 'proposition' && String(n.ast_validation).startsWith('validated_by_')).length },
+      dbSaved: !dbSaveError, dbError: dbSaveError?.message || null });
   } catch (err: any) {
     console.error('[API Catch Error] 致命的エラーが発生しました:', err);
-    return NextResponse.json({
-      error: 'APIリクエストで致命的なエラーが発生しました',
-      details: err?.message || String(err)
-    }, { status: 500 });
+    return NextResponse.json({ error: 'APIリクエストで致命的なエラーが発生しました',
+      details: err?.message || String(err) }, { status: 500 });
   }
 }

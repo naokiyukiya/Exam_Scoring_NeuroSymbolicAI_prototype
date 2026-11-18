@@ -255,3 +255,347 @@ def get_next_node(req: StepByStepRequest):
 
     except Exception as e:
         return {"status": "error", "error_message": str(e)}
+
+# ================================================================
+# DAG v2.2: 安全な、追加専用の数式構造化・検証API
+# 上の既存API（相方担当を含む）の挙動は変更しない。
+# ================================================================
+from fastapi import HTTPException
+from sympy.core.relational import Relational, Equality, Unequality, StrictLessThan, LessThan, StrictGreaterThan, GreaterThan
+import re
+
+class DagAstRequest(BaseModel):
+    graph: Dict[str, Any]
+
+class AstError(ValueError):
+    pass
+
+_AST_EXPR = {'symbol','rational','constant','add','sub','mul','div','pow_int','sqrt','sin','cos'}
+_AST_REL = {'eq','neq','lt','le','gt','ge'}
+_AST_MAX_DEPTH = 48
+_AST_MAX_NODES = 1200
+
+
+def _dag_registry(graph):
+    data = graph.get('symbol_registry') or {}
+    entries = data.get('symbols') if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        raise AstError('symbol_registry.symbols must be an array')
+    result = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get('symbol_id'), str):
+            raise AstError('invalid symbol entry')
+        key = entry['symbol_id']
+        if key in result or entry.get('sort') not in ('Real','Time','Object','Bool'):
+            raise AstError('duplicated symbol_id or invalid sort')
+        result[key] = entry
+    return result
+
+
+def _validate_dag_ast(node, registry, depth=0, counter=None, logical=True):
+    if counter is None: counter = [0]
+    counter[0] += 1
+    if depth > _AST_MAX_DEPTH or counter[0] > _AST_MAX_NODES:
+        raise AstError('AST complexity limit exceeded')
+    if not isinstance(node, dict) or not isinstance(node.get('kind'), str):
+        raise AstError('missing AST kind')
+    kind = node['kind']
+    if kind in _AST_REL:
+        if not logical: raise AstError('comparison in arithmetic expression')
+        _validate_dag_ast(node.get('lhs'), registry, depth+1, counter, False)
+        _validate_dag_ast(node.get('rhs'), registry, depth+1, counter, False)
+    elif kind in _AST_EXPR:
+        if logical: raise AstError('arithmetic expression where formula expected')
+        if kind == 'symbol':
+            if node.get('symbol_id') not in registry: raise AstError('unregistered symbol')
+            if registry[node['symbol_id']]['sort'] not in ('Real','Time'):
+                raise AstError('non-numeric symbol in arithmetic')
+        elif kind == 'rational':
+            if (type(node.get('numerator')) is not int or type(node.get('denominator')) is not int
+                or node['denominator'] == 0 or abs(node['numerator']) > 10**15
+                or abs(node['denominator']) > 10**15):
+                raise AstError('invalid rational')
+        elif kind == 'constant':
+            if node.get('name') != 'pi': raise AstError('unsupported constant')
+        elif kind in ('add','mul'):
+            args = node.get('args')
+            if not isinstance(args,list) or len(args) < 2: raise AstError('invalid argument list')
+            for arg in args: _validate_dag_ast(arg, registry, depth+1, counter, False)
+        elif kind == 'sub':
+            _validate_dag_ast(node.get('left'), registry, depth+1, counter, False)
+            _validate_dag_ast(node.get('right'), registry, depth+1, counter, False)
+        elif kind == 'div':
+            _validate_dag_ast(node.get('numerator'), registry, depth+1, counter, False)
+            _validate_dag_ast(node.get('denominator'), registry, depth+1, counter, False)
+        elif kind == 'pow_int':
+            if type(node.get('exponent')) is not int or not -32 <= node['exponent'] <= 32:
+                raise AstError('unsupported exponent')
+            _validate_dag_ast(node.get('base'), registry, depth+1, counter, False)
+        else:
+            _validate_dag_ast(node.get('argument'), registry, depth+1, counter, False)
+    else:
+        raise AstError('unsupported AST kind: '+kind)
+
+
+def _ast_to_safe_sympy(node, registry):
+    kind = node['kind']
+    if kind == 'symbol': return sympy.Symbol(node['symbol_id'], real=True)
+    if kind == 'rational': return sympy.Rational(node['numerator'],node['denominator'])
+    if kind == 'constant': return sympy.pi
+    if kind == 'add': return sympy.Add(*(_ast_to_safe_sympy(a,registry) for a in node['args']))
+    if kind == 'mul': return sympy.Mul(*(_ast_to_safe_sympy(a,registry) for a in node['args']))
+    if kind == 'sub': return _ast_to_safe_sympy(node['left'],registry)-_ast_to_safe_sympy(node['right'],registry)
+    if kind == 'div': return _ast_to_safe_sympy(node['numerator'],registry)/_ast_to_safe_sympy(node['denominator'],registry)
+    if kind == 'pow_int': return _ast_to_safe_sympy(node['base'],registry)**node['exponent']
+    if kind == 'sqrt': return sympy.sqrt(_ast_to_safe_sympy(node['argument'],registry))
+    if kind == 'sin': return sympy.sin(_ast_to_safe_sympy(node['argument'],registry))
+    if kind == 'cos': return sympy.cos(_ast_to_safe_sympy(node['argument'],registry))
+    raise AstError('unsupported expression')
+
+
+def _formula_to_sympy(node, registry):
+    cls = {'eq':sympy.Eq,'neq':sympy.Ne,'lt':sympy.Lt,
+           'le':sympy.Le,'gt':sympy.Gt,'ge':sympy.Ge}[node['kind']]
+    return cls(_ast_to_safe_sympy(node['lhs'],registry), _ast_to_safe_sympy(node['rhs'],registry), evaluate=False)
+
+
+def _canonical_symbol_label(label):
+    if not isinstance(label,str): return ''
+    s=label.strip().strip('$')
+    s=re.sub(r'\\(?:mathrm|text)\{([^{}]*)\}', r'\1', s)
+    return re.sub(r'\s+', '', s)
+
+
+def _from_sympy_expr(expr, registry):
+    if expr is sympy.pi: return {'kind':'constant','name':'pi'}
+    if expr.is_Symbol:
+        name = str(expr)
+        candidates = [sid for sid, info in registry.items()
+                      if _canonical_symbol_label(info.get('display_name')) == name
+                      or _canonical_symbol_label(sid) == name]
+        if len(set(candidates)) != 1: raise AstError('ambiguous/unregistered LaTeX symbol: '+name)
+        return {'kind':'symbol','symbol_id':candidates[0]}
+    if expr.is_Integer or expr.is_Rational:
+        return {'kind':'rational','numerator':int(expr.p),'denominator':int(expr.q)}
+    if expr.is_Float:
+        exact=sympy.Rational(str(expr))
+        if abs(int(exact.p))>10**15 or abs(int(exact.q))>10**15:
+            raise AstError('decimal precision exceeds rational limit')
+        return {'kind':'rational','numerator':int(exact.p),'denominator':int(exact.q)}
+    if expr.is_Add:
+        return {'kind':'add','args':[_from_sympy_expr(x,registry) for x in expr.args]}
+    if expr.is_Mul:
+        return {'kind':'mul','args':[_from_sympy_expr(x,registry) for x in expr.args]}
+    if expr.is_Pow:
+        base, power = expr.args
+        if power == sympy.Rational(1,2):
+            return {'kind':'sqrt','argument':_from_sympy_expr(base,registry)}
+        if power.is_Integer and -32 <= int(power) <= 32:
+            return {'kind':'pow_int','base':_from_sympy_expr(base,registry),'exponent':int(power)}
+        raise AstError('unsupported fractional power')
+    if expr.func in (sympy.sin,sympy.cos):
+        return {'kind':expr.func.__name__,'argument':_from_sympy_expr(expr.args[0],registry)}
+    raise AstError('unsupported SymPy expression: '+str(expr.func))
+
+
+def _from_sympy_formula(expr, registry):
+    mapping = {Equality:'eq', Unequality:'neq', StrictLessThan:'lt', LessThan:'le',
+               StrictGreaterThan:'gt', GreaterThan:'ge'}
+    for typ, kind in mapping.items():
+        if isinstance(expr,typ):
+            return {'kind':kind,'lhs':_from_sympy_expr(expr.lhs,registry),
+                    'rhs':_from_sympy_expr(expr.rhs,registry)}
+    raise AstError('LaTeX expression is not a relation')
+
+
+def _parse_latex_formula(latex, registry):
+    # LaTeX is NOT executable Python; parse via a grammar, never eval/parse_expr.
+    from sympy.parsing.latex import parse_latex
+    if not isinstance(latex,str) or len(latex)>2000: raise AstError('invalid LaTeX length')
+    tex = latex.strip().strip('$').replace('\\left','').replace('\\right','')
+    tex = re.sub(r'\\(?:mathrm|text)\{([^{}]*)\}',r'\1',tex)
+    # SymPy 1.14 Lark grammar does not accept \pi. Use an otherwise absent
+    # Greek placeholder, then restore the exact constant after grammar parsing.
+    has_pi = r'\pi' in tex
+    if has_pi:
+        if r'\theta' in tex or r'\vartheta' in tex:
+            raise AstError('pi-placeholder collision')
+        tex = tex.replace(r'\pi', r'\vartheta')
+    parsed = parse_latex(tex,backend='lark')
+    if has_pi:
+        parsed = parsed.xreplace({sympy.Symbol('theta'): sympy.pi})
+    ast = _from_sympy_formula(parsed,registry)
+    _validate_dag_ast(ast,registry)
+    return ast
+
+
+def _compare_candidate_to_parsed(candidate, parsed, registry):
+    if candidate.get('kind') != parsed.get('kind'): return False
+    # Equality operands may be algebraically reordered. Comparing both sides
+    # individually avoids accepting multiplication by an unproven nonzero factor.
+    a=_formula_to_sympy(candidate,registry)
+    b=_formula_to_sympy(parsed,registry)
+    return bool(sympy.simplify(a.lhs-b.lhs)==0 and sympy.simplify(a.rhs-b.rhs)==0) or bool(
+        candidate['kind'] in ('eq','neq') and sympy.simplify(a.lhs-b.rhs)==0 and sympy.simplify(a.rhs-b.lhs)==0)
+
+
+@app.post('/api/normalize_ast')
+def normalize_ast(req: DagAstRequest):
+    graph=req.graph
+    try: registry=_dag_registry(graph)
+    except AstError as e: raise HTTPException(422,str(e))
+    outputs=[]
+    for node in graph.get('nodes',[]):
+        if node.get('type')!='proposition': continue
+        candidate=node.get('formula_ast')
+        latex=node.get('math_expr')
+        if not latex:
+            # Extract only a single explicitly delimited mathematical formula.
+            chunks=re.findall(r'\$([^$]+)\$',node.get('label') or '')
+            latex=chunks[0] if len(chunks)==1 else None
+        result={'node_id':node['id'],'formula_ast':None,'status':'unknown'}
+        parsed=None
+        if latex:
+            try: parsed=_parse_latex_formula(latex,registry)
+            except Exception as e: result['reason']='latex_parse_failed: '+str(e)[:180]
+        if isinstance(candidate,dict) and candidate:
+            try: _validate_dag_ast(candidate,registry)
+            except AstError as e:
+                candidate=None
+                result['reason']='AI_AST_invalid: '+str(e)
+        else: candidate=None
+        if parsed is not None and candidate is not None:
+            if _compare_candidate_to_parsed(candidate,parsed,registry):
+                result.update(formula_ast=parsed,status='validated_by_parser_and_ai')
+            else: result['reason']='latex_AST_conflict'
+        elif parsed is not None:
+            result.update(formula_ast=parsed,status='validated_by_parser')
+        elif candidate is not None:
+            # AI-only AST can be displayed, but is not promoted to a trusted solver input.
+            result.update(formula_ast=candidate,status='candidate_unconfirmed')
+        elif 'reason' not in result:
+            result['reason']='no_parseable_math'
+        outputs.append(result)
+    return {'propositions':outputs}
+
+
+def _z3_formula(expr, variables, registry):
+    import z3
+    k=expr['kind']
+    if k in _AST_REL:
+        l=_z3_expr(expr['lhs'],variables,registry)
+        r=_z3_expr(expr['rhs'],variables,registry)
+        return {'eq':lambda:l==r,'neq':lambda:l!=r,'lt':lambda:l<r,'le':lambda:l<=r,
+                'gt':lambda:l>r,'ge':lambda:l>=r}[k]()
+    raise AstError('unsupported logical formula')
+
+
+def _z3_expr(ast, variables, registry):
+    import z3
+    kind=ast['kind']
+    if kind=='symbol':
+        sid=ast['symbol_id']
+        if registry[sid]['sort']!='Real': raise AstError('not a Real symbol')
+        if sid not in variables: variables[sid]=z3.Real(sid)
+        return variables[sid]
+    if kind=='rational':return z3.RealVal(ast['numerator'])/z3.RealVal(ast['denominator'])
+    if kind=='add':return sum((_z3_expr(x,variables,registry) for x in ast['args']),z3.RealVal(0))
+    if kind=='mul':
+        v=z3.RealVal(1)
+        for x in ast['args']:v=v*_z3_expr(x,variables,registry)
+        return v
+    if kind=='sub':return _z3_expr(ast['left'],variables,registry)-_z3_expr(ast['right'],variables,registry)
+    if kind=='div':
+        # Without proof that denominator!=0, cannot soundly translate real division.
+        raise AstError('division_nonzero_condition_unproven')
+    if kind=='pow_int':
+        if ast['exponent']<0:raise AstError('negative_exponent_domain_unproven')
+        return _z3_expr(ast['base'],variables,registry)**ast['exponent']
+    raise AstError('unsupported Z3 arithmetic')
+
+
+def _prove_algebraic(premises, conclusion, registry):
+    # Only verified AST nodes reach this function. No implicit physical facts.
+    try:
+        import z3
+    except ImportError:
+        return 'unknown','z3_not_installed',None
+    variables={}
+    try:
+        ps=[_z3_formula(p,variables,registry) for p in premises]
+        c=_z3_formula(conclusion,variables,registry)
+        solver=z3.Solver()
+        solver.set(timeout=2500)
+        solver.add(*ps)
+        check=solver.check()
+        if check==z3.unsat: return 'unknown','inconsistent_premises',None
+        if check!=z3.sat: return 'unknown','premise_satisfiability_unknown',None
+        solver.push()
+        solver.add(z3.Not(c))
+        counter=solver.check()
+        counterexample=str(solver.model())[:1000] if counter==z3.sat else None
+        solver.pop()
+        if counter==z3.unsat:return 'valid','entailment_proved',None
+        if counter!=z3.sat:return 'unknown','z3_unknown',None
+        solver.push()
+        solver.add(c)
+        satisfies=solver.check()
+        solver.pop()
+        if satisfies==z3.unsat:
+            return 'invalid','conclusion_contradicts_premises',counterexample
+        # Both the conclusion and its negation are consistent with the premises.
+        # The graph lacks information; do not blame the student for that.
+        return 'unknown','non_entailment_without_contradiction',counterexample
+    except Exception as e:
+        return 'unknown','unsupported_or_solver_error: '+str(e)[:160],None
+
+
+@app.post('/api/verify_ast')
+def verify_ast(req: DagAstRequest):
+    graph=req.graph
+    try: registry=_dag_registry(graph)
+    except AstError as e: raise HTTPException(422,str(e))
+    nodes=graph.get('nodes')
+    edges=graph.get('edges')
+    if not isinstance(nodes,list) or not isinstance(edges,list):raise HTTPException(422,'nodes/edges arrays required')
+    id_map={}
+    for node in nodes:
+        if not isinstance(node,dict) or not isinstance(node.get('id'),str) or node['id'] in id_map:
+            raise HTTPException(422,'invalid or duplicate DAG node id')
+        id_map[node['id']]=node
+    incoming={}
+    outgoing={}
+    for edge in edges:
+        if edge.get('from') not in id_map or edge.get('to') not in id_map:
+            raise HTTPException(422,'unknown graph endpoint')
+        incoming.setdefault(edge['to'],[]).append(edge['from'])
+        outgoing.setdefault(edge['from'],[]).append(edge['to'])
+    evidence=graph.get('evidence_sources') or []
+    # Evidence (including a student's unverified conclusion) is never automatically
+    # promoted to a solver premise: only explicit incoming proposition edges count.
+    results=[]
+    for node in nodes:
+        if node.get('type')!='inference':continue
+        src=[id_map[x] for x in incoming.get(node['id'],[]) if id_map[x].get('type')=='proposition']
+        dst=[id_map[x] for x in outgoing.get(node['id'],[]) if id_map[x].get('type')=='proposition']
+        status='unknown';reason='not_enough_verified_premises';counter=None
+        theorem_id=node.get('theorem_id')
+        if len(src)<1 or len(dst)!=1:
+            reason='expected_at_least_one_input_and_one_output_proposition'
+        elif theorem_id!='algebraic_simplification':
+            # Formal physics rules require theorem-specific applicability checks.
+            # A mere algebraic identity never establishes their physical validity.
+            reason='physics_applicability_not_implemented'
+        elif any(p.get('ast_validation') not in ('validated_by_parser','validated_by_parser_and_ai') for p in src+dst):
+            reason='unconfirmed_AST'
+        else:
+            try:
+                asts=[p.get('formula_ast') for p in src+dst]
+                for ast in asts:_validate_dag_ast(ast,registry)
+                status,reason,counter=_prove_algebraic(asts[:-1],asts[-1],registry)
+            except Exception as e:reason='AST_validation_error: '+str(e)[:160]
+        results.append({'node_id':node['id'],'status':status,'reason':reason,
+                        'counterexample':counter,'theorem_id':theorem_id})
+    return {'inferences':results,'status':('invalid' if any(x['status']=='invalid' for x in results)
+            else 'unknown' if any(x['status']=='unknown' for x in results) else 'valid'),
+            'engine':'formal_ast_v1'}

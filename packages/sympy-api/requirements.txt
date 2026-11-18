@@ -1,3 +1,5 @@
 fastapi
 uvicorn
 sympy
+lark
+z3-solver
