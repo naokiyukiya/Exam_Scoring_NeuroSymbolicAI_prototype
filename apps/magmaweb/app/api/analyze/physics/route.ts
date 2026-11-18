@@ -3,11 +3,13 @@ import { GoogleGenAI } from '@google/genai';
 import { supabase } from '../../../../lib/supabase';
 import physicsLibrary from '../../../../lib/constants/physics.json';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const physicsData: any = physicsLibrary;
 const theoremVersion = physicsData?.version || '2.4.2';
-const PROMPT_VERSION = `${theoremVersion}_dag_v2_2_hybrid_ast_evidence_v2`;
+const PROMPT_VERSION = `${theoremVersion}_dag_v2_2_hybrid_ast_evidence_v2_gemini38_low`;
+const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_THINKING_LEVEL = 'LOW' as const;
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 type AstNormalization = {
@@ -134,6 +136,24 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const answerId = searchParams.get('answerId');
   if (!answerId) return NextResponse.json({ error: 'Missing answerId' }, { status: 400 });
+
+  // 計測単位はミリ秒。モデル入力・答案・URL・APIキーなどの内容は記録しない。
+  const requestId = crypto.randomUUID();
+  const requestStartedAt = performance.now();
+  let previousStageAt = requestStartedAt;
+  const logStage = (stage: string, details: Record<string, string | number | boolean | null> = {}) => {
+    const now = performance.now();
+    console.info('[PhysicsAnalyzeTiming]', JSON.stringify({
+      requestId,
+      stage,
+      elapsedMs: Math.round(now - requestStartedAt),
+      stepMs: Math.round(now - previousStageAt),
+      ...details
+    }));
+    previousStageAt = now;
+  };
+  logStage('request_started', { model: GEMINI_MODEL, thinkingLevel: GEMINI_THINKING_LEVEL });
+
   try {
     const { data: answer, error: answerError } = await supabase.from('posts')
       .select('id, image_url, parent_id').eq('id', answerId).single();
@@ -156,6 +176,7 @@ export async function GET(request: NextRequest) {
       const isVersionMatch = existingGraph.prompt_version === PROMPT_VERSION &&
         existingGraph.theorem_version === theoremVersion;
       if (existingGraph.preserved || isVersionMatch) {
+        logStage('cache_hit', { preserved: Boolean(existingGraph.preserved) });
         return NextResponse.json({
           imageUrl: answer.image_url, graph: existingGraph.graph_data,
           constructionProcess: existingGraph.construction_process,
@@ -185,6 +206,7 @@ export async function GET(request: NextRequest) {
     const answerBase64 = Buffer.from(answerBuffer).toString('base64');
     const problemMimeType = problemRes.headers.get('content-type') || 'image/jpeg';
     const answerMimeType = answerRes.headers.get('content-type') || 'image/jpeg';
+    logStage('images_ready', { problemBytes: problemBuffer.byteLength, answerBytes: answerBuffer.byteLength });
 
     const semanticRoleCatalog = (physicsData?.semantic_roles?.roles || []).map((r: any) => ({
       role_id: r.role_id, description: r.description, expected_sort: r.expected_sort
@@ -312,8 +334,9 @@ JSONのみを出力してください。Markdownコードフェンスや説明�
 ${theoremListString}
 `.trim();
 
+    logStage('gemini_call_started', { model: GEMINI_MODEL, thinkingLevel: GEMINI_THINKING_LEVEL });
     const response = await generateWithRetry({
-      model: 'gemini-3.6-flash',
+      model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [
         { text: '【1枚目画像: 問題文】' },
         { inlineData: { mimeType: problemMimeType, data: problemBase64 } },
@@ -378,8 +401,16 @@ ${theoremListString}
           }, required: ['graph','construction_process']
         },
         temperature: 0.1,
-        maxOutputTokens: 16384
+        maxOutputTokens: 16384,
+        thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL }
       }
+    });
+
+    logStage('gemini_response_received', {
+      responseCharacters: response?.text?.length ?? 0,
+      promptTokenCount: response?.usageMetadata?.promptTokenCount ?? null,
+      candidatesTokenCount: response?.usageMetadata?.candidatesTokenCount ?? null,
+      thoughtsTokenCount: response?.usageMetadata?.thoughtsTokenCount ?? null
     });
 
     const rawText = response?.text || '';
@@ -508,7 +539,17 @@ ${theoremListString}
       inf.dependency_validation = inputIds.length > 0 && outputIds.length > 0
         ? 'connected' : 'incomplete';
     }
+    logStage('dag_validated_and_formatted', {
+      nodeCount: graph.nodes.length,
+      edgeCount: graph.edges.length,
+      propositionCount: graph.nodes.filter((n: any) => n.type === 'proposition').length
+    });
     const astWarning = await normalizePropositions(graph);
+    logStage('ast_normalization_completed', {
+      astWarning: Boolean(astWarning),
+      verifiedAstCount: graph.nodes.filter((n: any) =>
+        n.type === 'proposition' && String(n.ast_validation).startsWith('validated_by_')).length
+    });
 
     let dbSaveError: any = null;
     try {
@@ -527,6 +568,7 @@ ${theoremListString}
         if (error) dbSaveError = error;
       }
     } catch (e: any) { dbSaveError = e; }
+    logStage('supabase_save_completed', { saved: !dbSaveError, dbError: Boolean(dbSaveError) });
     return NextResponse.json({ imageUrl: answer.image_url, graph,
       constructionProcess: parsedData.construction_process || [],
       metadata: { promptVersion: PROMPT_VERSION, theoremVersion, cached: false,
@@ -534,6 +576,7 @@ ${theoremListString}
           n.type === 'proposition' && String(n.ast_validation).startsWith('validated_by_')).length },
       dbSaved: !dbSaveError, dbError: dbSaveError?.message || null });
   } catch (err: any) {
+    logStage('request_failed', { errorType: err?.name || 'Error' });
     console.error('[API Catch Error] 致命的エラーが発生しました:', err);
     return NextResponse.json({ error: 'APIリクエストで致命的なエラーが発生しました',
       details: err?.message || String(err) }, { status: 500 });
